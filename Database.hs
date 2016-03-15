@@ -1,81 +1,132 @@
-{-# LANGUAGE TypeFamilies, DeriveDataTypeable, TemplateHaskell #-}
+{-# LANGUAGE EmptyDataDecls             #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE GADTs                      #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE QuasiQuotes                #-}
+{-# LANGUAGE TemplateHaskell            #-}
+{-# LANGUAGE TypeFamilies               #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 module Database where
 
-import Data.Acid
-
-import Control.Monad.State                   ( get, put )
-import Control.Monad.Reader                  ( ask )
-import Control.Applicative                   ( (<$>) )
-import System.Environment                    ( getArgs )
-import Data.SafeCopy
+import Control.Monad
 import Data.Generics
-import Data.List
+--import Data.List
+import Data.Maybe
 import Data.Dates
+import Data.Time
+
+import           Control.Monad.IO.Class  (liftIO)
+import           Database.Persist
+import           Database.Persist.Sqlite
+import           Database.Persist.TH
+import qualified Database.Esqueleto as E
+import Database.Esqueleto ((^.))
 
 import Types
-import Schedule
 
-data Database = Database [Queue]
-  deriving (Eq, Show, Data, Typeable)
+share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
+JobParam
+  jobId JobId
+  name String
+  value String
+  UniqParam jobId name
 
-deriveSafeCopy 0 'base ''Error
-deriveSafeCopy 0 'base ''Time
-deriveSafeCopy 0 'base ''WeekDay
-deriveSafeCopy 0 'base ''TimePeriod
-deriveSafeCopy 0 'base ''Schedule
-deriveSafeCopy 0 'base ''Job
-deriveSafeCopy 0 'base ''Queue
-deriveSafeCopy 0 'base ''Database
+Job
+  type String
+  queueId QueueId
+  seq Int
+  UniqJobSeq queueId seq
 
-addQueue :: Queue -> Update Database (Result ())
-addQueue q = do
-  Database qs <- get
-  let existingNames = map queueName qs
-  if queueName q `elem` existingNames
-    then throwR QueueExists
-    else do
-         put $ Database $ q : qs
-         done
+Queue
+  name String
+  scheduleId ScheduleId
+  UniqQueue name
 
-getQueue :: String -> Query Database (Maybe Queue)
-getQueue name = do
-  Database qs <- ask
-  let lst = [q | q <- qs, queueName q == name]
-  case lst of
-    (q:_) -> return $ Just q
-    _ -> return Nothing
+Schedule
+  name String
 
-getAllQueues :: Query Database [Queue]
-getAllQueues = do
-  Database qs <- ask
-  return qs
+ScheduleTime
+  scheduleId ScheduleId
+  begin TimeOfDay
+  end TimeOfDay
 
-deleteQueue :: String -> Bool -> Update Database (Result ())
+ScheduleWeekDay
+  scheduleId ScheduleId
+  weekDay WeekDay
+|]
+
+deriving instance Eq ScheduleTime
+deriving instance Show ScheduleTime
+
+data JobInfo = JobInfo {
+    jiJob :: Job,
+    jiParams :: [JobParam]
+  }
+
+loadJob :: Key Job -> DB JobInfo
+loadJob jid = do
+  mbJob <- get jid
+  case mbJob of
+    Nothing -> throwR JobNotExists
+    Just j -> do
+      ps <- selectList [JobParamJobId ==. jid] []
+      let params = map entityVal ps
+      return $ JobInfo j params
+
+getAllQueues :: DB [Entity Queue]
+getAllQueues = selectList [] []
+
+getAllJobs :: Key Queue -> DB [Entity Job]
+getAllJobs qid = selectList [JobQueueId ==. qid] [Asc JobSeq]
+
+equals = (E.==.)
+infix 4 `equals`
+
+getLastJobSeq :: Key Queue -> DB Int
+getLastJobSeq qid = do
+  lst <- E.select $
+         E.from $ \job -> do
+         E.where_ (job ^. JobQueueId `equals` E.val qid)
+         return $ E.max_ (job ^. JobSeq)
+  case map E.unValue lst of
+    (Just r:_) -> return r
+    _ -> return 0
+
+deleteQueue :: String -> Bool -> DB ()
 deleteQueue name forced = do
-  Database qs <- get
-  let existingNames = map queueName qs
-  if name `elem` existingNames
-    then do
-         let ([toDelete], other) = partition (\q -> queueName q == name) qs
-         if null (queueJobs toDelete) || forced
-           then do
-                put $ Database other
-                done
-           else throwR QueueNotEmpty
-    else throwR QueueNotExists
-  
-updateQueue :: String -> (Queue -> Queue) -> Update Database (Result ())
-updateQueue name fn = do
-  Database qs <- get
-  let (that, other) = partition (\q -> queueName q == name) qs
-  case that of
-    (q:_) -> do
-             put $ Database $ fn q : other
-             done
-    _ -> throwR QueueNotExists
+  mbQueue <- getBy (UniqQueue name)
+  case mbQueue of
+    Nothing -> throwR QueueNotExists
+    Just qe -> do
+      js <- selectFirst [JobQueueId ==. entityKey qe] []
+      if isNothing js || forced
+        then delete (entityKey qe)
+        else throwR QueueNotEmpty
 
-enqueue :: String -> Job -> Update Database (Result ())
-enqueue name job = updateQueue name (\q -> q {queueJobs = queueJobs q ++ [job]})
+addQueue :: String -> Key Schedule -> DB (Key Queue)
+addQueue name scheduleId = do
+  r <- insertUnique $ Queue name scheduleId
+  case r of
+    Just qid -> return qid
+    Nothing -> throwR QueueExists
 
-makeAcidic ''Database ['addQueue, 'getQueue, 'deleteQueue, 'getAllQueues, 'enqueue]
+getQueue :: String -> DB (Maybe (Entity Queue))
+getQueue name = getBy (UniqQueue name)
+
+enqueue :: String -> JobInfo -> DB (Key Job)
+enqueue qname jinfo = do
+  mbQueue <- getQueue qname
+  case mbQueue of
+    Nothing -> throwR QueueNotExists
+    Just qe -> do
+      seq <- getLastJobSeq (entityKey qe)
+      let job = (jiJob jinfo) {jobQueueId = entityKey qe, jobSeq = seq+1}
+      jid <- insert job
+      forM_ (jiParams jinfo) $ \param -> do
+        let param' = param {jobParamJobId = jid}
+        insert_ param'
+      return jid
 

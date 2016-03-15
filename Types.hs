@@ -1,11 +1,17 @@
-{-# LANGUAGE DeriveDataTypeable, ScopedTypeVariables #-}
+{-# LANGUAGE DeriveDataTypeable, ScopedTypeVariables, TemplateHaskell #-}
 
 module Types where
 
+import Control.Monad.Reader
+import Control.Monad.Except
+import Control.Monad.Logger
+import Control.Monad.Trans.Resource
 import qualified Data.Map as M
 import Data.Generics
-
-import Schedule
+import Data.Dates
+import Database.Persist
+import Database.Persist.TH
+import Database.Persist.Sql
 
 data ParamType =
     StringParam
@@ -13,38 +19,27 @@ data ParamType =
   | FileParam
   deriving (Eq, Show, Data, Typeable)
 
-data Job = Job {
-    jobTypeName :: String
-  , jobParams :: M.Map String String
-  }
-  deriving (Eq, Show, Data, Typeable)
-
-data Queue = Queue {
-    queueName :: String
-  , queueSchedule :: Schedule
-  , queueJobs :: [Job]
-  }
-  deriving (Eq, Show, Data, Typeable)
-
-data JobType = JobType {
-    jtName :: String
-  , jtTemplate :: String
-  , jtParams :: M.Map String ParamType
-  }
-  deriving (Eq, Show, Data, Typeable)
-
 data Error =
     QueueExists
   | QueueNotExists
   | QueueNotEmpty
+  | JobNotExists
   deriving (Eq, Show, Data, Typeable)
 
-type Result a = Either Error a
+type Result a = ExceptT Error IO a
 
-throwR :: forall m a. (Monad m) => Error -> m (Result a)
-throwR ex = return $ Left ex
+derivePersistField "WeekDay"
 
-done :: Monad m => m (Result ())
-done = return $ Right ()
+type DB a = ReaderT SqlBackend (ExceptT Error (NoLoggingT (ResourceT IO))) a
+type DBIO a = ReaderT SqlBackend (NoLoggingT (ResourceT IO)) a
 
+throwR :: Error -> DB a
+throwR ex = lift $ throwError ex
 
+dbio :: DB () -> DBIO ()
+dbio action = do
+  backend <- ask
+  x <- lift $ runExceptT $ runReaderT action backend
+  case x of
+    Left err -> liftIO $ print err
+    Right r -> return r
