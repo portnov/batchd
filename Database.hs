@@ -52,27 +52,30 @@ JobParam
 
 Job
   type String
-  queueId QueueId
+  queueName String
   seq Int
   status JobStatus default=New
-  UniqJobSeq queueId seq
+  UniqJobSeq queueName seq
 
 Queue
   name String
-  scheduleId ScheduleId
-  UniqQueue name
+  scheduleName String
+  Primary name
 
 Schedule
   name String
+  Primary name
 
 ScheduleTime
-  scheduleId ScheduleId
+  scheduleName String
   begin TimeOfDay
   end TimeOfDay
+  Foreign Schedule schedule scheduleName
 
 ScheduleWeekDay
-  scheduleId ScheduleId
+  scheduleName String
   weekDay WeekDay
+  Foreign Schedule schedule scheduleName
 |]
 
 deriving instance Eq ScheduleTime
@@ -121,18 +124,15 @@ loadJob jid = do
 getAllQueues :: DB [Entity Queue]
 getAllQueues = selectList [] []
 
-getAllJobs :: Key Queue -> DB [Entity Job]
-getAllJobs qid = selectList [JobQueueId ==. qid] [Asc JobSeq]
+getAllJobs :: String -> DB [Entity Job]
+getAllJobs qid = selectList [JobQueueName ==. qid] [Asc JobSeq]
 
 getJobs :: String -> Maybe JobStatus -> DB [Entity Job]
 getJobs qname mbStatus = do
   let filt = case mbStatus of
                Nothing -> []
                Just status -> [JobStatus ==. status]
-  qr <- getQueue qname
-  case qr of
-    Nothing -> throwR QueueNotExists
-    Just qe -> selectList ([JobQueueId ==. entityKey qe] ++ filt) [Asc JobSeq]
+  selectList ([JobQueueName ==. qname] ++ filt) [Asc JobSeq]
 
 loadJobs :: String -> Maybe JobStatus -> DB [JobInfo]
 loadJobs qname mbStatus = do
@@ -143,11 +143,11 @@ loadJobs qname mbStatus = do
 equals = (E.==.)
 infix 4 `equals`
 
-getLastJobSeq :: Key Queue -> DB Int
+getLastJobSeq :: String -> DB Int
 getLastJobSeq qid = do
   lst <- E.select $
          E.from $ \job -> do
-         E.where_ (job ^. JobQueueId `equals` E.val qid)
+         E.where_ (job ^. JobQueueName `equals` E.val qid)
          return $ E.max_ (job ^. JobSeq)
   case map E.unValue lst of
     (Just r:_) -> return r
@@ -155,24 +155,24 @@ getLastJobSeq qid = do
 
 deleteQueue :: String -> Bool -> DB ()
 deleteQueue name forced = do
-  mbQueue <- getBy (UniqQueue name)
+  mbQueue <- get (QueueKey name)
   case mbQueue of
     Nothing -> throwR QueueNotExists
     Just qe -> do
-      js <- selectFirst [JobQueueId ==. entityKey qe] []
+      js <- selectFirst [JobQueueName ==. name] []
       if isNothing js || forced
-        then delete (entityKey qe)
+        then delete (QueueKey name)
         else throwR QueueNotEmpty
 
-addQueue :: String -> Key Schedule -> DB (Key Queue)
+addQueue :: String -> String -> DB (Key Queue)
 addQueue name scheduleId = do
   r <- insertUnique $ Queue name scheduleId
   case r of
     Just qid -> return qid
     Nothing -> throwR QueueExists
 
-getQueue :: String -> DB (Maybe (Entity Queue))
-getQueue name = getBy (UniqQueue name)
+getQueue :: String -> DB (Maybe Queue)
+getQueue name = get (QueueKey name)
 
 enqueue :: String -> JobInfo -> DB (Key Job)
 enqueue qname jinfo = do
@@ -180,8 +180,8 @@ enqueue qname jinfo = do
   case mbQueue of
     Nothing -> throwR QueueNotExists
     Just qe -> do
-      seq <- getLastJobSeq (entityKey qe)
-      let job = Job (jiType jinfo) (entityKey qe) (seq+1) (jiStatus jinfo)
+      seq <- getLastJobSeq qname
+      let job = Job (jiType jinfo) qname (seq+1) (jiStatus jinfo)
       jid <- insert job
       forM_ (M.assocs $ jiParams jinfo) $ \(name,value) -> do
         let param = JobParam jid name value
@@ -190,9 +190,5 @@ enqueue qname jinfo = do
 
 removeJob :: String -> Int -> DB ()
 removeJob qname jseq = do
-  mbQueue <- getQueue qname
-  case mbQueue of
-    Nothing -> throwR QueueNotExists
-    Just qe -> do
-      deleteBy $ UniqJobSeq (entityKey qe) jseq
+    deleteBy $ UniqJobSeq qname jseq
 

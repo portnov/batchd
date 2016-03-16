@@ -68,16 +68,16 @@ allows (ScheduleInfo {..}) dt = weekdayOk && timeOk
     goodTime (Period {..}) = 
                   getTime dt > periodBegin && getTime dt <= periodEnd
 
-loadSchedule :: Key Schedule -> DB ScheduleInfo
+loadSchedule :: String -> DB ScheduleInfo
 loadSchedule scheduleId = do
-  mbSchedule <- get scheduleId
+  mbSchedule <- get (ScheduleKey scheduleId)
   case mbSchedule of
     Nothing -> fail "No such schedule"
     Just s -> do
       let name = scheduleName s
-      ts <- selectList [ScheduleTimeScheduleId ==. scheduleId] []
+      ts <- selectList [ScheduleTimeScheduleName ==. scheduleId] []
       let times = map (toPeriod . entityVal) ts
-      ws <- selectList [ScheduleWeekDayScheduleId ==. scheduleId] []
+      ws <- selectList [ScheduleWeekDayScheduleName ==. scheduleId] []
       let weekdays = map (scheduleWeekDayWeekDay . entityVal) ws
       return $ ScheduleInfo {
                  sName = name,
@@ -85,9 +85,9 @@ loadSchedule scheduleId = do
                  sTime = if null times then Nothing else Just times
                }
         
-addSchedule :: ScheduleInfo -> DB (Key Schedule)
+addSchedule :: ScheduleInfo -> DB String
 addSchedule si = do
-  sid <- insert $ Schedule (sName si)
+  ScheduleKey sid <- insert $ Schedule (sName si)
   case sWeekdays si of
     Nothing -> return ()
     Just weekdays ->
@@ -104,5 +104,5 @@ addSchedule si = do
 loadAllSchedules :: DB [ScheduleInfo]
 loadAllSchedules = do
   sids <- selectKeysList [] []
-  forM sids $ \sid -> loadSchedule sid
+  forM sids $ \(ScheduleKey sid) -> loadSchedule sid
 

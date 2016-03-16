@@ -97,6 +97,3 @@ getSchedulesA :: Action ()
 getSchedulesA = do
   ss <- runDB loadAllSchedules
   Scotty.json ss
-
-addScheduleA :: Action ()
-addScheduleA = do
