@@ -91,9 +91,8 @@ data JobInfo = JobInfo {
   }
   deriving (Generic)
 
-
 instance ToJSON JobInfo where
-  toJSON = genericToJSON (defaultOptions {fieldLabelModifier = camelCaseToUnderscore . stripPrefix "ji"})
+  toJSON = genericToJSON (jsonOptions "ji")
 
 instance FromJSON JobInfo where
   parseJSON (Object v) =
@@ -104,12 +103,13 @@ instance FromJSON JobInfo where
       <*> v .:? "params" .!= M.empty
   parseJSON invalid = typeMismatch "job" invalid
 
--- instance FromJSON JobParamInfo where
---   parseJSON (Object v) = do
---     let lst = H.toList v
---         lst' = [(T.unpack k, T.unpack v) | (k,v) <- lst]
---     return $ M.fromList lst'
---   parseJSON invalid = typeMismatch "job param" invalid
+deriving instance Generic Queue
+
+instance ToJSON Queue where
+  toJSON = genericToJSON (jsonOptions "queue")
+
+instance FromJSON Queue where
+  parseJSON = genericParseJSON (jsonOptions "queue")
 
 loadJob :: Key Job -> DB JobInfo
 loadJob jid = do
@@ -124,6 +124,9 @@ loadJob jid = do
 getAllQueues :: DB [Entity Queue]
 getAllQueues = selectList [] []
 
+getAllQueues' :: DB [Queue]
+getAllQueues' = map entityVal `fmap` selectList [] []
+
 getAllJobs :: String -> DB [Entity Job]
 getAllJobs qid = selectList [JobQueueName ==. qid] [Asc JobSeq]
 
@@ -136,9 +139,13 @@ getJobs qname mbStatus = do
 
 loadJobs :: String -> Maybe JobStatus -> DB [JobInfo]
 loadJobs qname mbStatus = do
-  jes <- getJobs qname mbStatus
-  forM jes $ \je -> do
-    loadJob (entityKey je)
+  mbQ <- getQueue qname
+  case mbQ of
+    Nothing -> throwR QueueNotExists
+    Just _ -> do
+        jes <- getJobs qname mbStatus
+        forM jes $ \je -> do
+          loadJob (entityKey je)
 
 equals = (E.==.)
 infix 4 `equals`
@@ -164,8 +171,11 @@ deleteQueue name forced = do
         then delete (QueueKey name)
         else throwR QueueNotEmpty
 
-addQueue :: String -> String -> DB (Key Queue)
-addQueue name scheduleId = do
+addQueue :: Queue -> DB (Key Queue)
+addQueue q = insert q
+
+addQueue' :: String -> String -> DB (Key Queue)
+addQueue' name scheduleId = do
   r <- insertUnique $ Queue name scheduleId
   case r of
     Just qid -> return qid

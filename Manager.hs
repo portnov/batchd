@@ -39,10 +39,14 @@ application = do
   -- runDB (Sql.runMigration migrateAll)
   Scotty.get "/queues" getQueuesA
   Scotty.get "/queue/:name" getQueueA
+  Scotty.put "/queues" addQueueA
+
   Scotty.put "/queue/:name" enqueueA
   Scotty.delete "/queue/:name/:seq" removeJobA
   Scotty.delete "/queue/:name" removeQueueA
+
   Scotty.get "/schedules" getSchedulesA
+  Scotty.put "/schedules" addScheduleA
 
 manager :: IO ()
 manager = do
@@ -52,9 +56,9 @@ manager = do
 
 getQueuesA :: Action ()
 getQueuesA = do
-  qes <- runDB getAllQueues
-  let qnames = map (queueName . entityVal) qes
-  Scotty.json qnames
+  qes <- runDB getAllQueues'
+  -- let qnames = map (queueName . entityVal) qes
+  Scotty.json qes
 
 getQueueA :: Action ()
 getQueueA = do
@@ -97,3 +101,16 @@ getSchedulesA :: Action ()
 getSchedulesA = do
   ss <- runDB loadAllSchedules
   Scotty.json ss
+
+addScheduleA :: Action ()
+addScheduleA = do
+  sd <- jsonData
+  name <- runDB $ addSchedule sd
+  Scotty.json name
+
+addQueueA :: Action ()
+addQueueA = do
+  qd <- jsonData
+  name <- runDB $ addQueue qd
+  Scotty.json name
+
