@@ -36,6 +36,7 @@ application = do
   -- runDB (Sql.runMigration migrateAll)
   Scotty.get "/queues" getQueuesA
   Scotty.get "/queue/:name" getQueueA
+  Scotty.put "/queue/:name" enqueueA
 
 manager :: IO ()
 manager = do
@@ -55,4 +56,10 @@ getQueueA = do
   jobs <- runDB $ loadJobs qname (Just New)
   Scotty.json jobs
 
+enqueueA :: Action ()
+enqueueA = do
+  jinfo <- jsonData
+  qname <- Scotty.param "name"
+  r <- runDB $ enqueue qname jinfo
+  Scotty.json r
 
