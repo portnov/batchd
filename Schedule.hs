@@ -1,13 +1,16 @@
-{-# LANGUAGE DeriveDataTypeable, StandaloneDeriving, RecordWildCards #-}
+{-# LANGUAGE DeriveDataTypeable, StandaloneDeriving, RecordWildCards, DeriveGeneric #-}
 
 module Schedule where
 
+import GHC.Generics
 import Control.Monad.Reader
 import Data.Dates
 import Data.Time
-import Data.Generics
+import Data.Generics hiding (Generic)
 import Database.Persist
 import Database.Persist.Sql
+import Data.Aeson
+import Data.Aeson.Types
 
 import Types
 import Database
@@ -15,13 +18,35 @@ import Database
 -- deriving instance Typeable Time
 -- deriving instance Data Time
 
+data Period =
+  Period {
+    periodBegin :: TimeOfDay,
+    periodEnd :: TimeOfDay
+  }
+  deriving (Eq, Show, Generic)
+
+toPeriod :: ScheduleTime -> Period
+toPeriod (ScheduleTime {..}) = Period scheduleTimeBegin scheduleTimeEnd
+
+instance ToJSON Period where
+  toJSON = genericToJSON (jsonOptions "period")
+
+instance FromJSON Period where
+  parseJSON = genericParseJSON (jsonOptions "period")
+
 data ScheduleInfo =
   ScheduleInfo {
     sName :: String
   , sWeekdays :: Maybe [WeekDay]
-  , sTime :: Maybe [ScheduleTime]
+  , sTime :: Maybe [Period]
   }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
+
+instance ToJSON ScheduleInfo where
+  toJSON = genericToJSON (jsonOptions "s")
+
+instance FromJSON ScheduleInfo where
+  parseJSON = genericParseJSON (jsonOptions "s")
 
 anytime :: ScheduleInfo
 anytime = ScheduleInfo "anytime" Nothing Nothing
@@ -40,8 +65,8 @@ allows (ScheduleInfo {..}) dt = weekdayOk && timeOk
                Nothing -> True
                Just lst -> any goodTime lst
 
-    goodTime (ScheduleTime {..}) = 
-                  getTime dt > scheduleTimeBegin && getTime dt <= scheduleTimeEnd
+    goodTime (Period {..}) = 
+                  getTime dt > periodBegin && getTime dt <= periodEnd
 
 loadSchedule :: Key Schedule -> DB ScheduleInfo
 loadSchedule scheduleId = do
@@ -51,7 +76,7 @@ loadSchedule scheduleId = do
     Just s -> do
       let name = scheduleName s
       ts <- selectList [ScheduleTimeScheduleId ==. scheduleId] []
-      let times = map entityVal ts
+      let times = map (toPeriod . entityVal) ts
       ws <- selectList [ScheduleWeekDayScheduleId ==. scheduleId] []
       let weekdays = map (scheduleWeekDayWeekDay . entityVal) ws
       return $ ScheduleInfo {
@@ -71,7 +96,13 @@ addSchedule si = do
   case sTime si of
     Nothing -> return ()
     Just times -> 
-      forM_ times $ \t ->
-        insert_ $ t {scheduleTimeScheduleId = sid}
+      forM_ times $ \(Period {..}) -> do
+        let time = ScheduleTime sid periodBegin periodEnd
+        insert_ time
   return sid
+
+loadAllSchedules :: DB [ScheduleInfo]
+loadAllSchedules = do
+  sids <- selectKeysList [] []
+  forM sids $ \sid -> loadSchedule sid
 

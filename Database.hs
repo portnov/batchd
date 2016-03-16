@@ -11,9 +11,11 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 module Database where
 
 import GHC.Generics
+import Control.Applicative
 import Control.Monad
 import Data.Generics hiding (Generic)
 import Data.List (isPrefixOf)
@@ -23,6 +25,9 @@ import Data.Dates
 import Data.Time
 import Data.Aeson
 import Data.Aeson.Types
+import qualified Data.Map as M
+import qualified Data.HashMap.Strict as H
+import qualified Data.Text as T
 
 import           Control.Monad.IO.Class  (liftIO)
 import Control.Monad.Logger (runNoLoggingT, runStdoutLoggingT)
@@ -39,7 +44,7 @@ getPool :: IO Sql.ConnectionPool
 getPool = runStdoutLoggingT (Sqlite.createSqlitePool "test.db" 4)
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
-JobParam json
+JobParam
   jobId JobId
   name String
   value String
@@ -73,34 +78,35 @@ ScheduleWeekDay
 deriving instance Eq ScheduleTime
 deriving instance Show ScheduleTime
 
+type JobParamInfo = M.Map String String
+
 data JobInfo = JobInfo {
     jiType :: String,
     jiSeq :: Int,
     jiStatus :: JobStatus,
-    jiParams :: [JobParam]
+    jiParams :: JobParamInfo
   }
   deriving (Generic)
 
-stripPrefix :: String -> String -> String
-stripPrefix prefix str =
-  if prefix `isPrefixOf` str
-    then drop (length prefix) str
-    else str
-
-camelCaseToUnderscore :: String -> String
-camelCaseToUnderscore = go False
-  where
-    go _ [] = []
-    go False (x:xs) = toLower x : go True xs
-    go True (x:xs)
-      | isUpper x = '_' : toLower x : go True xs
-      | otherwise = x : go True xs
 
 instance ToJSON JobInfo where
   toJSON = genericToJSON (defaultOptions {fieldLabelModifier = camelCaseToUnderscore . stripPrefix "ji"})
 
 instance FromJSON JobInfo where
-  parseJSON = genericParseJSON (defaultOptions {fieldLabelModifier = camelCaseToUnderscore . stripPrefix "ji"})
+  parseJSON (Object v) =
+    JobInfo
+      <$> v .: "type"
+      <*> v .:? "seq" .!= 0
+      <*> v .:? "status" .!= New
+      <*> v .:? "params" .!= M.empty
+  parseJSON invalid = typeMismatch "job" invalid
+
+-- instance FromJSON JobParamInfo where
+--   parseJSON (Object v) = do
+--     let lst = H.toList v
+--         lst' = [(T.unpack k, T.unpack v) | (k,v) <- lst]
+--     return $ M.fromList lst'
+--   parseJSON invalid = typeMismatch "job param" invalid
 
 loadJob :: Key Job -> DB JobInfo
 loadJob jid = do
@@ -109,7 +115,7 @@ loadJob jid = do
     Nothing -> throwR JobNotExists
     Just j -> do
       ps <- selectList [JobParamJobId ==. jid] []
-      let params = map entityVal ps
+      let params = M.fromList [(jobParamName p, jobParamValue p) | p <- map entityVal ps]
       return $ JobInfo (jobType j) (jobSeq j) (jobStatus j) params
 
 getAllQueues :: DB [Entity Queue]
@@ -177,8 +183,16 @@ enqueue qname jinfo = do
       seq <- getLastJobSeq (entityKey qe)
       let job = Job (jiType jinfo) (entityKey qe) (seq+1) (jiStatus jinfo)
       jid <- insert job
-      forM_ (jiParams jinfo) $ \param -> do
-        let param' = param {jobParamJobId = jid}
-        insert_ param'
+      forM_ (M.assocs $ jiParams jinfo) $ \(name,value) -> do
+        let param = JobParam jid name value
+        insert_ param
       return jid
+
+removeJob :: String -> Int -> DB ()
+removeJob qname jseq = do
+  mbQueue <- getQueue qname
+  case mbQueue of
+    Nothing -> throwR QueueNotExists
+    Just qe -> do
+      deleteBy $ UniqJobSeq (entityKey qe) jseq
 

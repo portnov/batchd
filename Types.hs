@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, ScopedTypeVariables, TemplateHaskell, GeneralizedNewtypeDeriving, DeriveGeneric #-}
+{-# LANGUAGE DeriveDataTypeable, ScopedTypeVariables, TemplateHaskell, GeneralizedNewtypeDeriving, DeriveGeneric, StandaloneDeriving #-}
 
 module Types where
 
@@ -11,8 +11,11 @@ import Control.Monad.Trans.Resource
 import qualified Data.Map as M
 import qualified Data.Text.Lazy as T
 import Data.Generics hiding (Generic)
+import Data.Char
+import Data.List (isPrefixOf)
 import Data.Dates
 import Data.Aeson
+import Data.Aeson.Types
 import Database.Persist
 import Database.Persist.TH
 import Database.Persist.Sql as Sql
@@ -32,6 +35,10 @@ data JobStatus =
 
 instance ToJSON JobStatus
 instance FromJSON JobStatus
+
+deriving instance Generic WeekDay
+instance ToJSON WeekDay
+instance FromJSON WeekDay
 
 data Error =
     QueueExists
@@ -80,4 +87,28 @@ runDB qry = do
   case r of
     Left err -> Scotty.raise err
     Right x -> return x
+
+runDB' :: DB a -> Action (Either Error a)
+runDB' qry = do
+  pool <- lift ask
+  r <- liftIO $ runResourceT $ runNoLoggingT (Sql.runSqlPool (dbio qry) pool)
+  return r
+
+stripPrefix :: String -> String -> String
+stripPrefix prefix str =
+  if prefix `isPrefixOf` str
+    then drop (length prefix) str
+    else str
+
+camelCaseToUnderscore :: String -> String
+camelCaseToUnderscore = go False
+  where
+    go _ [] = []
+    go False (x:xs) = toLower x : go True xs
+    go True (x:xs)
+      | isUpper x = '_' : toLower x : go True xs
+      | otherwise = x : go True xs
+
+jsonOptions :: String -> Data.Aeson.Types.Options
+jsonOptions prefix = defaultOptions {fieldLabelModifier = camelCaseToUnderscore . stripPrefix prefix}
 
