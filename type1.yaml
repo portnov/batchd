@@ -1,0 +1,4 @@
+name: type1
+template: "echo Running: $key"
+params:
+  key: String

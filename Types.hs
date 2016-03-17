@@ -21,12 +21,21 @@ import Database.Persist
 import Database.Persist.TH
 import Database.Persist.Sql as Sql
 import Web.Scotty.Trans as Scotty
+import System.Exit
 
 data ParamType =
-    StringParam
-  | IntParam
-  | FileParam
-  deriving (Eq, Show, Data, Typeable)
+    String
+  | Integer
+  | InputFile
+  | OutputFile
+  deriving (Eq, Show, Data, Typeable, Generic)
+
+data JobType = JobType {
+    jtName :: String,
+    jtTemplate :: String,
+    jtParams :: M.Map String ParamType
+  }
+  deriving (Eq, Show, Data, Typeable, Generic)
 
 data JobStatus =
     New
@@ -46,6 +55,7 @@ data Error =
   | QueueNotExists
   | QueueNotEmpty
   | JobNotExists
+  | InvalidJobType String
   | UnknownError String
   deriving (Eq, Show, Data, Typeable)
 
@@ -57,6 +67,7 @@ type Result a = ExceptT Error IO a
 
 derivePersistField "WeekDay"
 derivePersistField "JobStatus"
+derivePersistField "ExitCode"
 
 type DB a = ReaderT SqlBackend (ExceptT Error (NoLoggingT (ResourceT IO))) a
 type DBIO a = ReaderT SqlBackend (NoLoggingT (ResourceT IO)) a
@@ -125,4 +136,10 @@ parseUpdate field label (Object v) = do
               Nothing -> Nothing
               Just value -> Just (field =. value)
   return upd
+
+instance FromJSON JobType where
+  parseJSON = genericParseJSON (jsonOptions "jt")
+
+instance FromJSON ParamType where
+  parseJSON = genericParseJSON $ defaultOptions {fieldLabelModifier = camelCaseToUnderscore}
 

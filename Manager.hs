@@ -46,6 +46,8 @@ application = do
   Scotty.delete "/queue/:name/:seq" removeJobA
   Scotty.delete "/queue/:name" removeQueueA
 
+  Scotty.get "/job/:id" getJobA
+
   Scotty.get "/schedules" getSchedulesA
   Scotty.put "/schedules" addScheduleA
 
@@ -54,6 +56,12 @@ runManager = do
   pool <- getPool
   Sql.runSqlPool (Sql.runMigration migrateAll) pool
   runApplication pool
+
+getUrlParam :: B.ByteString -> Action (Maybe B.ByteString)
+getUrlParam key = do
+  rq <- Scotty.request
+  let qry = Wai.queryString rq
+  return $ join $ lookup key qry
 
 getQueuesA :: Action ()
 getQueuesA = do
@@ -64,7 +72,14 @@ getQueuesA = do
 getQueueA :: Action ()
 getQueueA = do
   qname <- Scotty.param "name"
-  jobs <- runDBA $ loadJobs qname (Just New)
+  st <- getUrlParam "status"
+  let fltr = case st of
+               Nothing -> Just New
+               Just "new" -> Just New
+               Just "processing" -> Just Processing
+               Just "done" -> Just Done
+               Just "all" -> Nothing
+  jobs <- runDBA $ loadJobs qname fltr
   Scotty.json jobs
 
 enqueueA :: Action ()
@@ -73,12 +88,6 @@ enqueueA = do
   qname <- Scotty.param "name"
   r <- runDBA $ enqueue qname jinfo
   Scotty.json r
-
-getUrlParam :: B.ByteString -> Action (Maybe B.ByteString)
-getUrlParam key = do
-  rq <- Scotty.request
-  let qry = Wai.queryString rq
-  return $ join $ lookup key qry
 
 removeJobA :: Action ()
 removeJobA = do
@@ -121,4 +130,11 @@ updateQueueA = do
   upd <- jsonData
   runDBA $ updateQueue name upd
   Scotty.json ("done" :: String)
+
+getJobA :: Action ()
+getJobA = do
+  jid <- Scotty.param "id"
+  result <- runDBA $ getJobResult jid
+  Scotty.json result
+
 

@@ -24,6 +24,7 @@ import Data.Char
 import Data.Maybe
 import Data.Dates
 import Data.Time
+import Data.Int
 import Data.Aeson
 import Data.Aeson.Types
 import qualified Data.Map as M
@@ -39,6 +40,7 @@ import           Database.Persist.Postgresql as Postgres
 import           Database.Persist.TH
 import qualified Database.Esqueleto as E
 import Database.Esqueleto ((^.))
+import System.Exit
 
 import Types
 
@@ -54,11 +56,18 @@ JobParam
   UniqParam jobId name
 
 Job
-  type String
+  typeName String
   queueName String
   seq Int
   status JobStatus default='New'
   UniqJobSeq queueName seq
+
+JobResult
+  jobId JobId
+  exitCode ExitCode
+  stdout T.Text sqltype=TEXT
+  stderr T.Text sqltype=TEXT
+  Primary jobId
 
 Queue
   name String
@@ -88,6 +97,7 @@ deriving instance Show ScheduleTime
 type JobParamInfo = M.Map String String
 
 data JobInfo = JobInfo {
+    jiId :: Int64,
     jiQueue :: String,
     jiType :: String,
     jiSeq :: Int,
@@ -102,7 +112,8 @@ instance ToJSON JobInfo where
 instance FromJSON JobInfo where
   parseJSON (Object v) =
     JobInfo
-      <$> v .:? "queue" .!= ""
+      <$> v .:? "id" .!= 0
+      <*> v .:? "queue" .!= ""
       <*> v .: "type"
       <*> v .:? "seq" .!= 0
       <*> v .:? "status" .!= New
@@ -128,15 +139,33 @@ instance FromJSON [Update Queue] where
     uSchedule <- parseUpdate QueueScheduleName "schedule_name" o
     return $ catMaybes [uSchedule]
 
+deriving instance Generic ExitCode
+instance ToJSON ExitCode
+
+deriving instance Generic JobResult
+
+instance ToJSON JobResult where
+  toJSON = genericToJSON (jsonOptions "jobResult")
+
 loadJob :: Key Job -> DB JobInfo
-loadJob jid = do
-  mbJob <- get jid
+loadJob jkey@(JobKey (SqlBackendKey jid)) = do
+  mbJob <- get jkey
   case mbJob of
     Nothing -> throwR JobNotExists
     Just j -> do
-      ps <- selectList [JobParamJobId ==. jid] []
+      ps <- selectList [JobParamJobId ==. jkey] []
       let params = M.fromList [(jobParamName p, jobParamValue p) | p <- map entityVal ps]
-      return $ JobInfo (jobQueueName j) (jobType j) (jobSeq j) (jobStatus j) params
+      return $ JobInfo jid (jobQueueName j) (jobTypeName j) (jobSeq j) (jobStatus j) params
+
+lockJob :: JobInfo -> DB ()
+lockJob ji = do
+  let qname = jiQueue ji
+      seq = jiSeq ji
+  E.select $
+    E.from $ \job -> do
+    E.where_ $ (job ^. JobQueueName `equals` E.val qname) `eand` (job ^. JobSeq `equals` E.val seq)
+    E.locking E.ForUpdate
+  return ()
 
 loadJobSeq :: String -> Int -> DB JobInfo
 loadJobSeq qname seq = do
@@ -144,10 +173,11 @@ loadJobSeq qname seq = do
   case mbJe of
     Nothing -> throwR JobNotExists
     Just je -> do
+      let JobKey (SqlBackendKey jid) = entityKey je
       ps <- selectList [JobParamJobId ==. entityKey je] []
       let j = entityVal je
       let params = M.fromList [(jobParamName p, jobParamValue p) | p <- map entityVal ps]
-      return $ JobInfo (jobQueueName j) (jobType j) (jobSeq j) (jobStatus j) params
+      return $ JobInfo jid (jobQueueName j) (jobTypeName j) (jobSeq j) (jobStatus j) params
 
 setJobStatus :: JobInfo -> JobStatus -> DB ()
 setJobStatus ji status = do
@@ -178,6 +208,13 @@ loadJobs qname mbStatus = do
         jes <- getJobs qname mbStatus
         forM jes $ \je -> do
           loadJob (entityKey je)
+
+getJobResult :: Int64 -> DB JobResult
+getJobResult i = do
+  r <- get (JobResultKey (JobKey (SqlBackendKey i)))
+  case r of
+    Nothing -> throwR JobNotExists
+    Just res -> return res
 
 equals = (E.==.)
 infix 4 `equals`
