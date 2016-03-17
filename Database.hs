@@ -12,6 +12,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 module Database where
 
 import GHC.Generics
@@ -87,12 +88,13 @@ deriving instance Show ScheduleTime
 type JobParamInfo = M.Map String String
 
 data JobInfo = JobInfo {
+    jiQueue :: String,
     jiType :: String,
     jiSeq :: Int,
     jiStatus :: JobStatus,
     jiParams :: JobParamInfo
   }
-  deriving (Generic)
+  deriving (Generic, Show)
 
 instance ToJSON JobInfo where
   toJSON = genericToJSON (jsonOptions "ji")
@@ -100,7 +102,8 @@ instance ToJSON JobInfo where
 instance FromJSON JobInfo where
   parseJSON (Object v) =
     JobInfo
-      <$> v .: "type"
+      <$> v .:? "queue" .!= ""
+      <*> v .: "type"
       <*> v .:? "seq" .!= 0
       <*> v .:? "status" .!= New
       <*> v .:? "params" .!= M.empty
@@ -133,7 +136,22 @@ loadJob jid = do
     Just j -> do
       ps <- selectList [JobParamJobId ==. jid] []
       let params = M.fromList [(jobParamName p, jobParamValue p) | p <- map entityVal ps]
-      return $ JobInfo (jobType j) (jobSeq j) (jobStatus j) params
+      return $ JobInfo (jobQueueName j) (jobType j) (jobSeq j) (jobStatus j) params
+
+loadJobSeq :: String -> Int -> DB JobInfo
+loadJobSeq qname seq = do
+  mbJe <- getBy (UniqJobSeq qname seq)
+  case mbJe of
+    Nothing -> throwR JobNotExists
+    Just je -> do
+      ps <- selectList [JobParamJobId ==. entityKey je] []
+      let j = entityVal je
+      let params = M.fromList [(jobParamName p, jobParamValue p) | p <- map entityVal ps]
+      return $ JobInfo (jobQueueName j) (jobType j) (jobSeq j) (jobStatus j) params
+
+setJobStatus :: JobInfo -> JobStatus -> DB ()
+setJobStatus ji status = do
+  updateWhere [JobQueueName ==. jiQueue ji, JobSeq ==. jiSeq ji] [JobStatus =. status]
 
 getAllQueues :: DB [Entity Queue]
 getAllQueues = selectList [] []
@@ -164,6 +182,9 @@ loadJobs qname mbStatus = do
 equals = (E.==.)
 infix 4 `equals`
 
+eand = (E.&&.)
+infixr 3 `eand`
+
 getLastJobSeq :: String -> DB Int
 getLastJobSeq qid = do
   lst <- E.select $
@@ -173,6 +194,18 @@ getLastJobSeq qid = do
   case map E.unValue lst of
     (Just r:_) -> return r
     _ -> return 0
+
+getNextJob :: Key Queue -> DB (Maybe JobInfo)
+getNextJob (QueueKey qname) = do
+  lst <- E.select $
+         E.from $ \job -> do
+         E.where_ $ (job ^. JobQueueName `equals` E.val qname) `eand` (job ^. JobStatus `equals` E.val New)
+         return $ E.min_ (job ^. JobSeq)
+  case map E.unValue lst of
+    (Just seq:_) -> do
+        jinfo <- loadJobSeq qname seq
+        return $ Just jinfo
+    _ -> return Nothing
 
 deleteQueue :: String -> Bool -> DB ()
 deleteQueue name forced = do

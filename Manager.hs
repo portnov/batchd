@@ -36,7 +36,7 @@ runApplication pool = do
 
 application :: ScottyT Error ConnectionM ()
 application = do
-  -- runDB (Sql.runMigration migrateAll)
+  -- runDBA (Sql.runMigration migrateAll)
   Scotty.get "/queues" getQueuesA
   Scotty.get "/queue/:name" getQueueA
   Scotty.post "/queue/:name" updateQueueA
@@ -49,29 +49,29 @@ application = do
   Scotty.get "/schedules" getSchedulesA
   Scotty.put "/schedules" addScheduleA
 
-manager :: IO ()
-manager = do
+runManager :: IO ()
+runManager = do
   pool <- getPool
   Sql.runSqlPool (Sql.runMigration migrateAll) pool
   runApplication pool
 
 getQueuesA :: Action ()
 getQueuesA = do
-  qes <- runDB getAllQueues'
+  qes <- runDBA getAllQueues'
   -- let qnames = map (queueName . entityVal) qes
   Scotty.json qes
 
 getQueueA :: Action ()
 getQueueA = do
   qname <- Scotty.param "name"
-  jobs <- runDB $ loadJobs qname (Just New)
+  jobs <- runDBA $ loadJobs qname (Just New)
   Scotty.json jobs
 
 enqueueA :: Action ()
 enqueueA = do
   jinfo <- jsonData
   qname <- Scotty.param "name"
-  r <- runDB $ enqueue qname jinfo
+  r <- runDBA $ enqueue qname jinfo
   Scotty.json r
 
 getUrlParam :: B.ByteString -> Action (Maybe B.ByteString)
@@ -84,14 +84,14 @@ removeJobA :: Action ()
 removeJobA = do
   qname <- Scotty.param "name"
   jseq <- Scotty.param "seq"
-  runDB $ removeJob qname jseq
+  runDBA $ removeJob qname jseq
   Scotty.json ("done" :: String)
 
 removeQueueA :: Action ()
 removeQueueA = do
   qname <- Scotty.param "name"
   forced <- getUrlParam "forced"
-  r <- runDB' $ deleteQueue qname (forced == Just "true")
+  r <- runDBA' $ deleteQueue qname (forced == Just "true")
   case r of
     Left QueueNotEmpty -> do
         Scotty.status status403
@@ -100,25 +100,25 @@ removeQueueA = do
 
 getSchedulesA :: Action ()
 getSchedulesA = do
-  ss <- runDB loadAllSchedules
+  ss <- runDBA loadAllSchedules
   Scotty.json ss
 
 addScheduleA :: Action ()
 addScheduleA = do
   sd <- jsonData
-  name <- runDB $ addSchedule sd
+  name <- runDBA $ addSchedule sd
   Scotty.json name
 
 addQueueA :: Action ()
 addQueueA = do
   qd <- jsonData
-  name <- runDB $ addQueue qd
+  name <- runDBA $ addQueue qd
   Scotty.json name
 
 updateQueueA :: Action ()
 updateQueueA = do
   name <- Scotty.param "name"
   upd <- jsonData
-  runDB $ updateQueue name upd
+  runDBA $ updateQueue name upd
   Scotty.json ("done" :: String)
 

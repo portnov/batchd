@@ -81,19 +81,24 @@ newtype ConnectionM a = ConnectionM {
 
 type Action a = ActionT Error ConnectionM a
 
-runDB :: DB a -> Action a
-runDB qry = do
+runDBA :: DB a -> Action a
+runDBA qry = do
   pool <- lift ask
   r <- liftIO $ runResourceT $ runNoLoggingT (Sql.runSqlPool (dbio qry) pool)
   case r of
     Left err -> Scotty.raise err
     Right x -> return x
 
-runDB' :: DB a -> Action (Either Error a)
-runDB' qry = do
+runDBA' :: DB a -> Action (Either Error a)
+runDBA' qry = do
   pool <- lift ask
   r <- liftIO $ runResourceT $ runNoLoggingT (Sql.runSqlPool (dbio qry) pool)
   return r
+
+runDB :: DB a -> ConnectionM (Either Error a)
+runDB qry = do
+  pool <- ask
+  liftIO $ runResourceT $ runNoLoggingT $ Sql.runSqlPool (dbio qry) pool
 
 stripPrefix :: String -> String -> String
 stripPrefix prefix str =
