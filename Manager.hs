@@ -39,6 +39,7 @@ application = do
   -- runDB (Sql.runMigration migrateAll)
   Scotty.get "/queues" getQueuesA
   Scotty.get "/queue/:name" getQueueA
+  Scotty.post "/queue/:name" updateQueueA
   Scotty.put "/queues" addQueueA
 
   Scotty.put "/queue/:name" enqueueA
@@ -113,4 +114,11 @@ addQueueA = do
   qd <- jsonData
   name <- runDB $ addQueue qd
   Scotty.json name
+
+updateQueueA :: Action ()
+updateQueueA = do
+  name <- Scotty.param "name"
+  upd <- jsonData
+  runDB $ updateQueue name upd
+  Scotty.json ("done" :: String)
 

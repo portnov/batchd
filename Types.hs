@@ -9,7 +9,8 @@ import Control.Monad.Except
 import Control.Monad.Logger
 import Control.Monad.Trans.Resource
 import qualified Data.Map as M
-import qualified Data.Text.Lazy as T
+import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
 import Data.Generics hiding (Generic)
 import Data.Char
 import Data.List (isPrefixOf)
@@ -50,7 +51,7 @@ data Error =
 
 instance ScottyError Error where
   stringError e = UnknownError e
-  showError e = T.pack (show e)
+  showError e = TL.pack (show e)
 
 type Result a = ExceptT Error IO a
 
@@ -111,4 +112,12 @@ camelCaseToUnderscore = go False
 
 jsonOptions :: String -> Data.Aeson.Types.Options
 jsonOptions prefix = defaultOptions {fieldLabelModifier = camelCaseToUnderscore . stripPrefix prefix}
+
+parseUpdate :: (PersistField t, FromJSON t) => EntityField v t -> T.Text -> Value -> Parser (Maybe (Update v))
+parseUpdate field label (Object v) = do
+  mbValue <- v .:? label
+  let upd = case mbValue of
+              Nothing -> Nothing
+              Just value -> Just (field =. value)
+  return upd
 

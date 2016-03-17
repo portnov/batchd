@@ -34,6 +34,7 @@ import Control.Monad.Logger (runNoLoggingT, runStdoutLoggingT)
 import           Database.Persist
 import           Database.Persist.Sql as Sql
 import           Database.Persist.Sqlite as Sqlite
+import           Database.Persist.Postgresql as Postgres
 import           Database.Persist.TH
 import qualified Database.Esqueleto as E
 import Database.Esqueleto ((^.))
@@ -41,7 +42,8 @@ import Database.Esqueleto ((^.))
 import Types
 
 getPool :: IO Sql.ConnectionPool
-getPool = runStdoutLoggingT (Sqlite.createSqlitePool "test.db" 4)
+-- getPool = runStdoutLoggingT (Sqlite.createSqlitePool "test.db" 4)
+getPool = runStdoutLoggingT (Postgres.createPostgresqlPool "host=localhost port=5432 user=batchd password=batchd" 4)
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
 JobParam
@@ -54,13 +56,14 @@ Job
   type String
   queueName String
   seq Int
-  status JobStatus default=New
+  status JobStatus default='New'
   UniqJobSeq queueName seq
 
 Queue
   name String
   scheduleName String
   Primary name
+  Foreign Schedule schedule scheduleName
 
 Schedule
   name String
@@ -110,6 +113,17 @@ instance ToJSON Queue where
 
 instance FromJSON Queue where
   parseJSON = genericParseJSON (jsonOptions "queue")
+
+instance FromJSON [Update ScheduleTime] where
+  parseJSON o = do
+    uBegin <- parseUpdate ScheduleTimeBegin "begin" o
+    uEnd   <- parseUpdate ScheduleTimeEnd   "end"   o
+    return $ catMaybes [uBegin, uEnd]
+
+instance FromJSON [Update Queue] where
+  parseJSON o = do
+    uSchedule <- parseUpdate QueueScheduleName "schedule_name" o
+    return $ catMaybes [uSchedule]
 
 loadJob :: Key Job -> DB JobInfo
 loadJob jid = do
@@ -183,6 +197,10 @@ addQueue' name scheduleId = do
 
 getQueue :: String -> DB (Maybe Queue)
 getQueue name = get (QueueKey name)
+
+updateQueue :: String -> [Update Queue] -> DB ()
+updateQueue qname updates = do
+  update (QueueKey qname) updates
 
 enqueue :: String -> JobInfo -> DB (Key Job)
 enqueue qname jinfo = do
