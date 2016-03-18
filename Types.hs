@@ -34,6 +34,7 @@ data JobType = JobType {
     jtName :: String,
     jtTemplate :: String,
     jtOnFail :: OnFailAction,
+    jtHostName :: Maybe String,
     jtParams :: M.Map String ParamType
   }
   deriving (Eq, Show, Data, Typeable, Generic)

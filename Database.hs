@@ -61,6 +61,7 @@ Job
   seq Int
   status JobStatus default='New'
   tryCount Int default=0
+  hostName String Maybe
   UniqJobSeq queueName seq
 
 JobResult
@@ -74,6 +75,7 @@ JobResult
 Queue
   name String
   scheduleName String
+  hostName String Maybe
   Primary name
   Foreign Schedule schedule scheduleName
 
@@ -105,6 +107,7 @@ data JobInfo = JobInfo {
     jiSeq :: Int,
     jiStatus :: JobStatus,
     jiTryCount :: Int,
+    jiHostName :: Maybe String,
     jiParams :: JobParamInfo
   }
   deriving (Generic, Show)
@@ -121,6 +124,7 @@ instance FromJSON JobInfo where
       <*> v .:? "seq" .!= 0
       <*> v .:? "status" .!= New
       <*> v .:? "try_count" .!= 0
+      <*> v .:? "host_name"
       <*> v .:? "params" .!= M.empty
   parseJSON invalid = typeMismatch "job" invalid
 
@@ -141,7 +145,8 @@ instance FromJSON [Update ScheduleTime] where
 instance FromJSON [Update Queue] where
   parseJSON o = do
     uSchedule <- parseUpdate QueueScheduleName "schedule_name" o
-    return $ catMaybes [uSchedule]
+    uHostName <- parseUpdate QueueHostName "host_name" o
+    return $ catMaybes [uSchedule, uHostName]
 
 deriving instance Generic ExitCode
 instance ToJSON ExitCode
@@ -151,6 +156,19 @@ deriving instance Generic JobResult
 instance ToJSON JobResult where
   toJSON = genericToJSON (jsonOptions "jobResult")
 
+buildJobInfo :: Int64 -> Job -> JobParamInfo -> JobInfo
+buildJobInfo jid j params =
+   JobInfo {
+      jiId = jid,
+      jiQueue = jobQueueName j,
+      jiType = jobTypeName j,
+      jiSeq = jobSeq j,
+      jiStatus = jobStatus j,
+      jiTryCount = jobTryCount j,
+      jiHostName = jobHostName j,
+      jiParams = params
+     }
+
 loadJob :: Key Job -> DB JobInfo
 loadJob jkey@(JobKey (SqlBackendKey jid)) = do
   mbJob <- get jkey
@@ -159,7 +177,7 @@ loadJob jkey@(JobKey (SqlBackendKey jid)) = do
     Just j -> do
       ps <- selectList [JobParamJobId ==. jkey] []
       let params = M.fromList [(jobParamName p, jobParamValue p) | p <- map entityVal ps]
-      return $ JobInfo jid (jobQueueName j) (jobTypeName j) (jobSeq j) (jobStatus j) (jobTryCount j) params
+      return $ buildJobInfo jid j params
 
 lockJob :: JobInfo -> DB ()
 lockJob ji = do
@@ -179,7 +197,6 @@ lockQueue qname = do
     E.locking E.ForUpdate
   return ()
 
-
 loadJobSeq :: String -> Int -> DB JobInfo
 loadJobSeq qname seq = do
   mbJe <- getBy (UniqJobSeq qname seq)
@@ -190,7 +207,7 @@ loadJobSeq qname seq = do
       ps <- selectList [JobParamJobId ==. entityKey je] []
       let j = entityVal je
       let params = M.fromList [(jobParamName p, jobParamValue p) | p <- map entityVal ps]
-      return $ JobInfo jid (jobQueueName j) (jobTypeName j) (jobSeq j) (jobStatus j) (jobTryCount j) params
+      return $ buildJobInfo jid j params
 
 setJobStatus :: JobInfo -> JobStatus -> DB ()
 setJobStatus ji status = do
@@ -308,7 +325,7 @@ addQueue q = insert q
 
 addQueue' :: String -> String -> DB (Key Queue)
 addQueue' name scheduleId = do
-  r <- insertUnique $ Queue name scheduleId
+  r <- insertUnique $ Queue name scheduleId Nothing
   case r of
     Just qid -> return qid
     Nothing -> throwR QueueExists
@@ -328,7 +345,7 @@ enqueue qname jinfo = do
     Nothing -> throwR QueueNotExists
     Just qe -> do
       seq <- getLastJobSeq qname
-      let job = Job (jiType jinfo) qname (seq+1) (jiStatus jinfo) (jiTryCount jinfo)
+      let job = Job (jiType jinfo) qname (seq+1) (jiStatus jinfo) (jiTryCount jinfo) (jiHostName jinfo)
       jid <- insert job
       forM_ (M.assocs $ jiParams jinfo) $ \(name,value) -> do
         let param = JobParam jid name value

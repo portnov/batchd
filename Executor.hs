@@ -2,6 +2,7 @@
 
 module Executor where
 
+import Control.Monad
 import Data.Maybe
 import qualified Data.Map as M
 import qualified Data.Text as T
@@ -21,10 +22,16 @@ mkContext m key =
 getCommand :: JobType -> JobInfo -> String
 getCommand jt job = TL.unpack $ substitute (T.pack $ jtTemplate jt) (mkContext $ jiParams job)
 
-executeJob :: JobType -> JobInfo -> IO JobResult
-executeJob jt job = do
+getHostName :: Queue -> JobType -> JobInfo -> Maybe String
+getHostName q jt job =
+  msum [jiHostName job, jtHostName jt, queueHostName q]
+
+executeJob :: Queue -> JobType -> JobInfo -> IO JobResult
+executeJob q jt job = do
   let command = getCommand jt job
+      hostname = fromMaybe "localhost" $ getHostName q jt job
   (ec, stdout, stderr) <- readCreateProcessWithExitCode (shell command) ""
   let jid = JobKey (Sql.SqlBackendKey $ jiId job)
   now <- getCurrentTime
   return $ JobResult jid now ec (T.pack stdout) (T.pack stderr)
+

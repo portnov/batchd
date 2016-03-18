@@ -45,7 +45,7 @@ dispatcher = do
           mbJob <- getNextJob (entityKey qe)
           case mbJob of
             Nothing -> liftIO $ print $ "Queue " ++ qname ++ " exhaused."
-            Just job -> process job
+            Just job -> process (entityVal qe) job
         liftIO $ threadDelay $ 10 * 1000*1000
 
 loadTemplate :: String -> DB JobType
@@ -55,13 +55,13 @@ loadTemplate name = do
     Left err -> throwR (InvalidJobType $ show err)
     Right jt -> return jt
 
-process :: JobInfo -> DB ()
-process job = do
+process :: Queue -> JobInfo -> DB ()
+process queue job = do
   liftIO $ print job
   lockJob job
   setJobStatus job Processing
   jtype <- loadTemplate (jiType job)
-  result <- liftIO $ executeJob jtype job
+  result <- liftIO $ executeJob queue jtype job
   insert_ result
   if jobResultExitCode result == ExitSuccess
     then setJobStatus job Done
