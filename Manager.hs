@@ -47,6 +47,7 @@ application = do
   Scotty.delete "/queue/:name" removeQueueA
 
   Scotty.get "/job/:id" getJobA
+  Scotty.get "/jobs" getJobsA
 
   Scotty.get "/schedules" getSchedulesA
   Scotty.put "/schedules" addScheduleA
@@ -69,16 +70,20 @@ getQueuesA = do
   -- let qnames = map (queueName . entityVal) qes
   Scotty.json qes
 
+parseStatus :: Maybe JobStatus -> Maybe B.ByteString -> Action (Maybe JobStatus)
+parseStatus dflt Nothing = return dflt
+parseStatus _ (Just "all") = return Nothing
+parseStatus _ (Just "new") = return $ Just New
+parseStatus _ (Just "processing") = return $ Just Processing
+parseStatus _ (Just "done") = return $ Just Done
+parseStatus _ (Just "failed") = return $ Just Failed
+parseStatus _ (Just _) = raise InvalidJobStatus
+
 getQueueA :: Action ()
 getQueueA = do
   qname <- Scotty.param "name"
   st <- getUrlParam "status"
-  let fltr = case st of
-               Nothing -> Just New
-               Just "new" -> Just New
-               Just "processing" -> Just Processing
-               Just "done" -> Just Done
-               Just "all" -> Nothing
+  fltr <- parseStatus (Just New) st
   jobs <- runDBA $ loadJobs qname fltr
   Scotty.json jobs
 
@@ -100,12 +105,19 @@ removeQueueA :: Action ()
 removeQueueA = do
   qname <- Scotty.param "name"
   forced <- getUrlParam "forced"
-  r <- runDBA' $ deleteQueue qname (forced == Just "true")
-  case r of
-    Left QueueNotEmpty -> do
-        Scotty.status status403
-    Left e -> Scotty.raise e
-    Right _ -> Scotty.json ("done" :: String)
+  st <- getUrlParam "status"
+  fltr <- parseStatus Nothing st
+  case fltr of
+    Nothing -> do
+      r <- runDBA' $ deleteQueue qname (forced == Just "true")
+      case r of
+        Left QueueNotEmpty -> do
+            Scotty.status status403
+        Left e -> Scotty.raise e
+        Right _ -> Scotty.json ("done" :: String)
+    Just status -> do
+        runDBA $ removeJobs qname status
+        Scotty.json ("done" :: String)
 
 getSchedulesA :: Action ()
 getSchedulesA = do
@@ -137,4 +149,19 @@ getJobA = do
   result <- runDBA $ getJobResult jid
   Scotty.json result
 
+getJobsA :: Action ()
+getJobsA = do
+  st <- getUrlParam "status"
+  fltr <- parseStatus (Just New) st
+  jobs <- runDBA $ loadJobsByStatus fltr
+  Scotty.json jobs
+
+deleteJobsA :: Action ()
+deleteJobsA = do
+  name <- Scotty.param "name"
+  st <- getUrlParam "status"
+  fltr <- parseStatus Nothing st
+  case fltr of
+    Nothing -> raise InvalidJobStatus
+    Just status -> runDBA $ removeJobs name status
 

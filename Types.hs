@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, ScopedTypeVariables, TemplateHaskell, GeneralizedNewtypeDeriving, DeriveGeneric, StandaloneDeriving #-}
+{-# LANGUAGE DeriveDataTypeable, ScopedTypeVariables, TemplateHaskell, GeneralizedNewtypeDeriving, DeriveGeneric, StandaloneDeriving, OverloadedStrings #-}
 
 module Types where
 
@@ -15,7 +15,7 @@ import Data.Generics hiding (Generic)
 import Data.Char
 import Data.List (isPrefixOf)
 import Data.Dates
-import Data.Aeson
+import Data.Aeson as Aeson
 import Data.Aeson.Types
 import Database.Persist
 import Database.Persist.TH
@@ -33,14 +33,42 @@ data ParamType =
 data JobType = JobType {
     jtName :: String,
     jtTemplate :: String,
+    jtOnFail :: OnFailAction,
     jtParams :: M.Map String ParamType
   }
   deriving (Eq, Show, Data, Typeable, Generic)
+
+data OnFailAction =
+    Continue
+  | RetryNow Int
+  | RetryLater Int
+  deriving (Eq, Show, Read, Data, Typeable, Generic)
+
+instance ToJSON OnFailAction where
+  toJSON Continue = Aeson.String "continue"
+  toJSON (RetryNow n) = object ["retry" .= object ["when" .= ("now" :: T.Text), "count" .= n]]
+  toJSON (RetryLater n) = object ["retry" .= object ["when" .= ("later" :: T.Text), "count" .= n]]
+
+instance FromJSON OnFailAction where
+  parseJSON (Aeson.String "continue") = return Continue
+  parseJSON (Aeson.String "retry") = return (RetryNow 1)
+  parseJSON (Object v) = do
+    r <- v .: "retry"
+    case r of
+      Object retry -> do
+          now <- retry .:? "when" .!= True
+          count <- retry .:? "count" .!= 1
+          if now
+            then return $ RetryNow count
+            else return $ RetryLater count
+      _ -> typeMismatch "retry" r
+  parseJSON invalid = typeMismatch "on fail" invalid
 
 data JobStatus =
     New
   | Processing
   | Done
+  | Failed
   deriving (Eq, Show, Read, Data, Typeable, Generic)
 
 instance ToJSON JobStatus
@@ -56,6 +84,7 @@ data Error =
   | QueueNotEmpty
   | JobNotExists
   | InvalidJobType String
+  | InvalidJobStatus
   | UnknownError String
   deriving (Eq, Show, Data, Typeable)
 

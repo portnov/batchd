@@ -8,6 +8,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import Data.Text.Template
 import qualified Database.Persist.Sql as Sql
+import Data.Time
 import System.Process
 
 import Types
@@ -25,4 +26,5 @@ executeJob jt job = do
   let command = getCommand jt job
   (ec, stdout, stderr) <- readCreateProcessWithExitCode (shell command) ""
   let jid = JobKey (Sql.SqlBackendKey $ jiId job)
-  return $ JobResult jid ec (T.pack stdout) (T.pack stderr)
+  now <- getCurrentTime
+  return $ JobResult jid now ec (T.pack stdout) (T.pack stderr)

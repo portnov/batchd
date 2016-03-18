@@ -48,7 +48,7 @@ getPool :: IO Sql.ConnectionPool
 -- getPool = runStdoutLoggingT (Sqlite.createSqlitePool "test.db" 4)
 getPool = runStdoutLoggingT (Postgres.createPostgresqlPool "host=localhost port=5432 user=batchd password=batchd" 4)
 
-share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
+share [mkPersist sqlSettings, mkMigrate "migrateAll", mkDeleteCascade sqlSettings] [persistLowerCase|
 JobParam
   jobId JobId
   name String
@@ -60,10 +60,12 @@ Job
   queueName String
   seq Int
   status JobStatus default='New'
+  tryCount Int default=0
   UniqJobSeq queueName seq
 
 JobResult
   jobId JobId
+  time UTCTime default=CURRENT_TIMESTAMP
   exitCode ExitCode
   stdout T.Text sqltype=TEXT
   stderr T.Text sqltype=TEXT
@@ -102,6 +104,7 @@ data JobInfo = JobInfo {
     jiType :: String,
     jiSeq :: Int,
     jiStatus :: JobStatus,
+    jiTryCount :: Int,
     jiParams :: JobParamInfo
   }
   deriving (Generic, Show)
@@ -117,6 +120,7 @@ instance FromJSON JobInfo where
       <*> v .: "type"
       <*> v .:? "seq" .!= 0
       <*> v .:? "status" .!= New
+      <*> v .:? "try_count" .!= 0
       <*> v .:? "params" .!= M.empty
   parseJSON invalid = typeMismatch "job" invalid
 
@@ -155,7 +159,7 @@ loadJob jkey@(JobKey (SqlBackendKey jid)) = do
     Just j -> do
       ps <- selectList [JobParamJobId ==. jkey] []
       let params = M.fromList [(jobParamName p, jobParamValue p) | p <- map entityVal ps]
-      return $ JobInfo jid (jobQueueName j) (jobTypeName j) (jobSeq j) (jobStatus j) params
+      return $ JobInfo jid (jobQueueName j) (jobTypeName j) (jobSeq j) (jobStatus j) (jobTryCount j) params
 
 lockJob :: JobInfo -> DB ()
 lockJob ji = do
@@ -167,6 +171,15 @@ lockJob ji = do
     E.locking E.ForUpdate
   return ()
 
+lockQueue :: String -> DB ()
+lockQueue qname = do
+  E.select $
+    E.from $ \queue -> do
+    E.where_ (queue ^. QueueName `equals` E.val qname)
+    E.locking E.ForUpdate
+  return ()
+
+
 loadJobSeq :: String -> Int -> DB JobInfo
 loadJobSeq qname seq = do
   mbJe <- getBy (UniqJobSeq qname seq)
@@ -177,11 +190,37 @@ loadJobSeq qname seq = do
       ps <- selectList [JobParamJobId ==. entityKey je] []
       let j = entityVal je
       let params = M.fromList [(jobParamName p, jobParamValue p) | p <- map entityVal ps]
-      return $ JobInfo jid (jobQueueName j) (jobTypeName j) (jobSeq j) (jobStatus j) params
+      return $ JobInfo jid (jobQueueName j) (jobTypeName j) (jobSeq j) (jobStatus j) (jobTryCount j) params
 
 setJobStatus :: JobInfo -> JobStatus -> DB ()
 setJobStatus ji status = do
   updateWhere [JobQueueName ==. jiQueue ji, JobSeq ==. jiSeq ji] [JobStatus =. status]
+
+increaseTryCount :: JobInfo -> DB Int
+increaseTryCount ji = do
+  let qname = jiQueue ji
+      seq = jiSeq ji
+  mbJe <- getBy (UniqJobSeq qname seq)
+  case mbJe of
+    Nothing -> throwR JobNotExists
+    Just je -> do
+      let count = jobTryCount (entityVal je)
+          count' = count + 1
+      updateWhere [JobQueueName ==. qname, JobSeq ==. seq] [JobTryCount =. count']
+      return count'
+
+moveToEnd :: JobInfo -> DB ()
+moveToEnd ji = do
+  let qname = jiQueue ji
+      seq = jiSeq ji
+  lockQueue qname
+  mbJe <- getBy (UniqJobSeq qname seq)
+  case mbJe of
+    Nothing -> throwR JobNotExists
+    Just je -> do
+      lastSeq <- getLastJobSeq qname
+      let seq' = lastSeq + 1
+      updateWhere [JobQueueName ==. qname, JobSeq ==. seq] [JobSeq =. seq', JobStatus =. New]
 
 getAllQueues :: DB [Entity Queue]
 getAllQueues = selectList [] []
@@ -208,6 +247,15 @@ loadJobs qname mbStatus = do
         jes <- getJobs qname mbStatus
         forM jes $ \je -> do
           loadJob (entityKey je)
+
+loadJobsByStatus :: Maybe JobStatus -> DB [JobInfo]
+loadJobsByStatus mbStatus = do
+  let filt = case mbStatus of
+               Nothing -> []
+               Just status -> [JobStatus ==. status]
+  jes <- selectList filt [Asc JobId]
+  forM jes $ \je -> do
+      loadJob (entityKey je)
 
 getJobResult :: Int64 -> DB JobResult
 getJobResult i = do
@@ -275,11 +323,12 @@ updateQueue qname updates = do
 enqueue :: String -> JobInfo -> DB (Key Job)
 enqueue qname jinfo = do
   mbQueue <- getQueue qname
+  lockQueue qname
   case mbQueue of
     Nothing -> throwR QueueNotExists
     Just qe -> do
       seq <- getLastJobSeq qname
-      let job = Job (jiType jinfo) qname (seq+1) (jiStatus jinfo)
+      let job = Job (jiType jinfo) qname (seq+1) (jiStatus jinfo) (jiTryCount jinfo)
       jid <- insert job
       forM_ (M.assocs $ jiParams jinfo) $ \(name,value) -> do
         let param = JobParam jid name value
@@ -289,4 +338,8 @@ enqueue qname jinfo = do
 removeJob :: String -> Int -> DB ()
 removeJob qname jseq = do
     deleteBy $ UniqJobSeq qname jseq
+
+removeJobs :: String -> JobStatus -> DB ()
+removeJobs qname status = do
+    deleteCascadeWhere [JobQueueName ==. qname, JobStatus ==. status]
 

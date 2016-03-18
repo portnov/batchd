@@ -19,6 +19,7 @@ import Database.Persist
 import qualified Database.Persist.Sql as Sql
 import qualified Database.Persist.Sqlite as Sqlite
 import System.Environment
+import System.Exit
 import Text.Printf
 
 import Database
@@ -62,6 +63,25 @@ process job = do
   jtype <- loadTemplate (jiType job)
   result <- liftIO $ executeJob jtype job
   insert_ result
-  setJobStatus job Done
+  if jobResultExitCode result == ExitSuccess
+    then setJobStatus job Done
+    else case jtOnFail jtype of
+           Continue -> setJobStatus job Failed
+           RetryNow m -> do
+              count <- increaseTryCount job
+              if count <= m
+                then do
+                  liftIO $ putStrLn "Retry now"
+                  setJobStatus job New
+                else setJobStatus job Failed
+           RetryLater m -> do
+              count <- increaseTryCount job
+              if count <= m
+                then do
+                  liftIO $ putStrLn "Retry later"
+                  moveToEnd job
+                else setJobStatus job Failed
+              
+  
 
 
