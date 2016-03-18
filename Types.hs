@@ -39,6 +39,17 @@ data JobType = JobType {
   }
   deriving (Eq, Show, Data, Typeable, Generic)
 
+data Host = Host {
+    hName :: String,
+    hHostName :: String,
+    hPublicKey :: Maybe String,
+    hPrivateKey :: Maybe String,
+    hPassphrase :: Maybe String,
+    hUserName :: String,
+    hPort :: Maybe Int
+  }
+  deriving (Eq, Show, Data, Typeable, Generic)
+
 data OnFailAction =
     Continue
   | RetryNow Int
@@ -172,4 +183,7 @@ instance FromJSON JobType where
 
 instance FromJSON ParamType where
   parseJSON = genericParseJSON $ defaultOptions {fieldLabelModifier = camelCaseToUnderscore}
+
+instance FromJSON Host where
+  parseJSON = genericParseJSON (jsonOptions "h")
 

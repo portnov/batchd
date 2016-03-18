@@ -14,6 +14,7 @@ import System.Process
 
 import Types
 import Database
+import SSH
 
 mkContext :: JobParamInfo -> Context
 mkContext m key =
@@ -29,9 +30,17 @@ getHostName q jt job =
 executeJob :: Queue -> JobType -> JobInfo -> IO JobResult
 executeJob q jt job = do
   let command = getCommand jt job
-      hostname = fromMaybe "localhost" $ getHostName q jt job
-  (ec, stdout, stderr) <- readCreateProcessWithExitCode (shell command) ""
-  let jid = JobKey (Sql.SqlBackendKey $ jiId job)
-  now <- getCurrentTime
-  return $ JobResult jid now ec (T.pack stdout) (T.pack stderr)
+      mbHost = getHostName q jt job
+      jid = JobKey (Sql.SqlBackendKey $ jiId job)
+  case mbHost of
+    Nothing -> do -- localhost
+      (ec, stdout, stderr) <- readCreateProcessWithExitCode (shell command) ""
+      now <- getCurrentTime
+      return $ JobResult jid now ec (T.pack stdout) (T.pack stderr)
+    Just hostname -> do
+      host <- loadHost hostname
+      (ec, stdout) <- processOnHost host jt job command
+      now <- getCurrentTime
+      return $ JobResult jid now ec stdout T.empty
+
 
