@@ -25,35 +25,6 @@ import System.Exit
 
 import CommonTypes
 
-data Host = Host {
-    hName :: String,
-    hHostName :: String,
-    hPublicKey :: Maybe String,
-    hPrivateKey :: Maybe String,
-    hPassphrase :: String,
-    hUserName :: String,
-    hPort :: Int,
-    hInputDirectory :: String,
-    hOutputDirectory :: String,
-    hStartupCommands :: [String]
-  }
-  deriving (Eq, Show, Data, Typeable, Generic)
-
-instance FromJSON Host where
-  parseJSON (Object v) =
-    Host
-      <$> v .: "name"
-      <*> v .: "host_name"
-      <*> v .:? "public_key"
-      <*> v .:? "private_key"
-      <*> v .:? "passphrase" .!= ""
-      <*> v .: "user_name"
-      <*> v .: "port" .!= 22
-      <*> v .:? "input_directory" .!= "."
-      <*> v .:? "output_directory" .!= "."
-      <*> v .:? "startup_commands" .!= []
-  parseJSON invalid = typeMismatch "host definition" invalid
-
 
 instance ScottyError Error where
   stringError e = UnknownError e

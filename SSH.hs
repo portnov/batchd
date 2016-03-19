@@ -33,20 +33,6 @@ getDfltPrivateKey = do
   home <- getEnv "HOME"
   return $ home </> ".ssh" </> "id_rsa"
 
-loadHost :: String -> IO Host
-loadHost name = do
-  r <- decodeFileEither (name ++ ".yaml")
-  case r of
-    Left err -> fail (show err)
-    Right host -> return host
-
-loadTemplate :: String -> IO JobType
-loadTemplate name = do
-  r <- decodeFileEither (name ++ ".yaml")
-  case r of
-    Left err -> fail (show err)
-    Right jt -> return jt
-
 processOnHost :: Host -> JobType -> JobInfo -> String -> IO (ExitCode, T.Text)
 processOnHost h jtype job command = do
   known_hosts <- getKnownHosts

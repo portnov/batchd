@@ -12,9 +12,11 @@ import qualified Database.Persist.Sql as Sql
 import Data.Time
 import System.Process
 import System.FilePath
+import System.Exit
 
 import CommonTypes
 import Types
+import Config
 import Database
 import SSH
 
@@ -51,10 +53,16 @@ executeJob q jt job = do
       now <- getCurrentTime
       return $ JobResult jid now ec (T.pack stdout) (T.pack stderr)
     Just hostname -> do
-      host <- loadHost hostname
-      let command = getCommand (Just host) jt job
-      (ec, stdout) <- processOnHost host jt job command
-      now <- getCurrentTime
-      return $ JobResult jid now ec stdout T.empty
+      hostR <- loadHost hostname
+      case hostR of
+        Right host -> do
+          let command = getCommand (Just host) jt job
+          (ec, stdout) <- processOnHost host jt job command
+          now <- getCurrentTime
+          return $ JobResult jid now ec stdout T.empty
+        Left err -> do
+          putStrLn $ show err
+          now <- getCurrentTime
+          return $ JobResult jid now (ExitFailure (-1)) T.empty (T.pack $ show err)
 
 

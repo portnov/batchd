@@ -25,6 +25,7 @@ import Text.Printf
 
 import CommonTypes
 import Types
+import Config
 import Database
 import Schedule
 import Executor
@@ -53,11 +54,11 @@ dispatcher = do
                 Just job -> process (entityVal qe) job
         liftIO $ threadDelay $ 10 * 1000*1000
 
-loadTemplate :: String -> DB JobType
-loadTemplate name = do
-  r <- liftIO $ decodeFileEither (name ++ ".yaml")
+loadTemplateDb :: String -> DB JobType
+loadTemplateDb name = do
+  r <- liftIO $ Config.loadTemplate name
   case r of
-    Left err -> throwR (InvalidJobType $ show err)
+    Left err -> throwR err
     Right jt -> return jt
 
 process :: Queue -> JobInfo -> DB ()
@@ -65,7 +66,7 @@ process queue job = do
   liftIO $ print job
   lockJob job
   setJobStatus job Processing
-  jtype <- loadTemplate (jiType job)
+  jtype <- loadTemplateDb (jiType job)
   result <- liftIO $ executeJob queue jtype job
   insert_ result
   if jobResultExitCode result == ExitSuccess
