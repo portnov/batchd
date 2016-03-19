@@ -64,6 +64,7 @@ processOnHost h jtype job command = do
   withSSH2 known_hosts public_key private_key passphrase user hostname port $ \session -> do
       execCommands session (hStartupCommands h)
       uploadFiles (getInputFiles jtype job) (hInputDirectory h) session
+      putStrLn $ "EXECUTING: " ++ command
       (ec,out) <- execCommands session [command]
       downloadFiles (hOutputDirectory h) (getOutputFiles jtype job) session
       let outText = TL.toStrict $ TLE.decodeUtf8 (head out)
@@ -71,9 +72,6 @@ processOnHost h jtype job command = do
                   then ExitSuccess
                   else ExitFailure ec
       return (ec', outText)
-
-getParamType :: JobType -> String -> Maybe ParamType
-getParamType jt name = M.lookup name (jtParams jt)
 
 getInputFiles :: JobType -> JobInfo -> [FilePath]
 getInputFiles jt job =
@@ -87,11 +85,14 @@ uploadFiles :: [FilePath] -> FilePath -> Session -> IO ()
 uploadFiles files input_directory session =
   forM_ files $ \path -> do
     let remotePath = input_directory </> takeFileName path
-    scpSendFile session 0o777 path remotePath
+    putStrLn $ "Uploading: `" ++ path ++ "' to `" ++ remotePath ++ "'"
+    size <- scpSendFile session 0o777 path remotePath
+    print size
 
 downloadFiles :: FilePath -> [FilePath] -> Session -> IO ()
 downloadFiles output_directory files session =
   forM_ files $ \path -> do
     let remotePath = output_directory </> takeFileName path
+    putStrLn $ "Downloading: `" ++ remotePath ++ "' to `" ++ path ++ "'"
     scpReceiveFile session remotePath path
 

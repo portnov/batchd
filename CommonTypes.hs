@@ -134,3 +134,6 @@ instance FromJSON JobInfo where
       <*> v .:? "params" .!= M.empty
   parseJSON invalid = typeMismatch "job" invalid
 
+getParamType :: JobType -> String -> Maybe ParamType
+getParamType jt name = M.lookup name (jtParams jt)
+
