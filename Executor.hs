@@ -12,6 +12,7 @@ import qualified Database.Persist.Sql as Sql
 import Data.Time
 import System.Process
 
+import CommonTypes
 import Types
 import Database
 import SSH

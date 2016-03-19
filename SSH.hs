@@ -14,6 +14,7 @@ import System.FilePath
 import System.Environment
 import System.Exit
 
+import CommonTypes
 import Types
 import Database
 
@@ -51,19 +52,20 @@ processOnHost h jtype job command = do
   known_hosts <- getKnownHosts
   def_public_key <- getDfltPublicKey
   def_private_key <- getDfltPrivateKey
-  let passphrase = fromMaybe "" $ hPassphrase h
+  let passphrase = hPassphrase h
       public_key = fromMaybe def_public_key $ hPublicKey h
       private_key = fromMaybe def_private_key $ hPrivateKey h
       user = hUserName h
-      port = fromMaybe 22 $ hPort h
+      port = hPort h
       hostname = hHostName h
 
   putStrLn $ "CONNECTING TO " ++ hostname
   print h
   withSSH2 known_hosts public_key private_key passphrase user hostname port $ \session -> do
-      uploadFiles (getInputFiles jtype job) session
+      execCommands session (hStartupCommands h)
+      uploadFiles (getInputFiles jtype job) (hInputDirectory h) session
       (ec,out) <- execCommands session [command]
-      downloadFiles (getOutputFiles jtype job) session
+      downloadFiles (hOutputDirectory h) (getOutputFiles jtype job) session
       let outText = TL.toStrict $ TLE.decodeUtf8 (head out)
           ec' = if ec == 0
                   then ExitSuccess
@@ -81,13 +83,15 @@ getOutputFiles :: JobType -> JobInfo -> [FilePath]
 getOutputFiles jt job =
   [value | (name, value) <- M.assocs (jiParams job), getParamType jt name == Just OutputFile]
 
-uploadFiles :: [FilePath] -> Session -> IO ()
-uploadFiles files session =
-  forM_ files $ \path ->
-    scpSendFile session 0o777 path path
+uploadFiles :: [FilePath] -> FilePath -> Session -> IO ()
+uploadFiles files input_directory session =
+  forM_ files $ \path -> do
+    let remotePath = input_directory </> takeFileName path
+    scpSendFile session 0o777 path remotePath
 
-downloadFiles :: [FilePath] -> Session -> IO ()
-downloadFiles files session =
-  forM_ files $ \path ->
-    scpReceiveFile session path path
+downloadFiles :: FilePath -> [FilePath] -> Session -> IO ()
+downloadFiles output_directory files session =
+  forM_ files $ \path -> do
+    let remotePath = output_directory </> takeFileName path
+    scpReceiveFile session remotePath path
 

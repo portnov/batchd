@@ -42,6 +42,7 @@ import qualified Database.Esqueleto as E
 import Database.Esqueleto ((^.))
 import System.Exit
 
+import CommonTypes
 import Types
 
 getPool :: IO Sql.ConnectionPool
@@ -97,36 +98,6 @@ ScheduleWeekDay
 
 deriving instance Eq ScheduleTime
 deriving instance Show ScheduleTime
-
-type JobParamInfo = M.Map String String
-
-data JobInfo = JobInfo {
-    jiId :: Int64,
-    jiQueue :: String,
-    jiType :: String,
-    jiSeq :: Int,
-    jiStatus :: JobStatus,
-    jiTryCount :: Int,
-    jiHostName :: Maybe String,
-    jiParams :: JobParamInfo
-  }
-  deriving (Generic, Show)
-
-instance ToJSON JobInfo where
-  toJSON = genericToJSON (jsonOptions "ji")
-
-instance FromJSON JobInfo where
-  parseJSON (Object v) =
-    JobInfo
-      <$> v .:? "id" .!= 0
-      <*> v .:? "queue" .!= ""
-      <*> v .: "type"
-      <*> v .:? "seq" .!= 0
-      <*> v .:? "status" .!= New
-      <*> v .:? "try_count" .!= 0
-      <*> v .:? "host_name"
-      <*> v .:? "params" .!= M.empty
-  parseJSON invalid = typeMismatch "job" invalid
 
 deriving instance Generic Queue
 
@@ -354,7 +325,7 @@ enqueue qname jinfo = do
 
 removeJob :: String -> Int -> DB ()
 removeJob qname jseq = do
-    deleteBy $ UniqJobSeq qname jseq
+    deleteCascadeWhere [JobQueueName ==. qname, JobSeq ==. jseq]
 
 removeJobs :: String -> JobStatus -> DB ()
 removeJobs qname status = do

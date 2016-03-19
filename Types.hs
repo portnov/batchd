@@ -23,82 +23,37 @@ import Database.Persist.Sql as Sql
 import Web.Scotty.Trans as Scotty
 import System.Exit
 
-data ParamType =
-    String
-  | Integer
-  | InputFile
-  | OutputFile
-  deriving (Eq, Show, Data, Typeable, Generic)
-
-data JobType = JobType {
-    jtName :: String,
-    jtTemplate :: String,
-    jtOnFail :: OnFailAction,
-    jtHostName :: Maybe String,
-    jtParams :: M.Map String ParamType
-  }
-  deriving (Eq, Show, Data, Typeable, Generic)
+import CommonTypes
 
 data Host = Host {
     hName :: String,
     hHostName :: String,
     hPublicKey :: Maybe String,
     hPrivateKey :: Maybe String,
-    hPassphrase :: Maybe String,
+    hPassphrase :: String,
     hUserName :: String,
-    hPort :: Maybe Int
+    hPort :: Int,
+    hInputDirectory :: String,
+    hOutputDirectory :: String,
+    hStartupCommands :: [String]
   }
   deriving (Eq, Show, Data, Typeable, Generic)
 
-data OnFailAction =
-    Continue
-  | RetryNow Int
-  | RetryLater Int
-  deriving (Eq, Show, Read, Data, Typeable, Generic)
+instance FromJSON Host where
+  parseJSON (Object v) =
+    Host
+      <$> v .: "name"
+      <*> v .: "host_name"
+      <*> v .:? "public_key"
+      <*> v .:? "private_key"
+      <*> v .:? "passphrase" .!= ""
+      <*> v .: "user_name"
+      <*> v .: "port" .!= 22
+      <*> v .:? "input_directory" .!= "."
+      <*> v .:? "output_directory" .!= "."
+      <*> v .:? "startup_commands" .!= []
+  parseJSON invalid = typeMismatch "host definition" invalid
 
-instance ToJSON OnFailAction where
-  toJSON Continue = Aeson.String "continue"
-  toJSON (RetryNow n) = object ["retry" .= object ["when" .= ("now" :: T.Text), "count" .= n]]
-  toJSON (RetryLater n) = object ["retry" .= object ["when" .= ("later" :: T.Text), "count" .= n]]
-
-instance FromJSON OnFailAction where
-  parseJSON (Aeson.String "continue") = return Continue
-  parseJSON (Aeson.String "retry") = return (RetryNow 1)
-  parseJSON (Object v) = do
-    r <- v .: "retry"
-    case r of
-      Object retry -> do
-          now <- retry .:? "when" .!= True
-          count <- retry .:? "count" .!= 1
-          if now
-            then return $ RetryNow count
-            else return $ RetryLater count
-      _ -> typeMismatch "retry" r
-  parseJSON invalid = typeMismatch "on fail" invalid
-
-data JobStatus =
-    New
-  | Processing
-  | Done
-  | Failed
-  deriving (Eq, Show, Read, Data, Typeable, Generic)
-
-instance ToJSON JobStatus
-instance FromJSON JobStatus
-
-deriving instance Generic WeekDay
-instance ToJSON WeekDay
-instance FromJSON WeekDay
-
-data Error =
-    QueueExists
-  | QueueNotExists
-  | QueueNotEmpty
-  | JobNotExists
-  | InvalidJobType String
-  | InvalidJobStatus
-  | UnknownError String
-  deriving (Eq, Show, Data, Typeable)
 
 instance ScottyError Error where
   stringError e = UnknownError e
@@ -152,24 +107,6 @@ runDB qry = do
   pool <- ask
   liftIO $ runResourceT $ runNoLoggingT $ Sql.runSqlPool (dbio qry) pool
 
-stripPrefix :: String -> String -> String
-stripPrefix prefix str =
-  if prefix `isPrefixOf` str
-    then drop (length prefix) str
-    else str
-
-camelCaseToUnderscore :: String -> String
-camelCaseToUnderscore = go False
-  where
-    go _ [] = []
-    go False (x:xs) = toLower x : go True xs
-    go True (x:xs)
-      | isUpper x = '_' : toLower x : go True xs
-      | otherwise = x : go True xs
-
-jsonOptions :: String -> Data.Aeson.Types.Options
-jsonOptions prefix = defaultOptions {fieldLabelModifier = camelCaseToUnderscore . stripPrefix prefix}
-
 parseUpdate :: (PersistField t, FromJSON t) => EntityField v t -> T.Text -> Value -> Parser (Maybe (Update v))
 parseUpdate field label (Object v) = do
   mbValue <- v .:? label
@@ -177,13 +114,4 @@ parseUpdate field label (Object v) = do
               Nothing -> Nothing
               Just value -> Just (field =. value)
   return upd
-
-instance FromJSON JobType where
-  parseJSON = genericParseJSON (jsonOptions "jt")
-
-instance FromJSON ParamType where
-  parseJSON = genericParseJSON $ defaultOptions {fieldLabelModifier = camelCaseToUnderscore}
-
-instance FromJSON Host where
-  parseJSON = genericParseJSON (jsonOptions "h")
 

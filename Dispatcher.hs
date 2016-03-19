@@ -15,6 +15,7 @@ import qualified Data.ByteString as B
 import qualified Data.Map as M
 import Data.Yaml
 import Data.Default
+import Data.Dates
 import Database.Persist
 import qualified Database.Persist.Sql as Sql
 import qualified Database.Persist.Sqlite as Sqlite
@@ -22,8 +23,9 @@ import System.Environment
 import System.Exit
 import Text.Printf
 
-import Database
+import CommonTypes
 import Types
+import Database
 import Schedule
 import Executor
 
@@ -41,11 +43,14 @@ dispatcher = do
       Left err -> liftIO $ print err
       Right qes -> do
         forM_ qes $ \qe -> runDB $ do
-          let QueueKey qname = entityKey qe
-          mbJob <- getNextJob (entityKey qe)
-          case mbJob of
-            Nothing -> liftIO $ print $ "Queue " ++ qname ++ " exhaused."
-            Just job -> process (entityVal qe) job
+          schedule <- loadSchedule (queueSchedule $ entityVal qe)
+          now <- liftIO $ getCurrentDateTime
+          when (schedule `allows` now) $ do
+              let QueueKey qname = entityKey qe
+              mbJob <- getNextJob (entityKey qe)
+              case mbJob of
+                Nothing -> liftIO $ print $ "Queue " ++ qname ++ " exhaused."
+                Just job -> process (entityVal qe) job
         liftIO $ threadDelay $ 10 * 1000*1000
 
 loadTemplate :: String -> DB JobType

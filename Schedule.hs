@@ -12,6 +12,7 @@ import Database.Persist.Sql
 import Data.Aeson
 import Data.Aeson.Types
 
+import CommonTypes
 import Types
 import Database
 
@@ -68,16 +69,16 @@ allows (ScheduleInfo {..}) dt = weekdayOk && timeOk
     goodTime (Period {..}) = 
                   getTime dt > periodBegin && getTime dt <= periodEnd
 
-loadSchedule :: String -> DB ScheduleInfo
-loadSchedule scheduleId = do
-  mbSchedule <- get (ScheduleKey scheduleId)
+loadSchedule :: Key Schedule -> DB ScheduleInfo
+loadSchedule scheduleId@(ScheduleKey sname) = do
+  mbSchedule <- get scheduleId
   case mbSchedule of
     Nothing -> fail "No such schedule"
     Just s -> do
       let name = scheduleName s
-      ts <- selectList [ScheduleTimeScheduleName ==. scheduleId] []
+      ts <- selectList [ScheduleTimeScheduleName ==. sname] []
       let times = map (toPeriod . entityVal) ts
-      ws <- selectList [ScheduleWeekDayScheduleName ==. scheduleId] []
+      ws <- selectList [ScheduleWeekDayScheduleName ==. sname] []
       let weekdays = map (scheduleWeekDayWeekDay . entityVal) ws
       return $ ScheduleInfo {
                  sName = name,
@@ -104,5 +105,5 @@ addSchedule si = do
 loadAllSchedules :: DB [ScheduleInfo]
 loadAllSchedules = do
   sids <- selectKeysList [] []
-  forM sids $ \(ScheduleKey sid) -> loadSchedule sid
+  forM sids $ \sid -> loadSchedule sid
 

@@ -24,8 +24,9 @@ import qualified Network.Wai as Wai
 -- import Web.Scotty
 import Web.Scotty.Trans as Scotty
 
-import Database
+import CommonTypes
 import Types
+import Database
 import Schedule
 
 runApplication :: Sql.ConnectionPool -> IO ()
