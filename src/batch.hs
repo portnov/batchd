@@ -113,7 +113,6 @@ doList manager opts = do
 
     qnames ->
       forM_ qnames $ \qname -> do
-        print (status opts)
         statusOpt <- parseStatus Nothing (fail "Invalid status") (status opts)
         let statusStr = case statusOpt of
                           Nothing -> "?status=all"
