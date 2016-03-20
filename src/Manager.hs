@@ -22,10 +22,11 @@ application :: ScottyT Error ConnectionM ()
 application = do
   -- runDBA (Sql.runMigration migrateAll)
   Scotty.get "/stats" getStatsA
+  Scotty.get "/stats/:name" getQueueStatsA
+
   Scotty.get "/queues" getQueuesA
   Scotty.get "/queue/:name" getQueueA
   Scotty.post "/queue/:name" updateQueueA
-  Scotty.get "/queue/:name/stats" getQueueStatsA
   Scotty.put "/queues" addQueueA
 
   Scotty.put "/queue/:name" enqueueA
@@ -33,6 +34,7 @@ application = do
   Scotty.delete "/queue/:name" removeQueueA
 
   Scotty.get "/job/:id" getJobA
+  Scotty.delete "/job/:id" removeJobByIdA
   Scotty.get "/jobs" getJobsA
 
   Scotty.get "/schedules" getSchedulesA
@@ -55,6 +57,7 @@ runApplication connInfo = do
   let r m = runReaderT (runConnection m) connInfo
   scottyOptsT options r application
 
+-- | Get URL parameter in form ?name=value
 getUrlParam :: B.ByteString -> Action (Maybe B.ByteString)
 getUrlParam key = do
   rq <- Scotty.request
@@ -107,6 +110,12 @@ removeJobA = do
   qname <- Scotty.param "name"
   jseq <- Scotty.param "seq"
   runDBA $ removeJob qname jseq
+  Scotty.json ("done" :: String)
+
+removeJobByIdA :: Action ()
+removeJobByIdA = do
+  jid <- Scotty.param "id"
+  runDBA $ removeJobById jid
   Scotty.json ("done" :: String)
 
 removeQueueA :: Action ()

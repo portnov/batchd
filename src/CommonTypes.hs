@@ -147,6 +147,7 @@ instance FromJSON JobInfo where
 getParamType :: JobType -> String -> Maybe ParamType
 getParamType jt name = M.lookup name (jtParams jt)
 
+-- | Remote host description
 data Host = Host {
     hName :: String,
     hHostName :: String,
@@ -176,6 +177,7 @@ instance FromJSON Host where
       <*> v .:? "startup_commands" .!= []
   parseJSON invalid = typeMismatch "host definition" invalid
 
+-- | Supported database drivers
 data DbDriver = Sqlite | PostgreSql
   deriving (Eq, Show, Data, Typeable, Generic)
 

@@ -338,6 +338,11 @@ removeJob :: String -> Int -> DB ()
 removeJob qname jseq = do
     deleteCascadeWhere [JobQueueName ==. qname, JobSeq ==. jseq]
 
+removeJobById :: Int64 -> DB ()
+removeJobById jid = do
+    let key = JobKey (SqlBackendKey jid)
+    deleteCascade key
+
 removeJobs :: String -> JobStatus -> DB ()
 removeJobs qname status = do
     deleteCascadeWhere [JobQueueName ==. qname, JobStatus ==. status]
