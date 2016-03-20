@@ -17,6 +17,7 @@ cabal-version:       >=1.10
 
 executable batchd
   main-is:             batchd.hs
+  hs-source-dirs:      src/
   -- other-modules:       
   other-extensions:    TypeFamilies, DeriveDataTypeable, TemplateHaskell, StandaloneDeriving, RecordWildCards
   build-depends:       base >=4.7 && <4.8,
@@ -54,6 +55,7 @@ executable batchd
 
 executable enqueue
   main-is:             enqueue.hs
+  hs-source-dirs:      src/
   -- other-modules:       
   build-depends:       base >=4.7 && <4.8,
                        data-default >= 0.5,
