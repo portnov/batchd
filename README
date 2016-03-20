@@ -95,7 +95,8 @@ The job type describes how to execute jobs of specific kind:
 
 Schedules
 ---------
-The schedule describes time periods when jobs can be executed. There are two options of how to specify periods:
+The schedule describes time periods when jobs can be executed. There are two
+options of how to specify periods:
 
 * Specify time of day period; for example, time: [{"begin": "08:00:00", "end":
   "19:00:00"}]. It is possible to specify several periods. If no periods are
