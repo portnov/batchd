@@ -37,8 +37,9 @@ runDispatcher = do
     Left err -> fail $ show err
     Right cfg -> do
       pool <- getPool cfg
-      Sql.runSqlPool (Sql.runMigration migrateAll) pool
-      runReaderT (runConnection dispatcher) pool
+      let connInfo = ConnectionInfo cfg pool
+      Sql.runSqlPool (Sql.runMigration migrateAll) (ciPool connInfo)
+      runReaderT (runConnection dispatcher) connInfo
 
 dispatcher :: ConnectionM ()
 dispatcher = do

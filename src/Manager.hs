@@ -9,7 +9,6 @@ import Control.Monad.Reader
 import Control.Monad.IO.Class  (MonadIO, liftIO)
 import Control.Monad.Trans.Class (MonadTrans, lift)
 import Control.Monad.Trans.Resource
-import Control.Monad.Logger (runNoLoggingT, runStdoutLoggingT)
 import qualified Data.ByteString as B
 import qualified Data.Map as M
 -- import Data.Aeson
@@ -29,12 +28,6 @@ import Types
 import Config
 import Database
 import Schedule
-
-runApplication :: Sql.ConnectionPool -> IO ()
-runApplication pool = do
-  let options = def
-  let r m = runReaderT (runConnection m) pool
-  scottyOptsT options r application
 
 application :: ScottyT Error ConnectionM ()
 application = do
@@ -63,8 +56,15 @@ runManager = do
     Left err -> fail $ show err
     Right cfg -> do
       pool <- getPool cfg
-      Sql.runSqlPool (Sql.runMigration migrateAll) pool
-      runApplication pool
+      let connInfo = ConnectionInfo cfg pool
+      Sql.runSqlPool (Sql.runMigration migrateAll) (ciPool connInfo)
+      runApplication connInfo
+
+runApplication :: ConnectionInfo -> IO ()
+runApplication connInfo = do
+  let options = def
+  let r m = runReaderT (runConnection m) connInfo
+  scottyOptsT options r application
 
 getUrlParam :: B.ByteString -> Action (Maybe B.ByteString)
 getUrlParam key = do

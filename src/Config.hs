@@ -2,6 +2,8 @@
 module Config where
 
 import Control.Monad
+import Control.Monad.Logger
+import Control.Monad.Logger.Syslog (runSyslogLoggingT)
 import Data.Aeson
 import Data.Yaml
 import System.FilePath

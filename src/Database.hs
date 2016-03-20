@@ -34,6 +34,7 @@ import qualified Data.Text.Encoding as TE
 
 import           Control.Monad.IO.Class  (liftIO)
 import Control.Monad.Logger (runNoLoggingT, runStdoutLoggingT)
+import Control.Monad.Logger.Syslog (runSyslogLoggingT)
 import           Database.Persist
 import           Database.Persist.Sql as Sql
 import           Database.Persist.Sqlite as Sqlite
@@ -44,15 +45,16 @@ import Database.Esqueleto ((^.))
 import System.Exit
 
 import CommonTypes
+import Config
 import Types
 
 getPool :: DbConfig -> IO Sql.ConnectionPool
 getPool cfg =
   case dbcDriver cfg of
-    Sqlite -> runStdoutLoggingT (Sqlite.createSqlitePool (dbcConnectionString cfg) 4)
+    Sqlite -> (enableLogging cfg) (Sqlite.createSqlitePool (dbcConnectionString cfg) 4)
     PostgreSql -> do
         let str = TE.encodeUtf8 (dbcConnectionString cfg)
-        runStdoutLoggingT (Postgres.createPostgresqlPool str 4)
+        (enableLogging cfg) (Postgres.createPostgresqlPool str 4)
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll", mkDeleteCascade sqlSettings] [persistLowerCase|
 JobParam

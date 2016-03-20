@@ -7,6 +7,7 @@ import Control.Applicative
 import Control.Monad.Reader
 import Control.Monad.Except
 import Control.Monad.Logger
+import Control.Monad.Logger.Syslog (runSyslogLoggingT)
 import Control.Monad.Trans.Resource
 import qualified Data.Map as M
 import qualified Data.Text as T
@@ -36,8 +37,8 @@ derivePersistField "WeekDay"
 derivePersistField "JobStatus"
 derivePersistField "ExitCode"
 
-type DB a = ReaderT SqlBackend (ExceptT Error (NoLoggingT (ResourceT IO))) a
-type DBIO a = ReaderT SqlBackend (NoLoggingT (ResourceT IO)) a
+type DB a = ReaderT SqlBackend (ExceptT Error (LoggingT (ResourceT IO))) a
+type DBIO a = ReaderT SqlBackend (LoggingT (ResourceT IO)) a
 
 throwR :: Error -> DB a
 throwR ex = lift $ throwError ex
@@ -52,31 +53,39 @@ dbio action = do
         return $ Left err
     Right r -> return $ Right r
 
-newtype ConnectionM a = ConnectionM {
-    runConnection :: ReaderT Sql.ConnectionPool IO a
+data ConnectionInfo = ConnectionInfo {
+    ciDbConfig :: DbConfig,
+    ciPool :: Sql.ConnectionPool
   }
-  deriving (Applicative,Functor,Monad,MonadIO, MonadReader Sql.ConnectionPool)
+
+newtype ConnectionM a = ConnectionM {
+    runConnection :: ReaderT ConnectionInfo IO a
+  }
+  deriving (Applicative,Functor,Monad,MonadIO, MonadReader ConnectionInfo)
 
 type Action a = ActionT Error ConnectionM a
 
 runDBA :: DB a -> Action a
 runDBA qry = do
-  pool <- lift ask
-  r <- liftIO $ runResourceT $ runNoLoggingT (Sql.runSqlPool (dbio qry) pool)
+  pool <- lift (asks ciPool)
+  cfg <- lift (asks ciDbConfig)
+  r <- liftIO $ runResourceT $ (enableLogging cfg) (Sql.runSqlPool (dbio qry) pool)
   case r of
     Left err -> Scotty.raise err
     Right x -> return x
 
 runDBA' :: DB a -> Action (Either Error a)
 runDBA' qry = do
-  pool <- lift ask
-  r <- liftIO $ runResourceT $ runNoLoggingT (Sql.runSqlPool (dbio qry) pool)
+  pool <- lift (asks ciPool)
+  cfg <- lift (asks ciDbConfig)
+  r <- liftIO $ runResourceT $ (enableLogging cfg) (Sql.runSqlPool (dbio qry) pool)
   return r
 
 runDB :: DB a -> ConnectionM (Either Error a)
 runDB qry = do
-  pool <- ask
-  liftIO $ runResourceT $ runNoLoggingT $ Sql.runSqlPool (dbio qry) pool
+  pool <- asks ciPool
+  cfg <- asks ciDbConfig
+  liftIO $ runResourceT $ (enableLogging cfg) $ Sql.runSqlPool (dbio qry) pool
 
 parseUpdate :: (PersistField t, FromJSON t) => EntityField v t -> T.Text -> Value -> Parser (Maybe (Update v))
 parseUpdate field label (Object v) = do
@@ -85,4 +94,8 @@ parseUpdate field label (Object v) = do
               Nothing -> Nothing
               Just value -> Just (field =. value)
   return upd
+
+enableLogging cfg actions = runSyslogLoggingT $ filterLogger check actions
+  where
+    check _ level = level >= dbcLogLevel cfg
 

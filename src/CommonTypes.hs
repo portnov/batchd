@@ -4,6 +4,7 @@ module CommonTypes where
 
 import GHC.Generics
 import Control.Applicative
+import Control.Monad.Logger
 import Data.Generics hiding (Generic)
 import Data.Int
 import Data.Char
@@ -183,7 +184,8 @@ instance FromJSON DbDriver
 
 data DbConfig = DbConfig {
     dbcDriver :: DbDriver,
-    dbcConnectionString :: T.Text
+    dbcConnectionString :: T.Text,
+    dbcLogLevel :: LogLevel
   }
   deriving (Eq, Show, Data, Typeable, Generic)
 
@@ -192,4 +194,22 @@ instance ToJSON DbConfig where
 
 instance FromJSON DbConfig where
   parseJSON = genericParseJSON (jsonOptions "dbc")
+
+instance FromJSON LogLevel where
+  parseJSON (Aeson.String "debug") = return LevelDebug
+  parseJSON (Aeson.String "info") = return LevelInfo
+  parseJSON (Aeson.String "warning") = return LevelWarn
+  parseJSON (Aeson.String "error") = return LevelError
+  parseJSON invalid = typeMismatch "logging level" invalid
+
+instance ToJSON LogLevel where
+  toJSON LevelDebug = Aeson.String "debug"
+  toJSON LevelInfo  = Aeson.String "info"
+  toJSON LevelWarn  = Aeson.String "warning"
+  toJSON LevelError = Aeson.String "error"
+  toJSON (LevelOther x) = Aeson.String x
+  
+
+deriving instance Data LogLevel
+deriving instance Typeable LogLevel
 
