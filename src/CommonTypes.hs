@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, ScopedTypeVariables, TemplateHaskell, GeneralizedNewtypeDeriving, DeriveGeneric, StandaloneDeriving, OverloadedStrings #-}
+{-# LANGUAGE DeriveDataTypeable, ScopedTypeVariables, TemplateHaskell, GeneralizedNewtypeDeriving, DeriveGeneric, StandaloneDeriving, OverloadedStrings, FlexibleInstances #-}
 
 module CommonTypes where
 
@@ -86,10 +86,15 @@ data JobStatus =
   | Processing
   | Done
   | Failed
-  deriving (Eq, Show, Read, Data, Typeable, Generic)
+  deriving (Eq, Ord, Show, Read, Data, Typeable, Generic)
 
 instance ToJSON JobStatus
 instance FromJSON JobStatus
+
+instance ToJSON a => ToJSON (M.Map JobStatus a) where
+  toJSON m = object $ map go $ M.assocs m
+    where
+      go (st,x) = (T.pack $ map toLower $ show st) .= toJSON x
 
 deriving instance Generic WeekDay
 instance ToJSON WeekDay

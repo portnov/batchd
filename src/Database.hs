@@ -313,6 +313,20 @@ updateQueue :: String -> [Update Queue] -> DB ()
 updateQueue qname updates = do
   update (QueueKey qname) updates
 
+getQueueStats :: String -> DB (M.Map JobStatus Int)
+getQueueStats qname = do
+  let sql = "select status, count(1) from job where queue_name = ? group by status"
+  pvs <- Sql.rawSql sql [toPersistValue qname]
+  return $ M.fromList [(unSingle st, unSingle cnt) | (st,cnt) <- pvs]
+
+getStats :: DB (M.Map String (M.Map JobStatus Int))
+getStats = do
+  queues <- getAllQueues'
+  rs <- forM queues $ \q -> do
+            st <- getQueueStats (queueName q)
+            return (queueName q, st)
+  return $ M.fromList rs
+
 enqueue :: String -> JobInfo -> DB (Key Job)
 enqueue qname jinfo = do
   mbQueue <- getQueue qname

@@ -39,9 +39,11 @@ runApplication pool = do
 application :: ScottyT Error ConnectionM ()
 application = do
   -- runDBA (Sql.runMigration migrateAll)
+  Scotty.get "/stats" getStatsA
   Scotty.get "/queues" getQueuesA
   Scotty.get "/queue/:name" getQueueA
   Scotty.post "/queue/:name" updateQueueA
+  Scotty.get "/queue/:name/stats" getQueueStatsA
   Scotty.put "/queues" addQueueA
 
   Scotty.put "/queue/:name" enqueueA
@@ -92,6 +94,17 @@ getQueueA = do
   fltr <- parseStatus (Just New) st
   jobs <- runDBA $ loadJobs qname fltr
   Scotty.json jobs
+
+getQueueStatsA :: Action ()
+getQueueStatsA = do
+  qname <- Scotty.param "name"
+  stats <- runDBA $ getQueueStats qname
+  Scotty.json stats
+
+getStatsA :: Action ()
+getStatsA = do
+  stats <- runDBA getStats
+  Scotty.json stats
 
 enqueueA :: Action ()
 enqueueA = do
