@@ -32,9 +32,13 @@ import Executor
 
 runDispatcher :: IO ()
 runDispatcher = do
-  pool <- getPool
-  Sql.runSqlPool (Sql.runMigration migrateAll) pool
-  runReaderT (runConnection dispatcher) pool
+  cfgR <- loadDbConfig
+  case cfgR of
+    Left err -> fail $ show err
+    Right cfg -> do
+      pool <- getPool cfg
+      Sql.runSqlPool (Sql.runMigration migrateAll) pool
+      runReaderT (runConnection dispatcher) pool
 
 dispatcher :: ConnectionM ()
 dispatcher = do

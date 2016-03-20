@@ -53,3 +53,14 @@ loadTemplate name = do
         Left err -> return $ Left $ InvalidJobType err
         Right jt -> return $ Right jt
 
+loadDbConfig :: IO (Either Error DbConfig)
+loadDbConfig = do
+  mbPath <- locateConfig "" "database.yaml"
+  case mbPath of
+    Nothing -> return $ Left FileNotExists
+    Just path -> do
+      r <- decodeFileEither path
+      case r of
+        Left err -> return $ Left $ InvalidDbCfg err
+        Right cfg -> return $ Right cfg
+

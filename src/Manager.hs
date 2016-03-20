@@ -26,6 +26,7 @@ import Web.Scotty.Trans as Scotty
 
 import CommonTypes
 import Types
+import Config
 import Database
 import Schedule
 
@@ -55,9 +56,13 @@ application = do
 
 runManager :: IO ()
 runManager = do
-  pool <- getPool
-  Sql.runSqlPool (Sql.runMigration migrateAll) pool
-  runApplication pool
+  cfgR <- loadDbConfig
+  case cfgR of
+    Left err -> fail $ show err
+    Right cfg -> do
+      pool <- getPool cfg
+      Sql.runSqlPool (Sql.runMigration migrateAll) pool
+      runApplication pool
 
 getUrlParam :: B.ByteString -> Action (Maybe B.ByteString)
 getUrlParam key = do

@@ -102,6 +102,7 @@ data Error =
   | JobNotExists
   | InvalidJobType ParseException
   | InvalidHost ParseException
+  | InvalidDbCfg ParseException
   | InvalidJobStatus
   | FileNotExists
   | UnknownError String
@@ -168,4 +169,22 @@ instance FromJSON Host where
       <*> v .:? "output_directory" .!= "."
       <*> v .:? "startup_commands" .!= []
   parseJSON invalid = typeMismatch "host definition" invalid
+
+data DbDriver = Sqlite | PostgreSql
+  deriving (Eq, Show, Data, Typeable, Generic)
+
+instance ToJSON DbDriver
+instance FromJSON DbDriver
+
+data DbConfig = DbConfig {
+    dbcDriver :: DbDriver,
+    dbcConnectionString :: T.Text
+  }
+  deriving (Eq, Show, Data, Typeable, Generic)
+
+instance ToJSON DbConfig where
+  toJSON = genericToJSON (jsonOptions "dbc")
+
+instance FromJSON DbConfig where
+  parseJSON = genericParseJSON (jsonOptions "dbc")
 

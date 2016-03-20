@@ -30,6 +30,7 @@ import Data.Aeson.Types
 import qualified Data.Map as M
 import qualified Data.HashMap.Strict as H
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as TE
 
 import           Control.Monad.IO.Class  (liftIO)
 import Control.Monad.Logger (runNoLoggingT, runStdoutLoggingT)
@@ -45,9 +46,13 @@ import System.Exit
 import CommonTypes
 import Types
 
-getPool :: IO Sql.ConnectionPool
--- getPool = runStdoutLoggingT (Sqlite.createSqlitePool "test.db" 4)
-getPool = runStdoutLoggingT (Postgres.createPostgresqlPool "host=localhost port=5432 user=batchd password=batchd" 4)
+getPool :: DbConfig -> IO Sql.ConnectionPool
+getPool cfg =
+  case dbcDriver cfg of
+    Sqlite -> runStdoutLoggingT (Sqlite.createSqlitePool (dbcConnectionString cfg) 4)
+    PostgreSql -> do
+        let str = TE.encodeUtf8 (dbcConnectionString cfg)
+        runStdoutLoggingT (Postgres.createPostgresqlPool str 4)
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll", mkDeleteCascade sqlSettings] [persistLowerCase|
 JobParam
