@@ -185,6 +185,8 @@ instance FromJSON DbDriver
 data GlobalConfig = GlobalConfig {
     dbcDriver :: DbDriver,
     dbcConnectionString :: T.Text,
+    dbcWorkers :: Int,
+    dbcPollTimeout :: Int,
     dbcLogLevel :: LogLevel
   }
   deriving (Eq, Show, Data, Typeable, Generic)
@@ -193,7 +195,14 @@ instance ToJSON GlobalConfig where
   toJSON = genericToJSON (jsonOptions "dbc")
 
 instance FromJSON GlobalConfig where
-  parseJSON = genericParseJSON (jsonOptions "dbc")
+  parseJSON (Object v) =
+    GlobalConfig
+      <$> v .:? "driver" .!= Sqlite
+      <*> v .:? "connection_string" .!= ":memory"
+      <*> v .:? "workers" .!= 1
+      <*> v .:? "poll_timeout" .!= 10
+      <*> v .:? "log_level" .!= LevelInfo
+  parseJSON invalid = typeMismatch "global configuration" invalid
 
 instance FromJSON LogLevel where
   parseJSON (Aeson.String "debug") = return LevelDebug

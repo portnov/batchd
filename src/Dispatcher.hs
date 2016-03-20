@@ -44,7 +44,7 @@ runDispatcher = do
       Sql.runSqlPool (Sql.runMigration migrateAll) (ciPool connInfo)
       jobsChan <- newChan
       resChan <- newChan
-      forM_ [1..5] $ \idx ->
+      forM_ [1.. dbcWorkers cfg] $ \idx ->
         forkIO $ worker cfg idx jobsChan resChan
       forkIO $ runReaderT (runConnection (callbackListener resChan)) connInfo
       runReaderT (runConnection (dispatcher jobsChan)) connInfo
@@ -68,7 +68,7 @@ dispatcher jobsChan = do
                 Just job -> do
                     setJobStatus job Processing
                     liftIO $ writeChan jobsChan (entityVal qe, job)
-        liftIO $ threadDelay $ 10 * 1000*1000
+        liftIO $ threadDelay $ (dbcPollTimeout cfg) * 1000*1000
 
 callbackListener :: Chan (JobInfo, JobResult, OnFailAction) -> ConnectionM ()
 callbackListener resChan = forever $ do
