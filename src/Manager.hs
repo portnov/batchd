@@ -30,10 +30,10 @@ application = do
   Scotty.get "/stats" getStatsA
   Scotty.get "/stats/:name" getQueueStatsA
 
-  Scotty.get "/queues" getQueuesA
+  Scotty.get "/queue" getQueuesA
   Scotty.get "/queue/:name" getQueueA
   Scotty.post "/queue/:name" updateQueueA
-  Scotty.put "/queues" addQueueA
+  Scotty.put "/queue" addQueueA
 
   Scotty.put "/queue/:name" enqueueA
   Scotty.delete "/queue/:name/:seq" removeJobA
@@ -43,8 +43,8 @@ application = do
   Scotty.delete "/job/:id" removeJobByIdA
   Scotty.get "/jobs" getJobsA
 
-  Scotty.get "/schedules" getSchedulesA
-  Scotty.put "/schedules" addScheduleA
+  Scotty.get "/schedule" getSchedulesA
+  Scotty.put "/schedule" addScheduleA
 
   Scotty.get "/type" getJobTypesA
   Scotty.get "/type/:name" getJobTypeA
