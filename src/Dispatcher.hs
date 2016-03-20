@@ -31,6 +31,7 @@ import Config
 import Database
 import Schedule
 import Executor
+import Logging
 
 runDispatcher :: IO ()
 runDispatcher = do
@@ -44,7 +45,7 @@ runDispatcher = do
       jobsChan <- newChan
       resChan <- newChan
       forM_ [1..5] $ \idx ->
-        forkIO $ worker idx jobsChan resChan
+        forkIO $ worker cfg idx jobsChan resChan
       forkIO $ runReaderT (runConnection (callbackListener resChan)) connInfo
       runReaderT (runConnection (dispatcher jobsChan)) connInfo
 
@@ -52,8 +53,9 @@ dispatcher :: Chan (Queue, JobInfo) -> ConnectionM ()
 dispatcher jobsChan = do
   forever $ do
     qesr <- runDB getAllQueues
+    cfg <- asks ciDbConfig
     case qesr of
-      Left err -> liftIO $ print err
+      Left err -> reportError (show err)
       Right qes -> do
         forM_ qes $ \qe -> runDB $ do
           schedule <- loadSchedule (queueSchedule $ entityVal qe)
@@ -62,7 +64,7 @@ dispatcher jobsChan = do
               let QueueKey qname = entityKey qe
               mbJob <- getNextJob (entityKey qe)
               case mbJob of
-                Nothing -> liftIO $ print $ "Queue " ++ qname ++ " exhaused."
+                Nothing -> infoDB cfg $ "Queue " ++ qname ++ " exhaused."
                 Just job -> do
                     setJobStatus job Processing
                     liftIO $ writeChan jobsChan (entityVal qe, job)
@@ -71,6 +73,7 @@ dispatcher jobsChan = do
 callbackListener :: Chan (JobInfo, JobResult, OnFailAction) -> ConnectionM ()
 callbackListener resChan = forever $ do
   (job, result, onFail) <- liftIO $ readChan resChan
+  cfg <- asks ciDbConfig
   runDB $ do
       insert_ result
       if jobResultExitCode result == ExitSuccess
@@ -81,73 +84,36 @@ callbackListener resChan = forever $ do
                   count <- increaseTryCount job
                   if count <= m
                     then do
-                      liftIO $ putStrLn "Retry now"
+                      infoDB cfg "Retry now"
                       setJobStatus job New
                     else setJobStatus job Failed
                RetryLater m -> do
                   count <- increaseTryCount job
                   if count <= m
                     then do
-                      liftIO $ putStrLn "Retry later"
+                      infoDB cfg "Retry later"
                       moveToEnd job
                     else setJobStatus job Failed
 
 
-loadTemplateDb :: String -> DB JobType
-loadTemplateDb name = do
-  r <- liftIO $ Config.loadTemplate name
-  case r of
-    Left err -> throwR err
-    Right jt -> return jt
-
-worker :: Int -> Chan (Queue, JobInfo) -> Chan (JobInfo, JobResult, OnFailAction) -> IO ()
-worker idx jobsChan resChan = forever $ do
+worker :: DbConfig -> Int -> Chan (Queue, JobInfo) -> Chan (JobInfo, JobResult, OnFailAction) -> IO ()
+worker cfg idx jobsChan resChan = forever $ do
   (queue, job) <- readChan jobsChan
-  printf "[%d] got job #%d\n" idx (jiId job)
+  infoIO cfg $ printf "[%d] got job #%d" idx (jiId job)
   jtypeR <- Config.loadTemplate (jiType job)
   (result, onFail) <-
       case jtypeR of
               Left err -> do
-                  printf "[%d] invalid job type %s: %s\n" idx (jiType job) (show err)
+                  reportErrorIO cfg $ printf "[%d] invalid job type %s: %s" idx (jiType job) (show err)
                   let jid = JobKey (Sql.SqlBackendKey $ jiId job)
                   now <- getCurrentTime
                   let res = JobResult jid now (ExitFailure (-1)) T.empty (T.pack $ show err)
                   return (res, Continue)
 
               Right jtype -> do
-                  res <- executeJob queue jtype job
+                  res <- executeJob cfg queue jtype job
                   return (res, jtOnFail jtype)
 
   writeChan resChan (job, result, onFail)
-  printf "[%d] done job #%d\n" idx (jiId job)
-
-process :: Queue -> JobInfo -> DB ()
-process queue job = do
-  liftIO $ print job
-  lockJob job
-  setJobStatus job Processing
-  jtype <- loadTemplateDb (jiType job)
-  result <- liftIO $ executeJob queue jtype job
-  insert_ result
-  if jobResultExitCode result == ExitSuccess
-    then setJobStatus job Done
-    else case jtOnFail jtype of
-           Continue -> setJobStatus job Failed
-           RetryNow m -> do
-              count <- increaseTryCount job
-              if count <= m
-                then do
-                  liftIO $ putStrLn "Retry now"
-                  setJobStatus job New
-                else setJobStatus job Failed
-           RetryLater m -> do
-              count <- increaseTryCount job
-              if count <= m
-                then do
-                  liftIO $ putStrLn "Retry later"
-                  moveToEnd job
-                else setJobStatus job Failed
-              
-  
-
+  infoIO cfg $ printf "[%d] done job #%d" idx (jiId job)
 

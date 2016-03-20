@@ -17,6 +17,7 @@ import System.Exit
 import CommonTypes
 import Types
 import Config
+import Logging
 import Database
 import SSH
 
@@ -42,8 +43,8 @@ hostContext (Just host) jt params = M.fromList $ map update $ M.assocs params
         Just OutputFile -> (key, hOutputDirectory host </> takeFileName value)
         _ -> (key, value)
 
-executeJob :: Queue -> JobType -> JobInfo -> IO JobResult
-executeJob q jt job = do
+executeJob :: DbConfig -> Queue -> JobType -> JobInfo -> IO JobResult
+executeJob cfg q jt job = do
   let mbHostName = getHostName q jt job
       jid = JobKey (Sql.SqlBackendKey $ jiId job)
   case mbHostName of
@@ -61,7 +62,7 @@ executeJob q jt job = do
           now <- getCurrentTime
           return $ JobResult jid now ec stdout T.empty
         Left err -> do
-          putStrLn $ show err
+          reportErrorIO cfg $ show err
           now <- getCurrentTime
           return $ JobResult jid now (ExitFailure (-1)) T.empty (T.pack $ show err)
 
