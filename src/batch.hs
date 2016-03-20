@@ -30,6 +30,10 @@ data Batch =
       status :: Maybe String,
       queueToList :: [String]
     }
+  | Stats {
+      managerUrl :: String,
+      queueToStat :: [String]
+    }
   deriving (Show, Data, Typeable)
 
 defaultUrl :: String
@@ -60,6 +64,13 @@ list = List {
     status = def &= typ "STATUS" &= help "list only jobs of specified status",
     queueToList = def &= args &= typ "QUEUE"
   }
+
+stats :: Batch
+stats = Stats {
+    managerUrl = managerUrlAnn defaultUrl,
+    queueToStat = [] &= typ "QUEUE" &= args
+  }
+    
 
 parseParams :: Batch -> JobParamInfo
 parseParams e = 
@@ -113,7 +124,7 @@ doList manager opts = do
 
     qnames ->
       forM_ qnames $ \qname -> do
-        statusOpt <- parseStatus Nothing (fail "Invalid status") (status opts)
+        statusOpt <- parseStatus (Just New) (fail "Invalid status") (status opts)
         let statusStr = case statusOpt of
                           Nothing -> "?status=all"
                           Just st -> case status opts of
@@ -131,9 +142,42 @@ doList manager opts = do
               forM_ (M.assocs $ jiParams job) $ \(name, value) -> do
                 printf "\t%s:\t%s\n" name value
 
+doStats :: Manager -> Batch -> IO ()
+doStats manager opts = do
+    case queueToStat opts of
+      [] -> do
+        let urlStr = managerUrl opts </> "stats"
+        putStrLn $ "Querying " ++ urlStr
+        url <- parseUrl urlStr
+        responseLbs <- httpLbs url manager
+        case eitherDecode (responseBody responseLbs) of
+          Left err -> fail $ show err
+          Right response -> do
+            forM_ (M.assocs response) $ \rec -> do
+              let qname = fst rec :: String
+                  stat = snd rec :: M.Map JobStatus Int
+              putStrLn $ qname ++ ":"
+              printStats stat
+      qnames -> do
+        forM_ qnames $ \qname -> do
+          putStrLn $ qname ++ ":"
+          let urlStr = managerUrl opts </> "stats" </> qname
+          -- putStrLn $ "Querying " ++ urlStr
+          url <- parseUrl urlStr
+          responseLbs <- httpLbs url manager
+          case eitherDecode (responseBody responseLbs) of
+            Left err -> fail $ show err
+            Right response -> do
+                printStats response
+  where
+    printStats :: M.Map JobStatus Int -> IO ()
+    printStats stat =
+      forM_ (M.assocs stat) $ \(st, cnt) ->
+          printf "\t%s:\t%d\n" (show st) cnt
+
 main :: IO ()
 main = do
-  let mode = cmdArgsMode $ modes [enqueue, list]
+  let mode = cmdArgsMode $ modes [enqueue, list, stats]
   opts <- cmdArgsRun mode
 
   manager <- newManager defaultManagerSettings
@@ -141,4 +185,5 @@ main = do
   case opts of
     Enqueue {} -> doEnqueue manager opts
     List {} -> doList manager opts
+    Stats {} -> doStats manager opts
 

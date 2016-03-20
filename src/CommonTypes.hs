@@ -4,6 +4,7 @@ module CommonTypes where
 
 import GHC.Generics
 import Control.Applicative
+import Control.Monad
 import Control.Monad.Logger
 import Data.Generics hiding (Generic)
 import Data.Int
@@ -11,6 +12,7 @@ import Data.Char
 import Data.String
 import Data.List (isPrefixOf)
 import qualified Data.Map as M
+import qualified Data.HashMap.Strict as H
 import qualified Data.Text as T
 import Data.Aeson as Aeson
 import Data.Aeson.Types
@@ -103,6 +105,16 @@ instance ToJSON a => ToJSON (M.Map JobStatus a) where
   toJSON m = object $ map go $ M.assocs m
     where
       go (st,x) = (T.pack $ map toLower $ show st) .= toJSON x
+
+instance FromJSON a => FromJSON (M.Map JobStatus a) where
+  parseJSON (Object v) = do
+      pairs <- forM (H.toList v) go
+      return $ M.fromList pairs
+    where
+      go (key,val) = do
+        Just st <- parseStatus Nothing (fail "invalid status") (Just key) 
+        cnt <- parseJSON val
+        return (st, cnt)
 
 deriving instance Generic WeekDay
 instance ToJSON WeekDay
