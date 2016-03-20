@@ -1,0 +1,7 @@
+name: neural-style
+template: "docker exec drunk_swartz /root/neural-style.sh $input $style $output"
+params:
+  input: InputFile
+  style: InputFile
+  output: OutputFile
+on_fail: continue

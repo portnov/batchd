@@ -1,0 +1,4 @@
+name: laptop
+host_name: laptop.portnov
+user_name: portnov
+port: 22

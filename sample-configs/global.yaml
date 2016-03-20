@@ -1,0 +1,3 @@
+driver: PostgreSql
+connection_string: "host=localhost port=5432 user=batchd password=batchd" 
+log_level: info

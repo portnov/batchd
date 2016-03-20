@@ -1,0 +1,6 @@
+name: command
+template: "$command $args"
+params:
+  command: String
+  args: String
+on_fail: retry

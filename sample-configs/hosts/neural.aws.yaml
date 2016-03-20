@@ -1,0 +1,11 @@
+name: neural.aws
+host_name: ec2___.amazonaws.com
+port: 22
+user_name: ubuntu
+public_key: /home/user/.ssh/amazon.pub
+private_key: /home/user/.ssh/amazon.pem
+input_directory: /neural
+output_directory: /neural
+#startup_commands:
+#  - "sudo /usr/local/cuda/samples/bin/x86_64/linux/release/deviceQuery"
+#  - "docker start drunk_swartz"

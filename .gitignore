@@ -6,7 +6,6 @@ data/
 .cabal-sandbox/
 cabal.sandbox.config
 *.json
-*.yaml
 *.db
 *.db-shm
 *.db-wal

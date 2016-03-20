@@ -1,0 +1,5 @@
+name: count
+template: "./test.sh $count"
+params:
+  count: Integer
+on_fail: retry
