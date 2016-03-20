@@ -8,6 +8,7 @@ import Control.Monad.Logger
 import Data.Generics hiding (Generic)
 import Data.Int
 import Data.Char
+import Data.String
 import Data.List (isPrefixOf)
 import qualified Data.Map as M
 import qualified Data.Text as T
@@ -229,4 +230,13 @@ instance ToJSON LogLevel where
 
 deriving instance Data LogLevel
 deriving instance Typeable LogLevel
+
+parseStatus :: (Eq s, IsString s, Monad m) => Maybe JobStatus -> m (Maybe JobStatus) -> Maybe s -> m (Maybe JobStatus)
+parseStatus dflt _ Nothing = return dflt
+parseStatus _ _ (Just "all") = return Nothing
+parseStatus _ _ (Just "new") = return $ Just New
+parseStatus _ _ (Just "processing") = return $ Just Processing
+parseStatus _ _ (Just "done") = return $ Just Done
+parseStatus _ _ (Just "failed") = return $ Just Failed
+parseStatus _ handle (Just _) = handle
 

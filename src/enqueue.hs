@@ -52,18 +52,6 @@ parseParams e =
                    (key, (_:value)) -> (key, value)
                    (key, []) -> (key, "")
 
-testJob :: JobInfo
-testJob = JobInfo {
-    jiId = 0,
-    jiQueue = "",
-    jiType = "type1",
-    jiSeq = 0,
-    jiStatus = New,
-    jiTryCount = 0,
-    jiHostName = Nothing,
-    jiParams = M.fromList [("key", "my value")]
-  }
-
 main :: IO ()
 main = do
   opts <- cmdArgs enqueue

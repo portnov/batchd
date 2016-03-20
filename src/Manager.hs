@@ -91,20 +91,14 @@ getQueuesA = do
   -- let qnames = map (queueName . entityVal) qes
   Scotty.json qes
 
-parseStatus :: Maybe JobStatus -> Maybe B.ByteString -> Action (Maybe JobStatus)
-parseStatus dflt Nothing = return dflt
-parseStatus _ (Just "all") = return Nothing
-parseStatus _ (Just "new") = return $ Just New
-parseStatus _ (Just "processing") = return $ Just Processing
-parseStatus _ (Just "done") = return $ Just Done
-parseStatus _ (Just "failed") = return $ Just Failed
-parseStatus _ (Just _) = raise InvalidJobStatus
+parseStatus' :: Maybe JobStatus -> Maybe B.ByteString -> Action (Maybe JobStatus)
+parseStatus' dflt str = parseStatus dflt (raise InvalidJobStatus) str
 
 getQueueA :: Action ()
 getQueueA = do
   qname <- Scotty.param "name"
   st <- getUrlParam "status"
-  fltr <- parseStatus (Just New) st
+  fltr <- parseStatus' (Just New) st
   jobs <- runDBA $ loadJobs qname fltr
   Scotty.json jobs
 
@@ -144,7 +138,7 @@ removeQueueA = do
   qname <- Scotty.param "name"
   forced <- getUrlParam "forced"
   st <- getUrlParam "status"
-  fltr <- parseStatus Nothing st
+  fltr <- parseStatus' Nothing st
   case fltr of
     Nothing -> do
       r <- runDBA' $ deleteQueue qname (forced == Just "true")
@@ -190,7 +184,7 @@ getJobA = do
 getJobsA :: Action ()
 getJobsA = do
   st <- getUrlParam "status"
-  fltr <- parseStatus (Just New) st
+  fltr <- parseStatus' (Just New) st
   jobs <- runDBA $ loadJobsByStatus fltr
   Scotty.json jobs
 
@@ -198,7 +192,7 @@ deleteJobsA :: Action ()
 deleteJobsA = do
   name <- Scotty.param "name"
   st <- getUrlParam "status"
-  fltr <- parseStatus Nothing st
+  fltr <- parseStatus' Nothing st
   case fltr of
     Nothing -> raise InvalidJobStatus
     Just status -> runDBA $ removeJobs name status
