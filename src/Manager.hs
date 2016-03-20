@@ -6,6 +6,7 @@ module Manager where
 import Control.Monad
 import Control.Monad.Reader
 import qualified Data.ByteString as B
+import qualified Data.Text.Lazy as TL
 import Data.Default
 import Data.Yaml
 import qualified Database.Persist.Sql as Sql
@@ -24,7 +25,8 @@ import Logging
 
 application :: ScottyT Error ConnectionM ()
 application = do
-  -- runDBA (Sql.runMigration migrateAll)
+  Scotty.defaultHandler raiseError
+
   Scotty.get "/stats" getStatsA
   Scotty.get "/stats/:name" getQueueStatsA
 
@@ -70,6 +72,18 @@ getUrlParam key = do
   rq <- Scotty.request
   let qry = Wai.queryString rq
   return $ join $ lookup key qry
+
+raise404 :: String -> Action ()
+raise404 t = do
+  Scotty.status status404
+  Scotty.text $ TL.pack $ "Specified " ++ t ++ " not found."
+
+raiseError :: Error -> Action ()
+raiseError QueueNotExists = raise404 "queue"
+raiseError JobNotExists   = raise404 "job"
+raiseError FileNotExists  = raise404 "file"
+raiseError QueueNotEmpty  = Scotty.status status403
+raiseError e = raise e
 
 getQueuesA :: Action ()
 getQueuesA = do
