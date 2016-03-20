@@ -54,7 +54,7 @@ dbio action = do
     Right r -> return $ Right r
 
 data ConnectionInfo = ConnectionInfo {
-    ciDbConfig :: DbConfig,
+    ciGlobalConfig :: GlobalConfig,
     ciPool :: Sql.ConnectionPool
   }
 
@@ -68,7 +68,7 @@ type Action a = ActionT Error ConnectionM a
 runDBA :: DB a -> Action a
 runDBA qry = do
   pool <- lift (asks ciPool)
-  cfg <- lift (asks ciDbConfig)
+  cfg <- lift (asks ciGlobalConfig)
   r <- liftIO $ runResourceT $ (enableLogging cfg) (Sql.runSqlPool (dbio qry) pool)
   case r of
     Left err -> Scotty.raise err
@@ -77,14 +77,14 @@ runDBA qry = do
 runDBA' :: DB a -> Action (Either Error a)
 runDBA' qry = do
   pool <- lift (asks ciPool)
-  cfg <- lift (asks ciDbConfig)
+  cfg <- lift (asks ciGlobalConfig)
   r <- liftIO $ runResourceT $ (enableLogging cfg) (Sql.runSqlPool (dbio qry) pool)
   return r
 
 runDB :: DB a -> ConnectionM (Either Error a)
 runDB qry = do
   pool <- asks ciPool
-  cfg <- asks ciDbConfig
+  cfg <- asks ciGlobalConfig
   liftIO $ runResourceT $ (enableLogging cfg) $ Sql.runSqlPool (dbio qry) pool
 
 parseUpdate :: (PersistField t, FromJSON t) => EntityField v t -> T.Text -> Value -> Parser (Maybe (Update v))

@@ -48,7 +48,7 @@ import CommonTypes
 import Config
 import Types
 
-getPool :: DbConfig -> IO Sql.ConnectionPool
+getPool :: GlobalConfig -> IO Sql.ConnectionPool
 getPool cfg =
   case dbcDriver cfg of
     Sqlite -> (enableLogging cfg) (Sqlite.createSqlitePool (dbcConnectionString cfg) 4)

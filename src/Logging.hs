@@ -11,32 +11,36 @@ import Types
 
 debug :: String -> ConnectionM ()
 debug msg = do
-  cfg <- asks ciDbConfig
+  cfg <- asks ciGlobalConfig
   enableLogging cfg ( $(logDebug) $ T.pack msg ) 
 
 info :: String -> ConnectionM ()
 info msg = do
-  cfg <- asks ciDbConfig
+  cfg <- asks ciGlobalConfig
   enableLogging cfg ( $(logInfo) $ T.pack msg ) 
 
-infoDB :: DbConfig -> String -> DB ()
+infoDB :: GlobalConfig -> String -> DB ()
 infoDB cfg msg = do
   enableLogging cfg ( $(logInfo) $ T.pack msg ) 
 
 reportError :: String -> ConnectionM ()
 reportError msg = do
-  cfg <- asks ciDbConfig
+  cfg <- asks ciGlobalConfig
   enableLogging cfg ( $(logError) $ T.pack msg ) 
 
-debugIO :: DbConfig -> String -> IO ()
+debugIO :: GlobalConfig -> String -> IO ()
 debugIO cfg msg = do
   enableLogging cfg ( $(logDebug) $ T.pack msg ) 
 
-infoIO :: DbConfig -> String -> IO ()
+debugDB :: GlobalConfig -> String -> DB ()
+debugDB cfg msg = do
+  enableLogging cfg ( $(logDebug) $ T.pack msg ) 
+
+infoIO :: GlobalConfig -> String -> IO ()
 infoIO cfg msg = do
   enableLogging cfg ( $(logInfo) $ T.pack msg ) 
 
-reportErrorIO :: DbConfig -> String -> IO ()
+reportErrorIO :: GlobalConfig -> String -> IO ()
 reportErrorIO cfg msg = do
   enableLogging cfg ( $(logError) $ T.pack msg ) 
 

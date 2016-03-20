@@ -35,7 +35,7 @@ import Logging
 
 runDispatcher :: IO ()
 runDispatcher = do
-  cfgR <- loadDbConfig
+  cfgR <- loadGlobalConfig
   case cfgR of
     Left err -> fail $ show err
     Right cfg -> do
@@ -53,7 +53,7 @@ dispatcher :: Chan (Queue, JobInfo) -> ConnectionM ()
 dispatcher jobsChan = do
   forever $ do
     qesr <- runDB getAllQueues
-    cfg <- asks ciDbConfig
+    cfg <- asks ciGlobalConfig
     case qesr of
       Left err -> reportError (show err)
       Right qes -> do
@@ -64,7 +64,7 @@ dispatcher jobsChan = do
               let QueueKey qname = entityKey qe
               mbJob <- getNextJob (entityKey qe)
               case mbJob of
-                Nothing -> infoDB cfg $ "Queue " ++ qname ++ " exhaused."
+                Nothing -> debugDB cfg $ "Queue " ++ qname ++ " exhaused."
                 Just job -> do
                     setJobStatus job Processing
                     liftIO $ writeChan jobsChan (entityVal qe, job)
@@ -73,7 +73,7 @@ dispatcher jobsChan = do
 callbackListener :: Chan (JobInfo, JobResult, OnFailAction) -> ConnectionM ()
 callbackListener resChan = forever $ do
   (job, result, onFail) <- liftIO $ readChan resChan
-  cfg <- asks ciDbConfig
+  cfg <- asks ciGlobalConfig
   runDB $ do
       insert_ result
       if jobResultExitCode result == ExitSuccess
@@ -96,7 +96,7 @@ callbackListener resChan = forever $ do
                     else setJobStatus job Failed
 
 
-worker :: DbConfig -> Int -> Chan (Queue, JobInfo) -> Chan (JobInfo, JobResult, OnFailAction) -> IO ()
+worker :: GlobalConfig -> Int -> Chan (Queue, JobInfo) -> Chan (JobInfo, JobResult, OnFailAction) -> IO ()
 worker cfg idx jobsChan resChan = forever $ do
   (queue, job) <- readChan jobsChan
   infoIO cfg $ printf "[%d] got job #%d" idx (jiId job)

@@ -43,7 +43,7 @@ hostContext (Just host) jt params = M.fromList $ map update $ M.assocs params
         Just OutputFile -> (key, hOutputDirectory host </> takeFileName value)
         _ -> (key, value)
 
-executeJob :: DbConfig -> Queue -> JobType -> JobInfo -> IO JobResult
+executeJob :: GlobalConfig -> Queue -> JobType -> JobInfo -> IO JobResult
 executeJob cfg q jt job = do
   let mbHostName = getHostName q jt job
       jid = JobKey (Sql.SqlBackendKey $ jiId job)

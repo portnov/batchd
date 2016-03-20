@@ -51,7 +51,7 @@ application = do
 
 runManager :: IO ()
 runManager = do
-  cfgR <- loadDbConfig
+  cfgR <- loadGlobalConfig
   case cfgR of
     Left err -> fail $ show err
     Right cfg -> do

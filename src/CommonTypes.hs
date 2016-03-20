@@ -182,17 +182,17 @@ data DbDriver = Sqlite | PostgreSql
 instance ToJSON DbDriver
 instance FromJSON DbDriver
 
-data DbConfig = DbConfig {
+data GlobalConfig = GlobalConfig {
     dbcDriver :: DbDriver,
     dbcConnectionString :: T.Text,
     dbcLogLevel :: LogLevel
   }
   deriving (Eq, Show, Data, Typeable, Generic)
 
-instance ToJSON DbConfig where
+instance ToJSON GlobalConfig where
   toJSON = genericToJSON (jsonOptions "dbc")
 
-instance FromJSON DbConfig where
+instance FromJSON GlobalConfig where
   parseJSON = genericParseJSON (jsonOptions "dbc")
 
 instance FromJSON LogLevel where
