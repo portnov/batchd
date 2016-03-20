@@ -7,16 +7,20 @@ import Control.Monad
 import Control.Monad.Reader
 import qualified Data.ByteString as B
 import Data.Default
+import Data.Yaml
 import qualified Database.Persist.Sql as Sql
 import Network.HTTP.Types
 import qualified Network.Wai as Wai
 import Web.Scotty.Trans as Scotty
+import System.FilePath
+import System.FilePath.Glob
 
 import CommonTypes
 import Types
 import Config
 import Database
 import Schedule
+import Logging
 
 application :: ScottyT Error ConnectionM ()
 application = do
@@ -39,6 +43,9 @@ application = do
 
   Scotty.get "/schedules" getSchedulesA
   Scotty.put "/schedules" addScheduleA
+
+  Scotty.get "/type" getJobTypesA
+  Scotty.get "/type/:name" getJobTypeA
 
 runManager :: IO ()
 runManager = do
@@ -181,4 +188,26 @@ deleteJobsA = do
   case fltr of
     Nothing -> raise InvalidJobStatus
     Just status -> runDBA $ removeJobs name status
+
+getJobTypesA :: Action ()
+getJobTypesA = do
+  dirs <- liftIO $ getConfigDirs "jobtypes"
+  files <- forM dirs $ \dir -> liftIO $ glob (dir </> "*.yaml")
+  ts <- forM (concat files) $ \path -> do
+             r <- liftIO $ decodeFileEither path
+             case r of
+               Left err -> do
+                  lift $ reportError $ show err
+                  return []
+               Right jt -> return [jt]
+  let types = concat ts :: [JobType]
+  Scotty.json types
+
+getJobTypeA :: Action ()
+getJobTypeA = do
+  name <- Scotty.param "name"
+  r <- liftIO $ loadTemplate name
+  case r of
+    Left err -> raise err
+    Right jt -> Scotty.json jt
 

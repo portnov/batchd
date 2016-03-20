@@ -56,6 +56,12 @@ instance FromJSON JobType where
 instance FromJSON ParamType where
   parseJSON = genericParseJSON $ defaultOptions {fieldLabelModifier = camelCaseToUnderscore}
 
+instance ToJSON JobType where
+  toJSON = genericToJSON (jsonOptions "jt")
+
+instance ToJSON ParamType where
+  toJSON = genericToJSON $ defaultOptions {fieldLabelModifier = camelCaseToUnderscore}
+
 data OnFailAction =
     Continue
   | RetryNow Int
