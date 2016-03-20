@@ -6,11 +6,8 @@ import GHC.Generics
 import Control.Monad.Reader
 import Data.Dates
 import Data.Time
-import Data.Generics hiding (Generic)
 import Database.Persist
-import Database.Persist.Sql
 import Data.Aeson
-import Data.Aeson.Types
 
 import CommonTypes
 import Types

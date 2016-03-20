@@ -16,25 +16,16 @@
 module Database where
 
 import GHC.Generics
-import Control.Applicative
 import Control.Monad
-import Data.Generics hiding (Generic)
-import Data.List (isPrefixOf)
-import Data.Char
 import Data.Maybe
 import Data.Dates
 import Data.Time
 import Data.Int
 import Data.Aeson
-import Data.Aeson.Types
 import qualified Data.Map as M
-import qualified Data.HashMap.Strict as H
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 
-import           Control.Monad.IO.Class  (liftIO)
-import Control.Monad.Logger (runNoLoggingT, runStdoutLoggingT)
-import Control.Monad.Logger.Syslog (runSyslogLoggingT)
 import           Database.Persist
 import           Database.Persist.Sql as Sql
 import           Database.Persist.Sqlite as Sqlite
@@ -45,7 +36,6 @@ import Database.Esqueleto ((^.))
 import System.Exit
 
 import CommonTypes
-import Config
 import Types
 
 getPool :: GlobalConfig -> IO Sql.ConnectionPool

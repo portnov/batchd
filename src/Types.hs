@@ -2,19 +2,14 @@
 
 module Types where
 
-import GHC.Generics
 import Control.Applicative
 import Control.Monad.Reader
 import Control.Monad.Except
 import Control.Monad.Logger
 import Control.Monad.Logger.Syslog (runSyslogLoggingT)
 import Control.Monad.Trans.Resource
-import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
-import Data.Generics hiding (Generic)
-import Data.Char
-import Data.List (isPrefixOf)
 import Data.Dates
 import Data.Aeson as Aeson
 import Data.Aeson.Types

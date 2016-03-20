@@ -4,19 +4,15 @@ module SSH where
 import Control.Monad
 import Data.Maybe
 import qualified Data.Map as M
-import qualified Data.ByteString.Lazy as L
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TLE
-import Data.Yaml
 import Network.SSH.Client.LibSSH2
 import System.FilePath
 import System.Environment
 import System.Exit
 
 import CommonTypes
-import Types
-import Database
 
 getKnownHosts :: IO FilePath
 getKnownHosts = do

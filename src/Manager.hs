@@ -3,24 +3,13 @@
 
 module Manager where
 
-import Control.Applicative
 import Control.Monad
 import Control.Monad.Reader
-import Control.Monad.IO.Class  (MonadIO, liftIO)
-import Control.Monad.Trans.Class (MonadTrans, lift)
-import Control.Monad.Trans.Resource
 import qualified Data.ByteString as B
-import qualified Data.Map as M
--- import Data.Aeson
 import Data.Default
-import Database.Persist
 import qualified Database.Persist.Sql as Sql
-import qualified Database.Persist.Sqlite as Sqlite
-import System.Environment
-import Text.Printf
 import Network.HTTP.Types
 import qualified Network.Wai as Wai
--- import Web.Scotty
 import Web.Scotty.Trans as Scotty
 
 import CommonTypes

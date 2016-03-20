@@ -15,7 +15,6 @@ import System.FilePath
 import System.Exit
 
 import CommonTypes
-import Types
 import Config
 import Logging
 import Database

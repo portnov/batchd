@@ -3,25 +3,14 @@
 
 module Dispatcher (runDispatcher) where
 
-import Control.Applicative
 import Control.Concurrent
 import Control.Monad
 import Control.Monad.Reader
-import Control.Monad.IO.Class  (MonadIO, liftIO)
-import Control.Monad.Trans.Class (MonadTrans, lift)
-import Control.Monad.Trans.Resource
-import Control.Monad.Logger (runNoLoggingT, runStdoutLoggingT)
-import qualified Data.ByteString as B
-import qualified Data.Map as M
 import qualified Data.Text as T
-import Data.Yaml
-import Data.Default
 import Data.Time
 import Data.Dates
 import Database.Persist
 import qualified Database.Persist.Sql as Sql
-import qualified Database.Persist.Sqlite as Sqlite
-import System.Environment
 import System.Exit
 import Text.Printf
 
