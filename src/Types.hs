@@ -10,6 +10,7 @@ import Control.Monad.Logger.Syslog (runSyslogLoggingT)
 import Control.Monad.Trans.Resource
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
+import Data.String
 import Data.Dates
 import Data.Aeson as Aeson
 import Data.Aeson.Types
@@ -88,6 +89,16 @@ parseUpdate field label (Object v) = do
   let upd = case mbValue of
               Nothing -> Nothing
               Just value -> Just (field =. value)
+  return upd
+
+parseUpdate' :: (PersistField t, FromJSON t, IsString t, Eq t)
+             => EntityField v (Maybe t) -> T.Text -> Value -> Parser (Maybe (Update v))
+parseUpdate' field label (Object v) = do
+  mbValue <- v .:? label
+  let upd = case mbValue of
+              Nothing -> Nothing
+              Just "*" -> Just (field =. Nothing)
+              Just value -> Just (field =. Just value)
   return upd
 
 enableLogging cfg actions = runSyslogLoggingT $ filterLogger check actions

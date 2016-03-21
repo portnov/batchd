@@ -4,6 +4,7 @@
 import Control.Monad
 import Data.Aeson
 import qualified Data.Map as M
+import Data.Maybe
 import Data.Char (toLower)
 import Data.Generics
 import Network.HTTP.Client
@@ -14,6 +15,12 @@ import Text.Printf
 
 import CommonTypes
 import qualified Database
+
+data CrudMode =
+    Add
+  | Update
+  | Delete
+  deriving (Show, Data, Typeable)
 
 data Batch =
     Enqueue {
@@ -29,6 +36,14 @@ data Batch =
       managerUrl :: String,
       status :: Maybe String,
       queueToList :: [String]
+    }
+  | Queue {
+      managerUrl :: String,
+      queueMode :: CrudMode,
+      queueName :: String,
+      scheduleName :: Maybe String,
+      hostName :: Maybe String,
+      force :: Bool
     }
   | Stats {
       managerUrl :: String,
@@ -64,6 +79,20 @@ list = List {
     status = def &= typ "STATUS" &= help "list only jobs of specified status",
     queueToList = def &= args &= typ "QUEUE"
   }
+
+queue :: Batch
+queue = Queue {
+    managerUrl = managerUrlAnn defaultUrl,
+    queueMode = enum [
+                  Add &= help "create new queue",
+                  Update &= help "modify queue",
+                  Delete &= help "delete queue"],
+    queueName = defaultQueue &= argPos 0 &= typ "QUEUE",
+    scheduleName = def &= typ "SCHEDULE" &= help "queue schedule name",
+    hostName = Nothing &= name "host" &= typ "HOST" &= help "default host name for queue",
+    force = False &= help "force non-empty queue deletion"
+  }
+    
 
 stats :: Batch
 stats = Stats {
@@ -120,7 +149,10 @@ doList manager opts = do
         Left err -> fail $ show err
         Right response -> do
           forM_ response $ \queue -> do
-            printf "%s:\t%s\n" (Database.queueName queue) (Database.queueScheduleName queue)
+            printf "%s:\t%s\t%s\n"
+                   (Database.queueName queue)
+                   (Database.queueScheduleName queue)
+                   (fromMaybe "*" $ Database.queueHostName queue)
 
     qnames ->
       forM_ qnames $ \qname -> do
@@ -175,9 +207,54 @@ doStats manager opts = do
       forM_ (M.assocs stat) $ \(st, cnt) ->
           printf "\t%s:\t%d\n" (show st) cnt
 
+addQueue :: Manager -> Batch -> IO ()
+addQueue manager opts = do
+  -- let host = if hostName opts == Nothing then Nothing else hostName opts
+  let queue = Database.Queue {
+                Database.queueName = queueName opts,
+                Database.queueScheduleName = fromMaybe "anytime" (scheduleName opts),
+                Database.queueHostName = hostName opts
+              }
+  url <- parseUrl $ managerUrl opts </> "queue"
+  let request = url {
+                  method="PUT",
+                  requestBody = RequestBodyLBS $ encode queue
+                }
+  response <- httpLbs request manager
+  putStrLn $ "The status code was: " ++ (show $ statusCode $ responseStatus response)
+  print $ responseBody response
+
+updateQueue :: Manager -> Batch -> IO ()
+updateQueue manager opts = do
+    let queue = object $
+                  toList "schedule_name" (scheduleName opts) ++
+                  toList "host_name" (hostName opts)
+    url <- parseUrl $ managerUrl opts </> "queue" </> queueName opts
+    let request = url {
+                    method="POST",
+                    requestBody = RequestBodyLBS $ encode queue
+                  }
+    response <- httpLbs request manager
+    putStrLn $ "The status code was: " ++ (show $ statusCode $ responseStatus response)
+    print $ responseBody response
+  where
+    toList _ Nothing = []
+    toList name (Just str) = [name .= str]
+
+deleteQueue :: Manager -> Batch -> IO ()
+deleteQueue manager opts = do
+  let forceStr = if force opts then "?forced=true" else ""
+  url <- parseUrl $ managerUrl opts </> "queue" </> queueName opts ++ forceStr
+  let request = url {
+                    method="DELETE"
+                  }
+  response <- httpLbs request manager
+  putStrLn $ "The status code was: " ++ (show $ statusCode $ responseStatus response)
+  print $ responseBody response
+
 main :: IO ()
 main = do
-  let mode = cmdArgsMode $ modes [enqueue, list, stats]
+  let mode = cmdArgsMode $ modes [enqueue, list &= name "ls", queue, stats]
   opts <- cmdArgsRun mode
 
   manager <- newManager defaultManagerSettings
@@ -186,4 +263,9 @@ main = do
     Enqueue {} -> doEnqueue manager opts
     List {} -> doList manager opts
     Stats {} -> doStats manager opts
+    Queue {} ->
+      case queueMode opts of
+        Add -> addQueue manager opts
+        Update -> updateQueue manager opts
+        Delete -> deleteQueue manager opts
 

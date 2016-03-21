@@ -113,7 +113,7 @@ instance FromJSON [Update ScheduleTime] where
 instance FromJSON [Update Queue] where
   parseJSON o = do
     uSchedule <- parseUpdate QueueScheduleName "schedule_name" o
-    uHostName <- parseUpdate QueueHostName "host_name" o
+    uHostName <- parseUpdate' QueueHostName "host_name" o
     return $ catMaybes [uSchedule, uHostName]
 
 deriving instance Generic ExitCode
