@@ -71,14 +71,14 @@ enqueue = Enqueue {
     commandName = defaultType &= typ "PARAMNAME" &= help "name of `command` parameter for job",
     commandParam = def &= typ "COMMAND" &= argPos 0,
     parameters = def &= typ "NAME=VALUE" &= help "job parameter"
-  }
+  } &= help "put a new job into queue"
 
 list :: Batch
 list = List {
     managerUrl = managerUrlAnn defaultUrl,
     status = def &= typ "STATUS" &= help "list only jobs of specified status",
     queueToList = def &= args &= typ "QUEUE"
-  }
+  } &= help "list queues or jobs"
 
 queue :: Batch
 queue = Queue {
@@ -91,15 +91,13 @@ queue = Queue {
     scheduleName = def &= typ "SCHEDULE" &= help "queue schedule name",
     hostName = Nothing &= name "host" &= typ "HOST" &= help "default host name for queue",
     force = False &= help "force non-empty queue deletion"
-  }
+  } &= help "create, update or delete queues"
     
-
 stats :: Batch
 stats = Stats {
     managerUrl = managerUrlAnn defaultUrl,
     queueToStat = [] &= typ "QUEUE" &= args
-  }
-    
+  } &= help "print statistics on queue or on all jobs"
 
 parseParams :: Batch -> JobParamInfo
 parseParams e = 
@@ -125,8 +123,6 @@ doEnqueue manager opts = do
       jiHostName = hostName opts,
       jiParams = parseParams opts
     }
-  print job
-
 
   url <- parseUrl $ managerUrl opts </> "queue" </> qname
   let request = url {
