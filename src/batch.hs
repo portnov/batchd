@@ -52,7 +52,7 @@ data Batch =
   deriving (Show, Data, Typeable)
 
 defaultUrl :: String
-defaultUrl = "http://localhost:3000" 
+defaultUrl = "http://localhost:" ++ show defaultManagerPort
 
 defaultQueue :: String
 defaultQueue = "default"

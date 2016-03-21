@@ -19,6 +19,9 @@ import Data.Aeson.Types
 import Data.Yaml (ParseException (..))
 import Data.Dates
 
+defaultManagerPort :: Int
+defaultManagerPort = 9681
+
 data ParamType =
     String
   | Integer
@@ -214,6 +217,7 @@ instance FromJSON DaemonMode
 
 data GlobalConfig = GlobalConfig {
     dbcDaemonMode :: DaemonMode,
+    dbcManagerPort :: Int,
     dbcDriver :: DbDriver,
     dbcConnectionString :: T.Text,
     dbcWorkers :: Int,
@@ -229,6 +233,7 @@ instance FromJSON GlobalConfig where
   parseJSON (Object v) =
     GlobalConfig
       <$> v .:? "daemon" .!= Both
+      <*> v .:? "manager_port" .!= defaultManagerPort
       <*> v .:? "driver" .!= Sqlite
       <*> v .:? "connection_string" .!= ":memory"
       <*> v .:? "workers" .!= 1

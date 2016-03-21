@@ -12,6 +12,7 @@ import Data.Yaml
 import qualified Database.Persist.Sql as Sql
 import Network.HTTP.Types
 import qualified Network.Wai as Wai
+import Network.Wai.Handler.Warp (defaultSettings, setPort)
 import Web.Scotty.Trans as Scotty
 import System.FilePath
 import System.FilePath.Glob
@@ -54,7 +55,7 @@ runManager cfg = do
   pool <- getPool cfg
   let connInfo = ConnectionInfo cfg pool
   Sql.runSqlPool (Sql.runMigration migrateAll) (ciPool connInfo)
-  let options = def
+  let options = def {Scotty.settings = setPort (dbcManagerPort cfg) defaultSettings}
   let r m = runReaderT (runConnection m) connInfo
   scottyOptsT options r routes
 
