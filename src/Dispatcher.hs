@@ -22,21 +22,17 @@ import Schedule
 import Executor
 import Logging
 
-runDispatcher :: IO ()
-runDispatcher = do
-  cfgR <- loadGlobalConfig
-  case cfgR of
-    Left err -> fail $ show err
-    Right cfg -> do
-      pool <- getPool cfg
-      let connInfo = ConnectionInfo cfg pool
-      Sql.runSqlPool (Sql.runMigration migrateAll) (ciPool connInfo)
-      jobsChan <- newChan
-      resChan <- newChan
-      forM_ [1.. dbcWorkers cfg] $ \idx ->
-        forkIO $ worker cfg idx jobsChan resChan
-      forkIO $ runReaderT (runConnection (callbackListener resChan)) connInfo
-      runReaderT (runConnection (dispatcher jobsChan)) connInfo
+runDispatcher :: GlobalConfig -> IO ()
+runDispatcher cfg = do
+  pool <- getPool cfg
+  let connInfo = ConnectionInfo cfg pool
+  Sql.runSqlPool (Sql.runMigration migrateAll) (ciPool connInfo)
+  jobsChan <- newChan
+  resChan <- newChan
+  forM_ [1.. dbcWorkers cfg] $ \idx ->
+    forkIO $ worker cfg idx jobsChan resChan
+  forkIO $ runReaderT (runConnection (callbackListener resChan)) connInfo
+  runReaderT (runConnection (dispatcher jobsChan)) connInfo
 
 dispatcher :: Chan (Queue, JobInfo) -> ConnectionM ()
 dispatcher jobsChan = do

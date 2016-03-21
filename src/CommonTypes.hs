@@ -203,7 +203,17 @@ data DbDriver = Sqlite | PostgreSql
 instance ToJSON DbDriver
 instance FromJSON DbDriver
 
+data DaemonMode =
+    Manager
+  | Dispatcher
+  | Both
+  deriving (Data, Typeable, Show, Eq, Generic)
+
+instance ToJSON DaemonMode
+instance FromJSON DaemonMode
+
 data GlobalConfig = GlobalConfig {
+    dbcDaemonMode :: DaemonMode,
     dbcDriver :: DbDriver,
     dbcConnectionString :: T.Text,
     dbcWorkers :: Int,
@@ -218,7 +228,8 @@ instance ToJSON GlobalConfig where
 instance FromJSON GlobalConfig where
   parseJSON (Object v) =
     GlobalConfig
-      <$> v .:? "driver" .!= Sqlite
+      <$> v .:? "daemon" .!= Both
+      <*> v .:? "driver" .!= Sqlite
       <*> v .:? "connection_string" .!= ":memory"
       <*> v .:? "workers" .!= 1
       <*> v .:? "poll_timeout" .!= 10

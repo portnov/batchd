@@ -23,8 +23,8 @@ import Database
 import Schedule
 import Logging
 
-application :: ScottyT Error ConnectionM ()
-application = do
+routes :: ScottyT Error ConnectionM ()
+routes = do
   Scotty.defaultHandler raiseError
 
   Scotty.get "/stats" getStatsA
@@ -49,22 +49,14 @@ application = do
   Scotty.get "/type" getJobTypesA
   Scotty.get "/type/:name" getJobTypeA
 
-runManager :: IO ()
-runManager = do
-  cfgR <- loadGlobalConfig
-  case cfgR of
-    Left err -> fail $ show err
-    Right cfg -> do
-      pool <- getPool cfg
-      let connInfo = ConnectionInfo cfg pool
-      Sql.runSqlPool (Sql.runMigration migrateAll) (ciPool connInfo)
-      runApplication connInfo
-
-runApplication :: ConnectionInfo -> IO ()
-runApplication connInfo = do
+runManager :: GlobalConfig -> IO ()
+runManager cfg = do
+  pool <- getPool cfg
+  let connInfo = ConnectionInfo cfg pool
+  Sql.runSqlPool (Sql.runMigration migrateAll) (ciPool connInfo)
   let options = def
   let r m = runReaderT (runConnection m) connInfo
-  scottyOptsT options r application
+  scottyOptsT options r routes
 
 -- | Get URL parameter in form ?name=value
 getUrlParam :: B.ByteString -> Action (Maybe B.ByteString)
