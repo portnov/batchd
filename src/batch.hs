@@ -299,6 +299,15 @@ doAddSchedule manager opts = do
                      }
       doPut manager url schedule
 
+doDeleteSchedule :: Manager -> Batch -> IO ()
+doDeleteSchedule manager opts = do
+  when (length (scheduleNames opts) /= 1) $
+    fail $ "Exactly one schedule name must be specified when deleting a schedule"
+  let sname = head (scheduleNames opts)
+  let forceStr = if force opts then "?forced=true" else ""
+  let url = managerUrl opts </> "schedule" </> sname ++ forceStr
+  doDelete manager url
+
 main :: IO ()
 main = do
   let mode = cmdArgsMode $ modes [enqueue, list &= name "ls", queue, schedule, stats]
@@ -319,4 +328,5 @@ main = do
       case scheduleMode opts of
         View -> doListSchedules manager opts
         Add -> doAddSchedule manager opts
+        Delete -> doDeleteSchedule manager opts
 

@@ -125,13 +125,13 @@ loadAllSchedules = do
   forM sids $ \sid -> loadSchedule sid
 
 removeSchedule :: String -> Bool -> DB ()
-removeSchedule name True = do
-  let key = ScheduleKey name
-  deleteCascade key
-removeSchedule name False = do
+removeSchedule name forced = do
   qs <- selectFirst [QueueScheduleName ==. name] []
   let key = ScheduleKey name
-  if isNothing qs
-    then deleteCascade key
+  if isNothing qs || forced
+    then do
+      deleteWhere [ScheduleTimeScheduleName ==. name]
+      deleteWhere [ScheduleWeekDayScheduleName ==. name]
+      deleteCascade key
     else throwR ScheduleUsed
 
