@@ -10,6 +10,7 @@ import Data.Generics hiding (Generic)
 import Data.Int
 import Data.Char
 import Data.String
+import Data.Time
 import Data.List (isPrefixOf)
 import qualified Data.Map as M
 import qualified Data.HashMap.Strict as H
@@ -144,6 +145,7 @@ data JobInfo = JobInfo {
     jiQueue :: String,
     jiType :: String,
     jiSeq :: Int,
+    jiTime :: UTCTime,
     jiStatus :: JobStatus,
     jiTryCount :: Int,
     jiHostName :: Maybe String,
@@ -154,6 +156,9 @@ data JobInfo = JobInfo {
 instance ToJSON JobInfo where
   toJSON = genericToJSON (jsonOptions "ji")
 
+zeroUtcTime :: UTCTime
+zeroUtcTime = UTCTime (ModifiedJulianDay 0) 0
+
 instance FromJSON JobInfo where
   parseJSON (Object v) =
     JobInfo
@@ -161,6 +166,7 @@ instance FromJSON JobInfo where
       <*> v .:? "queue" .!= ""
       <*> v .: "type"
       <*> v .:? "seq" .!= 0
+      <*> v .:? "time" .!= zeroUtcTime
       <*> v .:? "status" .!= New
       <*> v .:? "try_count" .!= 0
       <*> v .:? "host_name"

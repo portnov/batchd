@@ -60,6 +60,10 @@ runManager cfg = do
   let r m = runReaderT (runConnection m) connInfo
   scottyOptsT options r routes
 
+maintainer :: GlobalConfig -> IO ()
+maintainer cfg = forever $ do
+  threadDelay $ 60 * 1000*1000
+
 -- | Get URL parameter in form ?name=value
 getUrlParam :: B.ByteString -> Action (Maybe B.ByteString)
 getUrlParam key = do

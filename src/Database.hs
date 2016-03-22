@@ -16,17 +16,18 @@
 module Database where
 
 import GHC.Generics
-import Control.Monad
-import Data.Maybe
-import Data.Dates
+import Control.Monad.Reader
+
 import Data.Time
+import Data.Dates
+import Database.Persist
+import Data.Maybe
 import Data.Int
 import Data.Aeson
 import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 
-import           Database.Persist
 import           Database.Persist.Sql as Sql
 import           Database.Persist.Sqlite as Sqlite
 import           Database.Persist.Postgresql as Postgres
@@ -57,6 +58,7 @@ Job
   typeName String
   queueName String
   seq Int
+  createTime UTCTime default=CURRENT_TIMESTAMP
   status JobStatus default='New'
   tryCount Int default=0
   hostName String Maybe
@@ -130,6 +132,7 @@ buildJobInfo jid j params =
       jiId = jid,
       jiQueue = jobQueueName j,
       jiType = jobTypeName j,
+      jiTime = jobCreateTime j,
       jiSeq = jobSeq j,
       jiStatus = jobStatus j,
       jiTryCount = jobTryCount j,
@@ -327,7 +330,8 @@ enqueue qname jinfo = do
     Nothing -> throwR QueueNotExists
     Just qe -> do
       seq <- getLastJobSeq qname
-      let job = Job (jiType jinfo) qname (seq+1) (jiStatus jinfo) (jiTryCount jinfo) (jiHostName jinfo)
+      now <- liftIO getCurrentTime
+      let job = Job (jiType jinfo) qname (seq+1) now (jiStatus jinfo) (jiTryCount jinfo) (jiHostName jinfo)
       jid <- insert job
       forM_ (M.assocs $ jiParams jinfo) $ \(name,value) -> do
         let param = JobParam jid name value

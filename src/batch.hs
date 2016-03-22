@@ -179,6 +179,7 @@ doEnqueue manager opts = do
       jiQueue = qname,
       jiType = typeName opts,
       jiSeq = 0,
+      jiTime = zeroUtcTime,
       jiStatus = New,
       jiTryCount = 0,
       jiHostName = hostName opts,
