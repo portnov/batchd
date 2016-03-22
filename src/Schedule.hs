@@ -4,10 +4,14 @@ module Schedule where
 
 import GHC.Generics
 import Control.Monad.Reader
+import Data.Maybe
 import Data.Dates
+import Data.Dates.Formats
 import Data.Time
 import Database.Persist
 import Data.Aeson
+import Text.Parsec
+import Text.Parsec.String
 
 import CommonTypes
 import Types
@@ -21,7 +25,10 @@ data Period =
     periodBegin :: TimeOfDay,
     periodEnd :: TimeOfDay
   }
-  deriving (Eq, Show, Generic)
+  deriving (Eq, Generic)
+
+instance Show Period where
+  show (Period begin end) = show begin ++ " -- " ++ show end
 
 toPeriod :: ScheduleTime -> Period
 toPeriod (ScheduleTime {..}) = Period scheduleTimeBegin scheduleTimeEnd
@@ -51,6 +58,19 @@ anytime = ScheduleInfo "anytime" Nothing Nothing
 
 getTime :: DateTime -> TimeOfDay
 getTime (DateTime {..}) = TimeOfDay hour minute (fromIntegral second)
+
+parsePeriod :: String -> Either ParseError Period
+parsePeriod str = parse parser "(period description)" str 
+  where
+    format :: Format
+    format = [HOUR True 2,Fixed True ":",MINUTE True 2,Fixed True ":",SECOND True 2]
+
+    parser :: Parser Period
+    parser = do
+      begin <- formatParser format
+      spaces
+      end <- formatParser format
+      return $ Period (getTime begin) (getTime end)
 
 allows :: ScheduleInfo -> DateTime -> Bool
 allows (ScheduleInfo {..}) dt = weekdayOk && timeOk
@@ -103,4 +123,15 @@ loadAllSchedules :: DB [ScheduleInfo]
 loadAllSchedules = do
   sids <- selectKeysList [] []
   forM sids $ \sid -> loadSchedule sid
+
+removeSchedule :: String -> Bool -> DB ()
+removeSchedule name True = do
+  let key = ScheduleKey name
+  deleteCascade key
+removeSchedule name False = do
+  qs <- selectFirst [QueueScheduleName ==. name] []
+  let key = ScheduleKey name
+  if isNothing qs
+    then deleteCascade key
+    else throwR ScheduleUsed
 

@@ -127,6 +127,7 @@ data Error =
     QueueExists
   | QueueNotExists
   | QueueNotEmpty
+  | ScheduleUsed
   | JobNotExists
   | InvalidJobType ParseException
   | InvalidHost ParseException

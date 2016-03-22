@@ -5,8 +5,10 @@ import Control.Monad
 import Data.Aeson
 import qualified Data.Map as M
 import Data.Maybe
+import Data.List (intercalate)
 import Data.Char (toLower)
 import Data.Generics
+import Data.Dates
 import Network.HTTP.Client
 import Network.HTTP.Types.Status (statusCode)
 import System.Console.CmdArgs
@@ -15,9 +17,11 @@ import Text.Printf
 
 import CommonTypes
 import qualified Database
+import Schedule
 
 data CrudMode =
-    Add
+    View
+  | Add
   | Update
   | Delete
   deriving (Show, Data, Typeable)
@@ -43,6 +47,14 @@ data Batch =
       queueName :: String,
       scheduleName :: Maybe String,
       hostName :: Maybe String,
+      force :: Bool
+    }
+  | Schedule {
+      managerUrl :: String,
+      scheduleMode :: CrudMode,
+      scheduleNames :: [String],
+      periods :: [String],
+      weekdays :: [WeekDay],
       force :: Bool
     }
   | Stats {
@@ -93,6 +105,20 @@ queue = Queue {
     force = False &= help "force non-empty queue deletion"
   } &= help "create, update or delete queues"
     
+schedule :: Batch
+schedule = Schedule {
+    managerUrl = managerUrlAnn defaultUrl,
+    scheduleMode =  enum [
+                      View &= name "ls" &= help "list available schedules",
+                      Add &= help "create new schedule",
+                      Update &= help "modify schedule",
+                      Delete &= help "delete (unused) schedule"],
+    scheduleNames = def &= typ "SCHEDULE" &= args,
+    periods = [] &= typ "HH:MM:SS HH:MM:SS" &= help "time of day period(s)",
+    weekdays = [] &= typ "WEEKDAY" &= help "week day(s)",
+    force = False &= help "delete also all queues which use this schedule and their jobs"
+  } &= help "create, update or delete schedules"
+
 stats :: Batch
 stats = Stats {
     managerUrl = managerUrlAnn defaultUrl,
@@ -239,9 +265,43 @@ deleteQueue manager opts = do
   let url = managerUrl opts </> "queue" </> queueName opts ++ forceStr
   doDelete manager url
 
+doListSchedules :: Manager -> Batch -> IO ()
+doListSchedules manager opts = do
+  let url = managerUrl opts </> "schedule"
+  response <- doGet manager url
+  let check = if null (scheduleNames opts)
+                then const True
+                else \si -> sName si `elem` scheduleNames opts
+  forM_ response $ \si -> do
+    when (check si) $ do
+      putStrLn $ sName si ++ ":"
+      case sWeekdays si of
+        Nothing -> putStrLn "\tany weekday"
+        Just lst -> putStrLn $ "\t" ++ intercalate ", " (map show lst)
+      case sTime si of
+        Nothing -> putStrLn "\tany time of day"
+        Just lst -> putStrLn $ "\t" ++ intercalate ", " (map show lst)
+
+doAddSchedule :: Manager -> Batch -> IO ()
+doAddSchedule manager opts = do
+  when (length (scheduleNames opts) /= 1) $
+    fail $ "Exactly one schedule name must be specified when creating a schedule"
+  let ts = forM (periods opts) $ \str -> do
+             parsePeriod str
+  case ts of
+    Left err -> fail $ "Can't parse period description: " ++ show err
+    Right times -> do
+      let url = managerUrl opts </> "schedule"
+      let schedule = ScheduleInfo {
+                       sName = head (scheduleNames opts),
+                       sWeekdays = if null (weekdays opts) then Nothing else Just (weekdays opts),
+                       sTime = if null times then Nothing else Just times
+                     }
+      doPut manager url schedule
+
 main :: IO ()
 main = do
-  let mode = cmdArgsMode $ modes [enqueue, list &= name "ls", queue, stats]
+  let mode = cmdArgsMode $ modes [enqueue, list &= name "ls", queue, schedule, stats]
   opts <- cmdArgsRun mode
 
   manager <- newManager defaultManagerSettings
@@ -255,4 +315,8 @@ main = do
         Add -> addQueue manager opts
         Update -> updateQueue manager opts
         Delete -> deleteQueue manager opts
+    Schedule {} -> 
+      case scheduleMode opts of
+        View -> doListSchedules manager opts
+        Add -> doAddSchedule manager opts
 

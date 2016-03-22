@@ -46,6 +46,7 @@ routes = do
 
   Scotty.get "/schedule" getSchedulesA
   Scotty.put "/schedule" addScheduleA
+  Scotty.delete "/schedule/:name" removeScheduleA
 
   Scotty.get "/type" getJobTypesA
   Scotty.get "/type/:name" getJobTypeA
@@ -154,6 +155,16 @@ addScheduleA = do
   sd <- jsonData
   name <- runDBA $ addSchedule sd
   Scotty.json name
+
+removeScheduleA :: Action ()
+removeScheduleA = do
+  name <- Scotty.param "name"
+  forced <- getUrlParam "forced"
+  r <- runDBA' $ removeSchedule name (forced == Just "true")
+  case r of
+    Left ScheduleUsed -> Scotty.status status403
+    Left e -> Scotty.raise e
+    Right _ -> Scotty.json ("done" :: String)
 
 addQueueA :: Action ()
 addQueueA = do
