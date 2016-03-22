@@ -109,6 +109,41 @@ parseParams e =
                    (key, (_:value)) -> (key, value)
                    (key, []) -> (key, "")
 
+doPut :: ToJSON a => Manager -> String -> a -> IO ()
+doPut manager urlStr object = do
+  url <- parseUrl urlStr
+  let request = url {
+                  method="PUT",
+                  requestBody = RequestBodyLBS $ encode object
+                }
+  httpLbs request manager
+  return ()
+
+doPost :: ToJSON a => Manager -> String -> a -> IO ()
+doPost manager urlStr object = do
+  url <- parseUrl urlStr
+  let request = url {
+                  method="POST",
+                  requestBody = RequestBodyLBS $ encode object
+                }
+  httpLbs request manager
+  return ()
+
+doDelete :: Manager -> String -> IO ()
+doDelete manager urlStr = do
+  url <- parseUrl urlStr
+  let request = url { method="DELETE" }
+  httpLbs request manager
+  return ()
+
+doGet :: FromJSON a => Manager -> String -> IO a
+doGet manager urlStr = do
+  url <- parseUrl urlStr
+  responseLbs <- httpLbs url manager
+  case eitherDecode (responseBody responseLbs) of
+    Left err -> fail err
+    Right res -> return res
+
 doEnqueue :: Manager -> Batch -> IO ()
 doEnqueue manager opts = do
   let qname = queueName opts
@@ -124,31 +159,20 @@ doEnqueue manager opts = do
       jiParams = parseParams opts
     }
 
-  url <- parseUrl $ managerUrl opts </> "queue" </> qname
-  let request = url {
-                  method="PUT",
-                  requestBody = RequestBodyLBS $ encode job
-                }
-  response <- httpLbs request manager
-  putStrLn $ "The status code was: " ++ (show $ statusCode $ responseStatus response)
-  print $ responseBody response
+  let url = managerUrl opts </> "queue" </> qname
+  doPut manager url job
 
 doList :: Manager -> Batch -> IO ()
 doList manager opts = do
   case queueToList opts of
     [] -> do
-      let urlStr = managerUrl opts </> "queue"
-      putStrLn $ "Querying " ++ urlStr
-      url <- parseUrl urlStr
-      responseLbs <- httpLbs url manager
-      case eitherDecode (responseBody responseLbs) of
-        Left err -> fail $ show err
-        Right response -> do
-          forM_ response $ \queue -> do
-            printf "%s:\t%s\t%s\n"
-                   (Database.queueName queue)
-                   (Database.queueScheduleName queue)
-                   (fromMaybe "*" $ Database.queueHostName queue)
+      let url = managerUrl opts </> "queue"
+      response <- doGet manager url
+      forM_ response $ \queue -> do
+        printf "%s:\t%s\t%s\n"
+               (Database.queueName queue)
+               (Database.queueScheduleName queue)
+               (fromMaybe "*" $ Database.queueHostName queue)
 
     qnames ->
       forM_ qnames $ \qname -> do
@@ -158,45 +182,30 @@ doList manager opts = do
                           Just st -> case status opts of
                                        Nothing -> ""
                                        _ -> "?status=" ++ map toLower (show st)
-        let urlStr = managerUrl opts </> "queue" </> qname ++ statusStr
-        putStrLn $ "Querying " ++ urlStr
-        url <- parseUrl urlStr
-        responseLbs <- httpLbs url manager
-        case eitherDecode (responseBody responseLbs) of
-          Left err -> fail $ show err
-          Right response -> do
-            forM_ response $ \job -> do
-              printf "#%d: [%d]\t%s\t%s\n" (jiId job) (jiSeq job) (jiType job) (show $ jiStatus job)
-              forM_ (M.assocs $ jiParams job) $ \(name, value) -> do
-                printf "\t%s:\t%s\n" name value
+        let url = managerUrl opts </> "queue" </> qname ++ statusStr
+        response <- doGet manager url
+        forM_ response $ \job -> do
+          printf "#%d: [%d]\t%s\t%s\n" (jiId job) (jiSeq job) (jiType job) (show $ jiStatus job)
+          forM_ (M.assocs $ jiParams job) $ \(name, value) -> do
+            printf "\t%s:\t%s\n" name value
 
 doStats :: Manager -> Batch -> IO ()
 doStats manager opts = do
     case queueToStat opts of
       [] -> do
-        let urlStr = managerUrl opts </> "stats"
-        putStrLn $ "Querying " ++ urlStr
-        url <- parseUrl urlStr
-        responseLbs <- httpLbs url manager
-        case eitherDecode (responseBody responseLbs) of
-          Left err -> fail $ show err
-          Right response -> do
-            forM_ (M.assocs response) $ \rec -> do
-              let qname = fst rec :: String
-                  stat = snd rec :: M.Map JobStatus Int
-              putStrLn $ qname ++ ":"
-              printStats stat
+        let url = managerUrl opts </> "stats"
+        response <- doGet manager url
+        forM_ (M.assocs response) $ \rec -> do
+          let qname = fst rec :: String
+              stat = snd rec :: M.Map JobStatus Int
+          putStrLn $ qname ++ ":"
+          printStats stat
       qnames -> do
         forM_ qnames $ \qname -> do
           putStrLn $ qname ++ ":"
-          let urlStr = managerUrl opts </> "stats" </> qname
-          -- putStrLn $ "Querying " ++ urlStr
-          url <- parseUrl urlStr
-          responseLbs <- httpLbs url manager
-          case eitherDecode (responseBody responseLbs) of
-            Left err -> fail $ show err
-            Right response -> do
-                printStats response
+          let url = managerUrl opts </> "stats" </> qname
+          response <- doGet manager url
+          printStats response
   where
     printStats :: M.Map JobStatus Int -> IO ()
     printStats stat =
@@ -205,34 +214,21 @@ doStats manager opts = do
 
 addQueue :: Manager -> Batch -> IO ()
 addQueue manager opts = do
-  -- let host = if hostName opts == Nothing then Nothing else hostName opts
   let queue = Database.Queue {
                 Database.queueName = queueName opts,
                 Database.queueScheduleName = fromMaybe "anytime" (scheduleName opts),
                 Database.queueHostName = hostName opts
               }
-  url <- parseUrl $ managerUrl opts </> "queue"
-  let request = url {
-                  method="PUT",
-                  requestBody = RequestBodyLBS $ encode queue
-                }
-  response <- httpLbs request manager
-  putStrLn $ "The status code was: " ++ (show $ statusCode $ responseStatus response)
-  print $ responseBody response
+  let url = managerUrl opts </> "queue"
+  doPut manager url queue
 
 updateQueue :: Manager -> Batch -> IO ()
 updateQueue manager opts = do
     let queue = object $
                   toList "schedule_name" (scheduleName opts) ++
                   toList "host_name" (hostName opts)
-    url <- parseUrl $ managerUrl opts </> "queue" </> queueName opts
-    let request = url {
-                    method="POST",
-                    requestBody = RequestBodyLBS $ encode queue
-                  }
-    response <- httpLbs request manager
-    putStrLn $ "The status code was: " ++ (show $ statusCode $ responseStatus response)
-    print $ responseBody response
+    let url = managerUrl opts </> "queue" </> queueName opts
+    doPost manager url queue
   where
     toList _ Nothing = []
     toList name (Just str) = [name .= str]
@@ -240,13 +236,8 @@ updateQueue manager opts = do
 deleteQueue :: Manager -> Batch -> IO ()
 deleteQueue manager opts = do
   let forceStr = if force opts then "?forced=true" else ""
-  url <- parseUrl $ managerUrl opts </> "queue" </> queueName opts ++ forceStr
-  let request = url {
-                    method="DELETE"
-                  }
-  response <- httpLbs request manager
-  putStrLn $ "The status code was: " ++ (show $ statusCode $ responseStatus response)
-  print $ responseBody response
+  let url = managerUrl opts </> "queue" </> queueName opts ++ forceStr
+  doDelete manager url
 
 main :: IO ()
 main = do
