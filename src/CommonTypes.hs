@@ -229,7 +229,8 @@ data GlobalConfig = GlobalConfig {
     dbcConnectionString :: T.Text,
     dbcWorkers :: Int,
     dbcPollTimeout :: Int,
-    dbcLogLevel :: LogLevel
+    dbcLogLevel :: LogLevel,
+    dbcStoreDone :: Int
   }
   deriving (Eq, Show, Data, Typeable, Generic)
 
@@ -246,6 +247,7 @@ instance FromJSON GlobalConfig where
       <*> v .:? "workers" .!= 1
       <*> v .:? "poll_timeout" .!= 10
       <*> v .:? "log_level" .!= LevelInfo
+      <*> v .:? "store_done" .!= 2
   parseJSON invalid = typeMismatch "global configuration" invalid
 
 instance FromJSON LogLevel where

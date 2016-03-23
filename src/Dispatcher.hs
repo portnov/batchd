@@ -26,7 +26,7 @@ runDispatcher :: GlobalConfig -> IO ()
 runDispatcher cfg = do
   pool <- getPool cfg
   let connInfo = ConnectionInfo cfg pool
-  Sql.runSqlPool (Sql.runMigration migrateAll) (ciPool connInfo)
+  -- Sql.runSqlPool (Sql.runMigration migrateAll) (ciPool connInfo)
   jobsChan <- newChan
   resChan <- newChan
   forM_ [1.. dbcWorkers cfg] $ \idx ->

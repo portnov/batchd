@@ -23,6 +23,7 @@ import Data.Dates
 import Database.Persist
 import Data.Maybe
 import Data.Int
+import Data.Time
 import Data.Aeson
 import qualified Data.Map as M
 import qualified Data.Text as T
@@ -350,4 +351,24 @@ removeJobById jid = do
 removeJobs :: String -> JobStatus -> DB ()
 removeJobs qname status = do
     deleteCascadeWhere [JobQueueName ==. qname, JobStatus ==. status]
+
+cleanupJobResults :: Int -> DB ()
+cleanupJobResults days = do
+  now <- liftIO $ getCurrentTime
+  let delta = fromIntegral $ days * 24 * 3600
+  let edge = addUTCTime (negate delta) now
+  -- Delete jobs with obsolete results
+  let deleteJobs = "delete from job where job_id in (select job_id from job_result where time < ?)"
+  Sql.rawExecute deleteJobs [toPersistValue edge]
+  -- Delete obsolete job results
+  deleteCascadeWhere [JobResultTime <. edge]
+
+-- cleanupJobs :: Int -> DB ()
+-- cleanupJobs days = do
+--   now <- liftIO $ getCurrentTime
+--   let delta = fromIntegral $ days * 3600
+--   let edge = addUTCTime (negate delta) now
+  -- let deleteResults = "delete from job_result where job_id in (select job_id from job_result where time < ?)"
+  -- Sql.rawExecute deleteResults [toPersistValue edge]
+  -- let deleteJobs = "delete from job where time 
 

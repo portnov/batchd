@@ -3,6 +3,7 @@
 
 module Manager where
 
+import Control.Concurrent
 import Control.Monad
 import Control.Monad.Reader
 import qualified Data.ByteString as B
@@ -55,14 +56,17 @@ runManager :: GlobalConfig -> IO ()
 runManager cfg = do
   pool <- getPool cfg
   let connInfo = ConnectionInfo cfg pool
-  Sql.runSqlPool (Sql.runMigration migrateAll) (ciPool connInfo)
+  -- Sql.runSqlPool (Sql.runMigration migrateAll) (ciPool connInfo)
   let options = def {Scotty.settings = setPort (dbcManagerPort cfg) defaultSettings}
   let r m = runReaderT (runConnection m) connInfo
+  forkIO $ runReaderT (runConnection maintainer) connInfo
   scottyOptsT options r routes
 
-maintainer :: GlobalConfig -> IO ()
-maintainer cfg = forever $ do
-  threadDelay $ 60 * 1000*1000
+maintainer :: ConnectionM ()
+maintainer = forever $ do
+  cfg <- asks ciGlobalConfig
+  runDB $ cleanupJobResults (dbcStoreDone cfg)
+  liftIO $ threadDelay $ 60 * 1000*1000
 
 -- | Get URL parameter in form ?name=value
 getUrlParam :: B.ByteString -> Action (Maybe B.ByteString)
