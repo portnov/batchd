@@ -18,6 +18,7 @@ import Text.Printf
 import CommonTypes
 import qualified Database
 import Schedule
+import Config
 
 data CrudMode =
     View
@@ -32,8 +33,7 @@ data Batch =
       queueName :: String,
       typeName :: String,
       hostName :: Maybe String,
-      commandName :: String,
-      commandParam :: String,
+      command :: [String],
       parameters :: [String]
     }
   | List {
@@ -56,6 +56,10 @@ data Batch =
       periods :: [String],
       weekdays :: [WeekDay],
       force :: Bool
+    }
+  | Type {
+      managerUrl :: String,
+      types :: [String]
     }
   | Stats {
       managerUrl :: String,
@@ -80,9 +84,8 @@ enqueue = Enqueue {
     queueName = defaultQueue &= name "queue" &= typ "QUEUE" &= help "queue name",
     typeName = defaultType &= name "type" &= typ "TYPE" &= help "job type name",
     hostName = def &= name "host" &= typ "HOST" &= help "worker host name",
-    commandName = defaultType &= typ "PARAMNAME" &= help "name of `command` parameter for job",
-    commandParam = def &= typ "COMMAND" &= argPos 0,
-    parameters = def &= typ "NAME=VALUE" &= help "job parameter"
+    command = def &= typ "COMMAND PARAMETERS" &= args,
+    parameters = def &= typ "NAME=VALUE" &= help "job parameters specified by name"
   } &= help "put a new job into queue"
 
 list :: Batch
@@ -119,16 +122,25 @@ schedule = Schedule {
     force = False &= help "delete also all queues which use this schedule and their jobs"
   } &= help "create, update or delete schedules"
 
+typesList :: Batch
+typesList = Type {
+    managerUrl = managerUrlAnn defaultUrl,
+    types = [] &= typ "TYPE" &= args
+  } &= name "type"
+    &= help "show defined job types"
+
 stats :: Batch
 stats = Stats {
     managerUrl = managerUrlAnn defaultUrl,
     queueToStat = [] &= typ "QUEUE" &= args
   } &= help "print statistics on queue or on all jobs"
 
-parseParams :: Batch -> JobParamInfo
-parseParams e = 
-    let pairs = map parseOne (parameters e)
-    in  M.insert (commandName e) (commandParam e) $ M.fromList pairs
+parseParams :: [ParamDesc] -> Batch -> JobParamInfo
+parseParams desc e = 
+    let posNames = map piName desc
+        ordered = M.fromList $ zip posNames (command e)
+        byName = M.fromList $ map parseOne (parameters e)
+    in  M.union byName ordered
   where
     parseOne :: String -> (String, String)
     parseOne s = case break (== '=') s of
@@ -172,22 +184,26 @@ doGet manager urlStr = do
 
 doEnqueue :: Manager -> Batch -> IO ()
 doEnqueue manager opts = do
-  let qname = queueName opts
+  jtr <- loadTemplate (typeName opts)
+  case jtr of
+    Left err -> fail $ show err
+    Right jtype -> do
+      let qname = queueName opts
 
-  let job = JobInfo {
-      jiId = 0,
-      jiQueue = qname,
-      jiType = typeName opts,
-      jiSeq = 0,
-      jiTime = zeroUtcTime,
-      jiStatus = New,
-      jiTryCount = 0,
-      jiHostName = hostName opts,
-      jiParams = parseParams opts
-    }
+      let job = JobInfo {
+          jiId = 0,
+          jiQueue = qname,
+          jiType = typeName opts,
+          jiSeq = 0,
+          jiTime = zeroUtcTime,
+          jiStatus = New,
+          jiTryCount = 0,
+          jiHostName = hostName opts,
+          jiParams = parseParams (jtParams jtype) opts
+        }
 
-  let url = managerUrl opts </> "queue" </> qname
-  doPut manager url job
+      let url = managerUrl opts </> "queue" </> qname
+      doPut manager url job
 
 doList :: Manager -> Batch -> IO ()
 doList manager opts = do
@@ -309,9 +325,29 @@ doDeleteSchedule manager opts = do
   let url = managerUrl opts </> "schedule" </> sname ++ forceStr
   doDelete manager url
 
+doType :: Manager -> Batch -> IO ()
+doType manager opts = do
+  let url = managerUrl opts </> "type"
+  response <- doGet manager url
+  let check = if null (types opts)
+                then const True
+                else \jt -> jtName jt `elem` types opts
+  forM_ response $ \jt -> do
+    when (check jt) $ do
+      putStrLn $ jtName jt ++ ":"
+      putStrLn $ "\tTemplate:\t" ++ jtTemplate jt
+      putStrLn $ "\tOn fail:\t" ++ show (jtOnFail jt)
+      putStrLn $ "\tHost:\t" ++ fromMaybe "*" (jtHostName jt)
+      putStrLn $ "\tParameters:"
+      forM_ (jtParams jt) $ \desc -> do
+        putStrLn $ "\t* Name:\t" ++ piName desc
+        putStrLn $ "\t  Type:\t" ++ show (piType desc)
+        putStrLn $ "\t  Title:\t" ++ piTitle desc
+        putStrLn $ "\t  Default:\t" ++ piDefault desc
+
 main :: IO ()
 main = do
-  let mode = cmdArgsMode $ modes [enqueue, list &= name "ls", queue, schedule, stats]
+  let mode = cmdArgsMode $ modes [enqueue, list &= name "ls", queue, schedule, typesList, stats]
   opts <- cmdArgsRun mode
 
   manager <- newManager defaultManagerSettings
@@ -320,6 +356,7 @@ main = do
     Enqueue {} -> doEnqueue manager opts
     List {} -> doList manager opts
     Stats {} -> doStats manager opts
+    Type {} -> doType manager opts
     Queue {} ->
       case queueMode opts of
         Add -> addQueue manager opts

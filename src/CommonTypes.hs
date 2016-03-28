@@ -30,12 +30,20 @@ data ParamType =
   | OutputFile
   deriving (Eq, Show, Data, Typeable, Generic)
 
+data ParamDesc = ParamDesc {
+    piName :: String,
+    piType :: ParamType,
+    piTitle :: String,
+    piDefault :: String
+  }
+  deriving (Eq, Show, Data, Typeable, Generic)
+
 data JobType = JobType {
     jtName :: String,
     jtTemplate :: String,
     jtOnFail :: OnFailAction,
     jtHostName :: Maybe String,
-    jtParams :: M.Map String ParamType
+    jtParams :: [ParamDesc]
   }
   deriving (Eq, Show, Data, Typeable, Generic)
 
@@ -57,17 +65,29 @@ camelCaseToUnderscore = go False
 jsonOptions :: String -> Data.Aeson.Types.Options
 jsonOptions prefix = defaultOptions {fieldLabelModifier = camelCaseToUnderscore . stripPrefix prefix}
 
-instance FromJSON JobType where
-  parseJSON = genericParseJSON (jsonOptions "jt")
-
 instance FromJSON ParamType where
   parseJSON = genericParseJSON $ defaultOptions {fieldLabelModifier = camelCaseToUnderscore}
 
-instance ToJSON JobType where
-  toJSON = genericToJSON (jsonOptions "jt")
-
 instance ToJSON ParamType where
   toJSON = genericToJSON $ defaultOptions {fieldLabelModifier = camelCaseToUnderscore}
+
+instance FromJSON ParamDesc where
+  parseJSON (Object v) = do
+    name <- v .: "name" 
+    tp <- v .: "type"
+    title <- v .:? "title" .!= name
+    dflt <- v .:? "default" .!= ""
+    return $ ParamDesc name tp title dflt
+  parseJSON invalid = typeMismatch "parameter description" invalid
+
+instance ToJSON ParamDesc where
+  toJSON = genericToJSON (jsonOptions "pi")
+
+instance FromJSON JobType where
+  parseJSON = genericParseJSON (jsonOptions "jt")
+
+instance ToJSON JobType where
+  toJSON = genericToJSON (jsonOptions "jt")
 
 data OnFailAction =
     Continue
@@ -87,7 +107,11 @@ instance FromJSON OnFailAction where
     r <- v .: "retry"
     case r of
       Object retry -> do
-          now <- retry .:? "when" .!= True
+          nowStr <- retry .:? "when" .!= "now"
+          now <- case nowStr of
+                   "now" -> return True
+                   "later" -> return False
+                   _ -> fail $ "Unknown retry type specification: " ++ nowStr
           count <- retry .:? "count" .!= 1
           if now
             then return $ RetryNow count
@@ -173,8 +197,14 @@ instance FromJSON JobInfo where
       <*> v .:? "params" .!= M.empty
   parseJSON invalid = typeMismatch "job" invalid
 
+lookupParam :: String -> [ParamDesc] -> Maybe ParamDesc
+lookupParam _ [] = Nothing
+lookupParam name (p:ps)
+  | piName p == name = Just p
+  | otherwise = lookupParam name ps
+
 getParamType :: JobType -> String -> Maybe ParamType
-getParamType jt name = M.lookup name (jtParams jt)
+getParamType jt name = piType `fmap` lookupParam name (jtParams jt)
 
 -- | Remote host description
 data Host = Host {
