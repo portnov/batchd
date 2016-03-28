@@ -1,7 +1,13 @@
 name: neural-style
 template: "docker exec drunk_swartz /root/neural-style.sh $input $style $output"
 params:
-  input: InputFile
-  style: InputFile
-  output: OutputFile
+  - name: input
+    type: InputFile
+    title: "Исходное изображение"
+  - name: style
+    type: InputFile
+    title: "Стиль"
+  - name: output
+    type: OutputFile
+    title: "Результат"
 on_fail: continue

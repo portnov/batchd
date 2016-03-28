@@ -1,5 +1,6 @@
 name: count
 template: "./test.sh $count"
 params:
-  count: Integer
+  - name: count
+    type: Integer
 on_fail: retry

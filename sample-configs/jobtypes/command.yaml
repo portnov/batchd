@@ -1,6 +1,8 @@
 name: command
 template: "$command $args"
 params:
-  command: String
-  args: String
+  - name: command
+    type: String
+  - name: args
+    type: String
 on_fail: retry

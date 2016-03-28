@@ -1,0 +1,10 @@
+name: blender
+template: "/home/ubuntu/blender.sh $input $output"
+params:
+  - name: input
+    type: InputFile 
+    title: "Input file"
+  - name: output
+    type: OutputFile
+    title: "Output file"
+on_fail: continue
