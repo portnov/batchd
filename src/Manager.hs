@@ -85,7 +85,9 @@ raiseError QueueNotExists = raise404 "queue"
 raiseError JobNotExists   = raise404 "job"
 raiseError FileNotExists  = raise404 "file"
 raiseError QueueNotEmpty  = Scotty.status status403
-raiseError e = raise e
+raiseError e = do
+  Scotty.status status500
+  Scotty.text $ TL.pack $ show e
 
 getQueuesA :: Action ()
 getQueuesA = do
