@@ -77,4 +77,5 @@ downloadFiles output_directory files session =
     let remotePath = output_directory </> takeFileName path
     putStrLn $ "Downloading: `" ++ remotePath ++ "' to `" ++ path ++ "'"
     scpReceiveFile session remotePath path
+    putStrLn "Done."
 
