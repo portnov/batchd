@@ -358,8 +358,12 @@ cleanupJobResults days = do
   let delta = fromIntegral $ days * 24 * 3600
   let edge = addUTCTime (negate delta) now
   -- Delete jobs with obsolete results
-  let deleteJobs = "delete from job where id in (select job_id from job_result where time < ? and status in ('Done', 'Failed'))"
-  Sql.rawExecute deleteJobs [toPersistValue edge]
+  -- let deleteParams = "delete from job_param where job_id in (select job_id from job_result where time < ?) and (select status from job where id = job_param.job_id) in ('Done', 'Failed')"
+  -- Sql.rawExecute deleteParams [toPersistValue edge]
+  -- liftIO $ putStrLn deleteParams
+  -- let deleteJobs = "delete from job where id in (select job_id from job_result where time < ?) and status in ('Done', 'Failed')"
+  -- liftIO $ putStrLn deleteJobs
+  -- Sql.rawExecute deleteJobs [toPersistValue edge]
   -- Delete obsolete job results
   deleteCascadeWhere [JobResultTime <. edge]
 
