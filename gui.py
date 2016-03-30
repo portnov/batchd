@@ -96,6 +96,20 @@ def do_enqueue(url, qname, typename, params):
     rs = requests.put(url+ "/queue/" + qname, data=json.dumps(rq))
     print(rs.text)
 
+def get_queue_stats(url, qname):
+    rs = requests.get(url + "/stats/" + qname)
+    return json.loads(rs.text)
+
+def labelled(label, constructor, parent=None):
+    result = QtGui.QWidget(parent)
+    layout = QtGui.QHBoxLayout()
+    result.setLayout(layout)
+    lbl = QtGui.QLabel(label)
+    layout.addWidget(lbl)
+    widget = constructor(result)
+    layout.addWidget(widget)
+    return result, widget
+
 class GUI(QtGui.QMainWindow):
     def __init__(self, url, types, queues):
         QtGui.QMainWindow.__init__(self)
@@ -109,18 +123,22 @@ class GUI(QtGui.QMainWindow):
 
         self.setCentralWidget(central_widget)
 
-        self.type_popup = QtGui.QComboBox(self)
+        wrapper, self.type_popup = labelled("Job type:", QtGui.QComboBox, self)
         self.types = types
         for t in types:
             self.type_popup.addItem(t['name'])
         self.type_popup.currentIndexChanged.connect(self._on_select_type)
-        self.layout.addWidget(self.type_popup)
+        self.layout.addWidget(wrapper)
 
-        self.queue_popup = QtGui.QComboBox(self)
+        wrapper, self.queue_popup = labelled("Queue:", QtGui.QComboBox, self)
         self.queues = queues
         for q in queues:
             self.queue_popup.addItem(q['name'])
-        self.layout.addWidget(self.queue_popup)
+        self.queue_popup.currentIndexChanged.connect(self._on_select_queue)
+        self.layout.addWidget(wrapper)
+
+        self.queue_info = QtGui.QLabel(self)
+        self.layout.addWidget(self.queue_info)
 
         ok = QtGui.QPushButton("Ok", self)
         ok.clicked.connect(self._on_ok)
@@ -130,6 +148,7 @@ class GUI(QtGui.QMainWindow):
         self.form = None
 
         self._on_select_type(0)
+        self._on_select_queue(0)
 
     def _on_select_type(self, idx):
         jobtype = self.types[idx]
@@ -141,8 +160,22 @@ class GUI(QtGui.QMainWindow):
             self.layout.removeWidget(self.form)
             del self.form
         self.form = form
-        self.layout.insertWidget(2, form)
+        self.layout.insertWidget(3, form)
         self.form.show()
+
+    def _on_select_queue(self, idx):
+        queue = self.queues[idx]
+        schedule = queue['schedule_name']
+        host = queue['host_name']
+        if not host:
+            host = "*"
+        stats = get_queue_stats(self.url, queue['name'])
+        new = stats.get('new', 0)
+        processing = stats.get('processing', 0)
+        done = stats.get('done', 0)
+        failed = stats.get('failed', 0)
+        info = "Schedule: {}\nHost: {}\nNew/Processing/Done: {} / {} / {}\nFailed: {}".format(schedule, host, new, processing, done, failed)
+        self.queue_info.setText(info)
 
     def _on_ok(self):
         queue = unicode( self.queue_popup.currentText() )
