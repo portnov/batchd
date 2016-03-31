@@ -56,14 +56,36 @@ Configuration
 All configuration files are in YAML format and stored under /etc/batchd/ or
 under ~/.config/batchd/. The config files are:
 
-* batchd/global.yaml. This file contains global options: database connection,
+* batchd/batchd.yaml. This file contains global options: database connection,
   worker threads count and so on.
+* batchd/client.yaml. This file contains default settings for `batch'
+  command-line client.
 * batchd/hosts/$hostname.yaml. Such files describe remote hosts (which are
   available through the SSH protocol with public key auth).
 * batchd/jobtypes/$type.yaml. Such files describe job types - types of jobs
   which can be run. See also the description below.
 
 For examples, see sample configs under sample-configs/ directory.
+
+The `batch' command-line client also supports the following environment
+variables:
+
+* BATCH_MANAGER_URL
+* BATCH_QUEUE
+* BATCH_TYPE
+* BATCH_HOST
+
+The priority for these options is as follows:
+* Options specified explicitly in command line have the highest priority.
+* Next environment variables are checked.
+* Then client.yaml config file is checked.
+* If there is no client.yaml or the option is not specified in it, then default
+  value is used:
+  * Default manager url is http://localhost:9681.
+  * Default queue is "default".
+  * Default job type is "command".
+  * Default host name is "undefined", which means use local host.
+
 
 Job types
 ---------
