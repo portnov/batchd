@@ -157,6 +157,7 @@ data Error =
   | InvalidJobType ParseException
   | InvalidHost ParseException
   | InvalidDbCfg ParseException
+  | InvalidConfig ParseException
   | InvalidJobStatus
   | FileNotExists
   | UnknownError String

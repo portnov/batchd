@@ -30,31 +30,26 @@ locateConfig t name = do
     [] -> return Nothing
     (result:_) -> return $ Just result
 
-loadHost :: String -> IO (Either Error Host)
-loadHost name = do
-  mbPath <- locateConfig "hosts" (name ++ ".yaml")
+loadConfig :: FromJSON config => String -> String -> (ParseException -> Error) -> IO (Either Error config)
+loadConfig t name exc = do
+  mbPath <- locateConfig t (name ++ ".yaml")
   case mbPath of
     Nothing -> return $ Left FileNotExists
     Just path -> do
       r <- decodeFileEither path
       case r of
-        Left err -> return $ Left $ InvalidHost err
-        Right host -> return $ Right host
+        Left err -> return $ Left $ exc err
+        Right cfg -> return $ Right cfg
+
+loadHost :: String -> IO (Either Error Host)
+loadHost name = loadConfig "host" name InvalidHost
 
 loadTemplate :: String -> IO (Either Error JobType)
-loadTemplate name = do
-  mbPath <- locateConfig "jobtypes" (name ++ ".yaml")
-  case mbPath of
-    Nothing -> return $ Left FileNotExists
-    Just path -> do
-      r <- decodeFileEither path
-      case r of
-        Left err -> return $ Left $ InvalidJobType err
-        Right jt -> return $ Right jt
+loadTemplate name = loadConfig "jobtypes" name InvalidJobType
 
 loadGlobalConfig :: IO (Either Error GlobalConfig)
 loadGlobalConfig = do
-  mbPath <- locateConfig "" "global.yaml"
+  mbPath <- locateConfig "" "batchd.yaml"
   case mbPath of
     Nothing -> return $ Left FileNotExists
     Just path -> do

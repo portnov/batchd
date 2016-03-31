@@ -1,24 +1,42 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric #-}
 
+import GHC.Generics
 import Control.Monad
-import Data.Aeson
+import qualified Data.Aeson as Aeson
+import Data.Yaml
 import qualified Data.Map as M
 import Data.Maybe
 import Data.List (intercalate)
 import Data.Char (toLower)
-import Data.Generics
+import Data.Generics hiding (Generic)
 import Data.Dates
 import Network.HTTP.Client
 import Network.HTTP.Types.Status (statusCode)
 import System.Console.CmdArgs
 import System.FilePath
+import System.Environment (lookupEnv)
 import Text.Printf
 
 import CommonTypes
 import qualified Database
 import Schedule
 import Config
+
+data ClientConfig = ClientConfig {
+    ccManagerUrl :: Maybe String,
+    ccQueue :: Maybe String,
+    ccType :: Maybe String,
+    ccHost :: Maybe String
+  }
+  deriving (Show, Data, Typeable, Generic)
+
+defaultConfig :: ClientConfig
+defaultConfig = ClientConfig Nothing Nothing Nothing Nothing
+
+instance FromJSON ClientConfig where
+  parseJSON = Aeson.genericParseJSON (jsonOptions "cc")
 
 data CrudMode =
     View
@@ -29,28 +47,28 @@ data CrudMode =
 
 data Batch =
     Enqueue {
-      managerUrl :: String,
-      queueName :: String,
-      typeName :: String,
+      managerUrl :: Maybe String,
+      queueName :: Maybe String,
+      typeName :: Maybe String,
       hostName :: Maybe String,
       command :: [String],
       parameters :: [String]
     }
   | List {
-      managerUrl :: String,
+      managerUrl :: Maybe String,
       status :: Maybe String,
       queueToList :: [String]
     }
   | Queue {
-      managerUrl :: String,
+      managerUrl :: Maybe String,
       queueMode :: CrudMode,
-      queueName :: String,
+      queueObject :: String,
       scheduleName :: Maybe String,
       hostName :: Maybe String,
       force :: Bool
     }
   | Schedule {
-      managerUrl :: String,
+      managerUrl :: Maybe String,
       scheduleMode :: CrudMode,
       scheduleNames :: [String],
       periods :: [String],
@@ -58,11 +76,11 @@ data Batch =
       force :: Bool
     }
   | Type {
-      managerUrl :: String,
+      managerUrl :: Maybe String,
       types :: [String]
     }
   | Stats {
-      managerUrl :: String,
+      managerUrl :: Maybe String,
       queueToStat :: [String]
     }
   deriving (Show, Data, Typeable)
@@ -76,13 +94,60 @@ defaultQueue = "default"
 defaultType :: String
 defaultType = "command"
 
-managerUrlAnn url = url &= name "url" &= typ defaultUrl &= help "batchd manager API URL"
+getConfigParam :: Maybe String -> String -> Maybe String -> String -> IO String
+getConfigParam cmdline varname cfg dflt = do
+  case cmdline of
+    Just val -> return val
+    Nothing -> do
+      mbEnv <- lookupEnv varname
+      case mbEnv of
+        Just val -> return val
+        Nothing -> return $ fromMaybe dflt cfg
+    
+getConfigParam' :: Maybe String -> String -> Maybe String -> IO (Maybe String)
+getConfigParam' cmdline varname cfg = do
+  case cmdline of
+    Just val -> return $ Just val
+    Nothing -> do
+      mbEnv <- lookupEnv varname
+      case mbEnv of
+        Just val -> return $ Just val
+        Nothing -> return cfg
+
+loadClientConfig :: IO ClientConfig
+loadClientConfig = do
+  mbPath <- locateConfig "" "client.yaml"
+  case mbPath of
+    Nothing -> return defaultConfig
+    Just path -> do
+      r <- decodeFileEither path
+      case r of
+        Left err -> fail $ "Can't parse client config:\n" ++ show err
+        Right cfg -> return cfg
+    
+getManagerUrl :: Maybe String -> ClientConfig -> IO String
+getManagerUrl cmdline cfg =
+  getConfigParam cmdline "BATCH_MANAGER_URL" (ccManagerUrl cfg) defaultUrl
+
+getHostName :: Maybe String -> ClientConfig -> IO (Maybe String)
+getHostName cmdline cfg =
+  getConfigParam' cmdline "BATCH_HOST" (ccHost cfg)
+
+getTypeName :: Maybe String -> ClientConfig -> IO String
+getTypeName cmdline cfg =
+  getConfigParam cmdline "BATCH_TYPE" (ccType cfg) defaultType
+
+getQueueName :: Maybe String -> ClientConfig -> IO String
+getQueueName cmdline cfg =
+  getConfigParam cmdline "BATCH_QUEUE" (ccType cfg) defaultQueue
+
+managerUrlAnn = Nothing &= name "url" &= typ defaultUrl &= help "batchd manager API URL"
 
 enqueue :: Batch
 enqueue = Enqueue {
-    managerUrl = managerUrlAnn defaultUrl,
-    queueName = defaultQueue &= name "queue" &= typ "QUEUE" &= help "queue name",
-    typeName = defaultType &= name "type" &= typ "TYPE" &= help "job type name",
+    managerUrl = managerUrlAnn,
+    queueName = def &= name "queue" &= typ "QUEUE" &= help "queue name",
+    typeName = def &= name "type" &= typ "TYPE" &= help "job type name",
     hostName = def &= name "host" &= typ "HOST" &= help "worker host name",
     command = def &= typ "COMMAND PARAMETERS" &= args,
     parameters = def &= typ "NAME=VALUE" &= help "job parameters specified by name"
@@ -90,19 +155,19 @@ enqueue = Enqueue {
 
 list :: Batch
 list = List {
-    managerUrl = managerUrlAnn defaultUrl,
+    managerUrl = managerUrlAnn,
     status = def &= typ "STATUS" &= help "list only jobs of specified status",
     queueToList = def &= args &= typ "QUEUE"
   } &= help "list queues or jobs"
 
 queue :: Batch
 queue = Queue {
-    managerUrl = managerUrlAnn defaultUrl,
+    managerUrl = managerUrlAnn,
     queueMode = enum [
                   Add &= help "create new queue",
                   Update &= help "modify queue",
                   Delete &= help "delete queue"],
-    queueName = defaultQueue &= argPos 0 &= typ "QUEUE",
+    queueObject = defaultQueue &= argPos 0 &= typ "QUEUE",
     scheduleName = def &= typ "SCHEDULE" &= help "queue schedule name",
     hostName = Nothing &= name "host" &= typ "HOST" &= help "default host name for queue",
     force = False &= help "force non-empty queue deletion"
@@ -110,7 +175,7 @@ queue = Queue {
     
 schedule :: Batch
 schedule = Schedule {
-    managerUrl = managerUrlAnn defaultUrl,
+    managerUrl = managerUrlAnn,
     scheduleMode =  enum [
                       View &= name "ls" &= help "list available schedules",
                       Add &= help "create new schedule",
@@ -124,14 +189,14 @@ schedule = Schedule {
 
 typesList :: Batch
 typesList = Type {
-    managerUrl = managerUrlAnn defaultUrl,
+    managerUrl = managerUrlAnn,
     types = [] &= typ "TYPE" &= args
   } &= name "type"
     &= help "show defined job types"
 
 stats :: Batch
 stats = Stats {
-    managerUrl = managerUrlAnn defaultUrl,
+    managerUrl = managerUrlAnn,
     queueToStat = [] &= typ "QUEUE" &= args
   } &= help "print statistics on queue or on all jobs"
 
@@ -152,7 +217,7 @@ doPut manager urlStr object = do
   url <- parseUrl urlStr
   let request = url {
                   method="PUT",
-                  requestBody = RequestBodyLBS $ encode object
+                  requestBody = RequestBodyLBS $ Aeson.encode object
                 }
   httpLbs request manager
   return ()
@@ -162,7 +227,7 @@ doPost manager urlStr object = do
   url <- parseUrl urlStr
   let request = url {
                   method="POST",
-                  requestBody = RequestBodyLBS $ encode object
+                  requestBody = RequestBodyLBS $ Aeson.encode object
                 }
   httpLbs request manager
   return ()
@@ -178,38 +243,44 @@ doGet :: FromJSON a => Manager -> String -> IO a
 doGet manager urlStr = do
   url <- parseUrl urlStr
   responseLbs <- httpLbs url manager
-  case eitherDecode (responseBody responseLbs) of
+  case Aeson.eitherDecode (responseBody responseLbs) of
     Left err -> fail err
     Right res -> return res
 
 doEnqueue :: Manager -> Batch -> IO ()
 doEnqueue manager opts = do
-  jtr <- loadTemplate (typeName opts)
+  cfg <- loadClientConfig
+  baseUrl <- getManagerUrl (managerUrl opts) cfg
+  t <- getTypeName (typeName opts) cfg
+  jtr <- loadTemplate t
   case jtr of
     Left err -> fail $ show err
     Right jtype -> do
-      let qname = queueName opts
+      qname <- getQueueName (queueName opts) cfg
+      host <- getHostName (hostName opts) cfg
 
       let job = JobInfo {
           jiId = 0,
           jiQueue = qname,
-          jiType = typeName opts,
+          jiType = t,
           jiSeq = 0,
           jiTime = zeroUtcTime,
           jiStatus = New,
           jiTryCount = 0,
-          jiHostName = hostName opts,
+          jiHostName = host,
           jiParams = parseParams (jtParams jtype) opts
         }
 
-      let url = managerUrl opts </> "queue" </> qname
+      let url = baseUrl </> "queue" </> qname
       doPut manager url job
 
 doList :: Manager -> Batch -> IO ()
 doList manager opts = do
+  cfg <- loadClientConfig
+  baseUrl <- getManagerUrl (managerUrl opts) cfg
   case queueToList opts of
     [] -> do
-      let url = managerUrl opts </> "queue"
+      let url = baseUrl </> "queue"
       response <- doGet manager url
       forM_ response $ \queue -> do
         printf "%s:\t%s\t%s\n"
@@ -225,7 +296,7 @@ doList manager opts = do
                           Just st -> case status opts of
                                        Nothing -> ""
                                        _ -> "?status=" ++ map toLower (show st)
-        let url = managerUrl opts </> "queue" </> qname ++ statusStr
+        let url = baseUrl </> "queue" </> qname ++ statusStr
         response <- doGet manager url
         forM_ response $ \job -> do
           printf "#%d: [%d]\t%s\t%s\n" (jiId job) (jiSeq job) (jiType job) (show $ jiStatus job)
@@ -234,9 +305,11 @@ doList manager opts = do
 
 doStats :: Manager -> Batch -> IO ()
 doStats manager opts = do
+    cfg <- loadClientConfig
+    baseUrl <- getManagerUrl (managerUrl opts) cfg
     case queueToStat opts of
       [] -> do
-        let url = managerUrl opts </> "stats"
+        let url = baseUrl </> "stats"
         response <- doGet manager url
         forM_ (M.assocs response) $ \rec -> do
           let qname = fst rec :: String
@@ -246,7 +319,7 @@ doStats manager opts = do
       qnames -> do
         forM_ qnames $ \qname -> do
           putStrLn $ qname ++ ":"
-          let url = managerUrl opts </> "stats" </> qname
+          let url = baseUrl </> "stats" </> qname
           response <- doGet manager url
           printStats response
   where
@@ -257,20 +330,24 @@ doStats manager opts = do
 
 addQueue :: Manager -> Batch -> IO ()
 addQueue manager opts = do
+  cfg <- loadClientConfig
+  baseUrl <- getManagerUrl (managerUrl opts) cfg
   let queue = Database.Queue {
-                Database.queueName = queueName opts,
+                Database.queueName = queueObject opts,
                 Database.queueScheduleName = fromMaybe "anytime" (scheduleName opts),
                 Database.queueHostName = hostName opts
               }
-  let url = managerUrl opts </> "queue"
+  let url = baseUrl </> "queue"
   doPut manager url queue
 
 updateQueue :: Manager -> Batch -> IO ()
 updateQueue manager opts = do
+    cfg <- loadClientConfig
+    baseUrl <- getManagerUrl (managerUrl opts) cfg
     let queue = object $
                   toList "schedule_name" (scheduleName opts) ++
                   toList "host_name" (hostName opts)
-    let url = managerUrl opts </> "queue" </> queueName opts
+    let url = baseUrl </> "queue" </> queueObject opts
     doPost manager url queue
   where
     toList _ Nothing = []
@@ -278,13 +355,17 @@ updateQueue manager opts = do
 
 deleteQueue :: Manager -> Batch -> IO ()
 deleteQueue manager opts = do
+  cfg <- loadClientConfig
+  baseUrl <- getManagerUrl (managerUrl opts) cfg
   let forceStr = if force opts then "?forced=true" else ""
-  let url = managerUrl opts </> "queue" </> queueName opts ++ forceStr
+  let url = baseUrl </> "queue" </> queueObject opts ++ forceStr
   doDelete manager url
 
 doListSchedules :: Manager -> Batch -> IO ()
 doListSchedules manager opts = do
-  let url = managerUrl opts </> "schedule"
+  cfg <- loadClientConfig
+  baseUrl <- getManagerUrl (managerUrl opts) cfg
+  let url = baseUrl </> "schedule"
   response <- doGet manager url
   let check = if null (scheduleNames opts)
                 then const True
@@ -301,6 +382,8 @@ doListSchedules manager opts = do
 
 doAddSchedule :: Manager -> Batch -> IO ()
 doAddSchedule manager opts = do
+  cfg <- loadClientConfig
+  baseUrl <- getManagerUrl (managerUrl opts) cfg
   when (length (scheduleNames opts) /= 1) $
     fail $ "Exactly one schedule name must be specified when creating a schedule"
   let ts = forM (periods opts) $ \str -> do
@@ -308,7 +391,7 @@ doAddSchedule manager opts = do
   case ts of
     Left err -> fail $ "Can't parse period description: " ++ show err
     Right times -> do
-      let url = managerUrl opts </> "schedule"
+      let url = baseUrl </> "schedule"
       let schedule = ScheduleInfo {
                        sName = head (scheduleNames opts),
                        sWeekdays = if null (weekdays opts) then Nothing else Just (weekdays opts),
@@ -318,16 +401,20 @@ doAddSchedule manager opts = do
 
 doDeleteSchedule :: Manager -> Batch -> IO ()
 doDeleteSchedule manager opts = do
+  cfg <- loadClientConfig
+  baseUrl <- getManagerUrl (managerUrl opts) cfg
   when (length (scheduleNames opts) /= 1) $
     fail $ "Exactly one schedule name must be specified when deleting a schedule"
   let sname = head (scheduleNames opts)
   let forceStr = if force opts then "?forced=true" else ""
-  let url = managerUrl opts </> "schedule" </> sname ++ forceStr
+  let url = baseUrl </> "schedule" </> sname ++ forceStr
   doDelete manager url
 
 doType :: Manager -> Batch -> IO ()
 doType manager opts = do
-  let url = managerUrl opts </> "type"
+  cfg <- loadClientConfig
+  baseUrl <- getManagerUrl (managerUrl opts) cfg
+  let url = baseUrl </> "type"
   response <- doGet manager url
   let check = if null (types opts)
                 then const True
