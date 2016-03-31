@@ -8,6 +8,7 @@ import System.Console.CmdArgs
 
 import CommonTypes
 import Config
+import Database
 import Manager
 import Dispatcher
 
@@ -26,10 +27,11 @@ main = do
       let mode = if cmd == Both
                    then dbcDaemonMode cfg
                    else cmd
+      pool <- getPool cfg
       case mode of
-        Manager    -> Manager.runManager cfg
-        Dispatcher -> Dispatcher.runDispatcher cfg
+        Manager    -> Manager.runManager cfg pool
+        Dispatcher -> Dispatcher.runDispatcher cfg pool
         Both -> do
-          forkIO $ Manager.runManager cfg
-          Dispatcher.runDispatcher cfg
+          forkIO $ Manager.runManager cfg pool
+          Dispatcher.runDispatcher cfg pool
 

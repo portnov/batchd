@@ -22,9 +22,8 @@ import Schedule
 import Executor
 import Logging
 
-runDispatcher :: GlobalConfig -> IO ()
-runDispatcher cfg = do
-  pool <- getPool cfg
+runDispatcher :: GlobalConfig -> Sql.ConnectionPool -> IO ()
+runDispatcher cfg pool = do
   let connInfo = ConnectionInfo cfg pool
   -- Sql.runSqlPool (Sql.runMigration migrateAll) (ciPool connInfo)
   jobsChan <- newChan

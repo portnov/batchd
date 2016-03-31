@@ -52,9 +52,8 @@ routes = do
   Scotty.get "/type" getJobTypesA
   Scotty.get "/type/:name" getJobTypeA
 
-runManager :: GlobalConfig -> IO ()
-runManager cfg = do
-  pool <- getPool cfg
+runManager :: GlobalConfig -> Sql.ConnectionPool -> IO ()
+runManager cfg pool = do
   let connInfo = ConnectionInfo cfg pool
   -- Sql.runSqlPool (Sql.runMigration migrateAll) (ciPool connInfo)
   let options = def {Scotty.settings = setPort (dbcManagerPort cfg) defaultSettings}
