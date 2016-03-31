@@ -1,0 +1,4 @@
+manager_url: http://localhost:9681
+queue: test
+# host: neural.aws
+# type: blender
