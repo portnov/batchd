@@ -139,7 +139,7 @@ getTypeName cmdline cfg =
 
 getQueueName :: Maybe String -> ClientConfig -> IO String
 getQueueName cmdline cfg =
-  getConfigParam cmdline "BATCH_QUEUE" (ccType cfg) defaultQueue
+  getConfigParam cmdline "BATCH_QUEUE" (ccQueue cfg) defaultQueue
 
 managerUrlAnn = Nothing &= name "url" &= typ defaultUrl &= help "batchd manager API URL"
 
