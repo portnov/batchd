@@ -1,5 +1,6 @@
 *.hi
 *.o
+*.pyc
 *.swp
 dist/
 data/
@@ -11,4 +12,3 @@ cabal.sandbox.config
 *.db-wal
 *.jpg
 *.png
-

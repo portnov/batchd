@@ -5,6 +5,8 @@ import requests
 import json
 from PyQt4 import QtGui
 
+import queuetable
+
 class InputFileWidget(QtGui.QWidget):
     def __init__(self, parent=None):
         QtGui.QWidget.__init__(self, parent)
@@ -100,6 +102,10 @@ def get_queue_stats(url, qname):
     rs = requests.get(url + "/stats/" + qname)
     return json.loads(rs.text)
 
+def get_jobs(url, qname):
+    rs = requests.get(url + "/queue/" + qname + "?status=all")
+    return json.loads(rs.text)
+
 def labelled(label, constructor, parent=None):
     result = QtGui.QWidget(parent)
     layout = QtGui.QHBoxLayout()
@@ -136,6 +142,9 @@ class GUI(QtGui.QMainWindow):
             self.queue_popup.addItem(q['name'])
         self.queue_popup.currentIndexChanged.connect(self._on_select_queue)
         self.layout.addWidget(wrapper)
+
+        self.qtable = queuetable.Table(parent=self)
+        self.layout.addWidget(self.qtable)
 
         self.queue_info = QtGui.QLabel(self)
         self.layout.addWidget(self.queue_info)
@@ -176,6 +185,9 @@ class GUI(QtGui.QMainWindow):
         failed = stats.get('failed', 0)
         info = "Schedule: {}\nHost: {}\nNew/Processing/Done: {} / {} / {}\nFailed: {}".format(schedule, host, new, processing, done, failed)
         self.queue_info.setText(info)
+
+        jobs = get_jobs(self.url, queue['name'])
+        self.qtable.setJobs(jobs)
 
     def _on_ok(self):
         queue = unicode( self.queue_popup.currentText() )
