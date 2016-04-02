@@ -20,8 +20,10 @@ class Model(QtCore.QAbstractTableModel):
             return job[columns[index.column()]]
         if role == QtCore.Qt.BackgroundColorRole:
             job = self.jobs[index.row()]
-            if job['status'] == 'failed':
-                return QtGui.QColor(255, 0, 0)
+            if job['status'] == 'Failed':
+                return QtGui.QColor(228, 122, 122)
+            elif job['status'] == 'Done':
+                return QtGui.QColor(132, 181, 97)
     
     def headerData(self, section, orientation, role):
         if orientation == QtCore.Qt.Horizontal and role == QtCore.Qt.DisplayRole:

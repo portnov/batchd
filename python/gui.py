@@ -3,7 +3,7 @@
 import sys
 import requests
 import json
-from PyQt4 import QtGui
+from PyQt4 import QtGui, QtCore
 
 import queuetable
 
@@ -129,13 +129,6 @@ class GUI(QtGui.QMainWindow):
 
         self.setCentralWidget(central_widget)
 
-        wrapper, self.type_popup = labelled("Job type:", QtGui.QComboBox, self)
-        self.types = types
-        for t in types:
-            self.type_popup.addItem(t['name'])
-        self.type_popup.currentIndexChanged.connect(self._on_select_type)
-        self.layout.addWidget(wrapper)
-
         wrapper, self.queue_popup = labelled("Queue:", QtGui.QComboBox, self)
         self.queues = queues
         for q in queues:
@@ -149,7 +142,14 @@ class GUI(QtGui.QMainWindow):
         self.queue_info = QtGui.QLabel(self)
         self.layout.addWidget(self.queue_info)
 
-        ok = QtGui.QPushButton("Ok", self)
+        wrapper, self.type_popup = labelled("Job type:", QtGui.QComboBox, self)
+        self.types = types
+        for t in types:
+            self.type_popup.addItem(t['name'])
+        self.type_popup.currentIndexChanged.connect(self._on_select_type)
+        self.layout.addWidget(wrapper)
+
+        ok = QtGui.QPushButton("Add", self)
         ok.clicked.connect(self._on_ok)
         self.layout.addWidget(ok)
 
@@ -158,6 +158,10 @@ class GUI(QtGui.QMainWindow):
 
         self._on_select_type(0)
         self._on_select_queue(0)
+
+        timer = QtCore.QTimer(self)
+        timer.timeout.connect(self._on_timer)
+        timer.start(5*1000)
 
     def _on_select_type(self, idx):
         jobtype = self.types[idx]
@@ -169,10 +173,18 @@ class GUI(QtGui.QMainWindow):
             self.layout.removeWidget(self.form)
             del self.form
         self.form = form
-        self.layout.insertWidget(3, form)
+        self.layout.insertWidget(4, form)
         self.form.show()
 
     def _on_select_queue(self, idx):
+        self._refresh_queue(idx)
+
+    def _on_timer(self):
+        self._refresh_queue()
+
+    def _refresh_queue(self, idx=None):
+        if idx is None:
+            idx = self.queue_popup.currentIndex()
         queue = self.queues[idx]
         schedule = queue['schedule_name']
         host = queue['host_name']
