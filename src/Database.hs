@@ -370,6 +370,7 @@ cleanupJobResults days = do
   -- Sql.rawExecute deleteJobs [toPersistValue edge]
   -- Delete obsolete job results
   deleteCascadeWhere [JobResultTime <. edge]
+  deleteCascadeWhere [JobCreateTime <. edge, JobStatus <-. [Done, Failed]]
 
 -- cleanupJobs :: Int -> DB ()
 -- cleanupJobs days = do
