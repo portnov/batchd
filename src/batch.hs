@@ -264,10 +264,14 @@ doEnqueue manager opts = do
           jiQueue = qname,
           jiType = t,
           jiSeq = 0,
-          jiTime = zeroUtcTime,
+          jiCreateTime = zeroUtcTime,
           jiStatus = New,
           jiTryCount = 0,
           jiHostName = host,
+          jiResultTime = Nothing,
+          jiExitCode = Nothing,
+          jiStdout = Nothing,
+          jiStderr = Nothing,
           jiParams = parseParams (jtParams jtype) opts
         }
 

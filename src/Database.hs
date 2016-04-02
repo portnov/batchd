@@ -119,25 +119,26 @@ instance FromJSON [Update Queue] where
     uHostName <- parseUpdate' QueueHostName "host_name" o
     return $ catMaybes [uSchedule, uHostName]
 
-deriving instance Generic ExitCode
-instance ToJSON ExitCode
-
 deriving instance Generic JobResult
 
 instance ToJSON JobResult where
   toJSON = genericToJSON (jsonOptions "jobResult")
 
-buildJobInfo :: Int64 -> Job -> JobParamInfo -> JobInfo
-buildJobInfo jid j params =
+buildJobInfo :: Int64 -> Job -> Maybe JobResult -> JobParamInfo -> JobInfo
+buildJobInfo jid j mbr params =
    JobInfo {
       jiId = jid,
       jiQueue = jobQueueName j,
       jiType = jobTypeName j,
-      jiTime = jobCreateTime j,
+      jiCreateTime = jobCreateTime j,
       jiSeq = jobSeq j,
       jiStatus = jobStatus j,
       jiTryCount = jobTryCount j,
       jiHostName = jobHostName j,
+      jiResultTime = fmap jobResultTime mbr,
+      jiExitCode = fmap jobResultExitCode mbr,
+      jiStdout = fmap jobResultStdout mbr,
+      jiStderr = fmap jobResultStderr mbr,
       jiParams = params
      }
 
@@ -147,9 +148,10 @@ loadJob jkey@(JobKey (SqlBackendKey jid)) = do
   case mbJob of
     Nothing -> throwR JobNotExists
     Just j -> do
+      mbr <- selectFirst [JobResultJobId ==. jkey] [Desc JobResultTime]
       ps <- selectList [JobParamJobId ==. jkey] []
       let params = M.fromList [(jobParamName p, jobParamValue p) | p <- map entityVal ps]
-      return $ buildJobInfo jid j params
+      return $ buildJobInfo jid j (fmap entityVal mbr) params
 
 lockJob :: JobInfo -> DB ()
 lockJob ji = do
@@ -175,11 +177,13 @@ loadJobSeq qname seq = do
   case mbJe of
     Nothing -> throwR JobNotExists
     Just je -> do
-      let JobKey (SqlBackendKey jid) = entityKey je
-      ps <- selectList [JobParamJobId ==. entityKey je] []
+      let jkey = entityKey je
+      let JobKey (SqlBackendKey jid) = jkey
+      mbr <- selectFirst [JobResultJobId ==. jkey] [Desc JobResultTime]
+      ps <- selectList [JobParamJobId ==. jkey] []
       let j = entityVal je
       let params = M.fromList [(jobParamName p, jobParamValue p) | p <- map entityVal ps]
-      return $ buildJobInfo jid j params
+      return $ buildJobInfo jid j (fmap entityVal mbr) params
 
 setJobStatus :: JobInfo -> JobStatus -> DB ()
 setJobStatus ji status = do

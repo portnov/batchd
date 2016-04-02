@@ -19,6 +19,7 @@ import Data.Aeson as Aeson
 import Data.Aeson.Types
 import Data.Yaml (ParseException (..))
 import Data.Dates
+import System.Exit
 
 defaultManagerPort :: Int
 defaultManagerPort = 9681
@@ -170,10 +171,14 @@ data JobInfo = JobInfo {
     jiQueue :: String,
     jiType :: String,
     jiSeq :: Int,
-    jiTime :: UTCTime,
+    jiCreateTime :: UTCTime,
     jiStatus :: JobStatus,
     jiTryCount :: Int,
     jiHostName :: Maybe String,
+    jiResultTime :: Maybe UTCTime,
+    jiExitCode :: Maybe ExitCode,
+    jiStdout :: Maybe T.Text,
+    jiStderr :: Maybe T.Text,
     jiParams :: JobParamInfo
   }
   deriving (Generic, Show)
@@ -195,6 +200,10 @@ instance FromJSON JobInfo where
       <*> v .:? "status" .!= New
       <*> v .:? "try_count" .!= 0
       <*> v .:? "host_name"
+      <*> return Nothing
+      <*> return Nothing
+      <*> return Nothing
+      <*> return Nothing
       <*> v .:? "params" .!= M.empty
   parseJSON invalid = typeMismatch "job" invalid
 
@@ -307,4 +316,8 @@ parseStatus _ _ (Just "processing") = return $ Just Processing
 parseStatus _ _ (Just "done") = return $ Just Done
 parseStatus _ _ (Just "failed") = return $ Just Failed
 parseStatus _ handle (Just _) = handle
+
+instance ToJSON ExitCode where
+  toJSON ExitSuccess = Number (fromIntegral 0)
+  toJSON (ExitFailure n) = Number (fromIntegral n)
 
