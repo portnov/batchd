@@ -42,7 +42,7 @@ loadConfig t name exc = do
         Right cfg -> return $ Right cfg
 
 loadHost :: String -> IO (Either Error Host)
-loadHost name = loadConfig "host" name InvalidHost
+loadHost name = loadConfig "hosts" name InvalidHost
 
 loadTemplate :: String -> IO (Either Error JobType)
 loadTemplate name = loadConfig "jobtypes" name InvalidJobType
