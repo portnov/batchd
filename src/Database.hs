@@ -297,7 +297,11 @@ deleteQueue name forced = do
         else throwR QueueNotEmpty
 
 addQueue :: Queue -> DB (Key Queue)
-addQueue q = insert q
+addQueue q = do
+  r <- getQueue (queueName q)
+  case r of
+    Nothing -> insert q
+    Just _ -> throwR (QueueExists (queueName q))
 
 addQueue' :: String -> String -> DB (Key Queue)
 addQueue' name scheduleId = do
