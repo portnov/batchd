@@ -1,13 +1,39 @@
 #!/usr/bin/python
 
 import sys
+import os
+from os.path import isfile, join
 import requests
 import json
+import yaml
 from PyQt4 import QtGui, QtCore
 
 import queuetable
 import jobview
 import jobedit
+
+def load_config():
+    home = os.environ['HOME']
+    homecfg = join(home, ".config", "batchd", "client.yaml")
+    cfgfile = None
+    if isfile(homecfg):
+        cfgfile = open(homecfg, 'r')
+    else:
+        etc = join("/etc", "batchd", "client.yaml")
+        if isfile(etc):
+            cfgfile = open(etc, 'r')
+    if cfgfile:
+        return yaml.load(cfgfile)
+
+def get_manager_url():
+    env = os.environ.get('BATCH_MANAGER_URL', None)
+    if env:
+        return env
+    cfg = load_config()
+    url = cfg['manager_url']
+    if url:
+        return url
+    return 'http://localhost:9681'
 
 def get_job_types(url):
     rs = requests.get(url + "/type")
@@ -165,10 +191,11 @@ class GUI(QtGui.QMainWindow):
         for name, widget in self.param_widgets.iteritems():
             params[name] = unicode(widget.text())
         do_enqueue(self.url, queue, typename, params)
+        self._refresh_queue()
 
 if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)
-    URL='http://localhost:9681'
+    URL = get_manager_url()
     types = get_job_types(URL)
     queues = get_queues(URL)
     gui = GUI(URL, types, queues)
