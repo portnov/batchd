@@ -6,84 +6,8 @@ import json
 from PyQt4 import QtGui, QtCore
 
 import queuetable
-
-class InputFileWidget(QtGui.QWidget):
-    def __init__(self, parent=None):
-        QtGui.QWidget.__init__(self, parent)
-        layout = QtGui.QHBoxLayout()
-        self.line = QtGui.QLineEdit(self)
-        layout.addWidget(self.line)
-        self.button = QtGui.QPushButton(QtGui.QIcon.fromTheme('document-open'), "Browse...", self)
-        layout.addWidget(self.button)
-        self.button.clicked.connect(self._on_browse)
-        self.setLayout(layout)
-
-    def _on_browse(self):
-        path = QtGui.QFileDialog.getOpenFileName()
-        if path:
-            self.line.setText(path)
-
-    def text(self):
-        return self.line.text()
-    
-    def setText(self, path):
-        self.line.setText(path)
-
-class OutputFileWidget(QtGui.QWidget):
-    def __init__(self, parent=None):
-        QtGui.QWidget.__init__(self, parent)
-        layout = QtGui.QHBoxLayout()
-        self.line = QtGui.QLineEdit(self)
-        layout.addWidget(self.line)
-        self.button = QtGui.QPushButton(QtGui.QIcon.fromTheme('document-save'), "Browse...", self)
-        layout.addWidget(self.button)
-        self.button.clicked.connect(self._on_browse)
-        self.setLayout(layout)
-
-    def _on_browse(self):
-        path = QtGui.QFileDialog.getSaveFileName()
-        if path:
-            self.line.setText(path)
-
-    def text(self):
-        return self.line.text()
-    
-    def setText(self, path):
-        self.line.setText(path)
-
-def create_widget(param, parent=None):
-    title = param['title']
-
-    param_type = param['type']
-
-    if param_type == 'InputFile':
-        widget = InputFileWidget(parent)
-    elif param_type == 'OutputFile':
-        widget = OutputFileWidget(parent)
-    elif param_type == 'String':
-        widget = QtGui.QLineEdit(parent)
-    elif param_type == 'Integer':
-        widget = QtGui.QSpinBox()
-    else:
-        raise Exception("Unknown parameter type: " + param_type)
-
-    dflt = param['default']
-    if dflt:
-        widget.setText(dflt)
-    
-    return title, widget
-
-def create_form(params, widgets_dict, parent=None):
-    result = QtGui.QWidget(parent)
-    layout = QtGui.QFormLayout()
-    result.setLayout(layout)
-
-    for param in params:
-        title, widget = create_widget(param)
-        widgets_dict[param['name']] = widget
-        layout.addRow(title, widget)
-
-    return result
+import jobview
+import jobedit
 
 def get_job_types(url):
     rs = requests.get(url + "/type")
@@ -139,13 +63,24 @@ class GUI(QtGui.QMainWindow):
         self.qtable = queuetable.Table(parent=self)
         self.layout.addWidget(self.qtable)
 
+        buttons = QtGui.QWidget(self)
+        buttons.layout = QtGui.QHBoxLayout()
+        buttons.setLayout(buttons.layout)
+        view = QtGui.QPushButton("View", self)
+        view.clicked.connect(self._on_view)
+        buttons.layout.addWidget(view)
+        self.layout.addWidget(buttons)
+
         self.queue_info = QtGui.QLabel(self)
         self.layout.addWidget(self.queue_info)
 
         wrapper, self.type_popup = labelled("Job type:", QtGui.QComboBox, self)
         self.types = types
+        self.type_by_name = {}
         for t in types:
-            self.type_popup.addItem(t['name'])
+            name = t['name']
+            self.type_popup.addItem(name)
+            self.type_by_name[name] = t
         self.type_popup.currentIndexChanged.connect(self._on_select_type)
         self.layout.addWidget(wrapper)
 
@@ -163,17 +98,23 @@ class GUI(QtGui.QMainWindow):
         timer.timeout.connect(self._on_timer)
         timer.start(5*1000)
 
+    def _on_view(self):
+        job = self.qtable.currentJob()
+        jobtype = self.type_by_name[job['type']]
+        dlg = jobview.JobView(job, jobtype, parent=self)
+        dlg.exec_()
+
     def _on_select_type(self, idx):
         jobtype = self.types[idx]
         self.param_widgets = {}
-        form = create_form(jobtype['params'], self.param_widgets, self)
+        form = jobedit.create_form(jobtype['params'], self.param_widgets, self)
 
         if self.form:
             self.form.hide()
             self.layout.removeWidget(self.form)
             del self.form
         self.form = form
-        self.layout.insertWidget(4, form)
+        self.layout.insertWidget(5, form)
         self.form.show()
 
     def _on_select_queue(self, idx):

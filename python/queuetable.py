@@ -1,6 +1,7 @@
 
-from datetime import datetime
 from PyQt4 import QtGui, QtCore
+
+import common
 
 class Field(object):
     def __init__(self, name, title):
@@ -12,11 +13,7 @@ class Field(object):
 
 class TimeField(Field):
     def show(self, value):
-        if value:
-            d = datetime.strptime(value, "%Y-%m-%dT%H:%M:%S.%fZ")
-            return unicode(datetime.strftime(d, "%c"), "utf-8")
-        else:
-            return "<undefined>"
+        return common.format_time(value)
 
 class Model(QtCore.QAbstractTableModel):
     def __init__(self, parent, *fields):
@@ -69,6 +66,10 @@ class Table(QtGui.QTableView):
         if jobs is None:
             jobs = []
         self.model.setupModelData(jobs)
+
+    def currentJob(self):
+        idx = self.currentIndex()
+        return self.model.jobs[idx.row()]
 
     def setJobs(self, jobs):
         self.model.setupModelData(jobs)
