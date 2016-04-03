@@ -83,7 +83,7 @@ raise404 t = do
 raiseError :: Error -> Action ()
 raiseError QueueNotExists = raise404 "queue"
 raiseError JobNotExists   = raise404 "job"
-raiseError FileNotExists  = raise404 "file"
+raiseError (FileNotExists _)  = raise404 "file"
 raiseError QueueNotEmpty  = Scotty.status status403
 raiseError e = do
   Scotty.status status500

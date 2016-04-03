@@ -34,7 +34,7 @@ loadConfig :: FromJSON config => String -> String -> (ParseException -> Error) -
 loadConfig t name exc = do
   mbPath <- locateConfig t (name ++ ".yaml")
   case mbPath of
-    Nothing -> return $ Left FileNotExists
+    Nothing -> return $ Left $ FileNotExists (name ++ ".yaml")
     Just path -> do
       r <- decodeFileEither path
       case r of
@@ -51,7 +51,7 @@ loadGlobalConfig :: IO (Either Error GlobalConfig)
 loadGlobalConfig = do
   mbPath <- locateConfig "" "batchd.yaml"
   case mbPath of
-    Nothing -> return $ Left FileNotExists
+    Nothing -> return $ Left $ FileNotExists "batchd.yaml"
     Just path -> do
       r <- decodeFileEither path
       case r of

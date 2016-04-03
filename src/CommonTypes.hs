@@ -160,7 +160,7 @@ data Error =
   | InvalidDbCfg ParseException
   | InvalidConfig ParseException
   | InvalidJobStatus
-  | FileNotExists
+  | FileNotExists FilePath
   | UnknownError String
   deriving (Show)
 
