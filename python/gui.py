@@ -90,6 +90,9 @@ class GUI(QtGui.QMainWindow):
         self.queue_popup.currentIndexChanged.connect(self._on_select_queue)
         self.layout.addWidget(wrapper)
 
+        self.queue_info = QtGui.QLabel(self)
+        self.layout.addWidget(self.queue_info)
+
         buttons = QtGui.QToolBar(self)
         buttons.addAction("View", self._on_view)
         buttons.addAction(QtGui.QIcon.fromTheme("edit-delete"), "Delete", self._on_delete)
@@ -97,9 +100,6 @@ class GUI(QtGui.QMainWindow):
 
         self.qtable = queuetable.Table(parent=self)
         self.layout.addWidget(self.qtable)
-
-        self.queue_info = QtGui.QLabel(self)
-        self.layout.addWidget(self.queue_info)
 
         wrapper, self.type_popup = labelled("Job type:", QtGui.QComboBox, self)
         self.types = types
