@@ -14,6 +14,7 @@ import Data.Time
 import Data.List (isPrefixOf)
 import qualified Data.Map as M
 import qualified Data.HashMap.Strict as H
+import qualified Data.ByteString as B
 import qualified Data.Text as T
 import Data.Aeson as Aeson
 import Data.Aeson.Types
@@ -150,8 +151,8 @@ instance ToJSON WeekDay
 instance FromJSON WeekDay
 
 data Error =
-    QueueExists
-  | QueueNotExists
+    QueueExists String
+  | QueueNotExists String
   | QueueNotEmpty
   | ScheduleUsed
   | JobNotExists
@@ -159,10 +160,24 @@ data Error =
   | InvalidHost ParseException
   | InvalidDbCfg ParseException
   | InvalidConfig ParseException
-  | InvalidJobStatus
+  | InvalidJobStatus (Maybe B.ByteString)
   | FileNotExists FilePath
   | UnknownError String
-  deriving (Show)
+
+instance Show Error where
+  show (QueueNotExists name) = "Queue does not exist: " ++ name
+  show (QueueExists name) = "Queue already exists: " ++ name
+  show QueueNotEmpty = "Queue is not empty"
+  show ScheduleUsed = "Schedule is used by queues"
+  show JobNotExists = "Job does not exist"
+  show (InvalidJobType e) = "Invalid job type: " ++ show e
+  show (InvalidHost e) = "Invalid host description: " ++ show e
+  show (InvalidDbCfg e) = "Invalid database config: " ++ show e
+  show (InvalidConfig e) = "Invalid config: " ++ show e
+  show (InvalidJobStatus Nothing) = "Invalid job status"
+  show (InvalidJobStatus (Just s)) = "Invalid job status: " ++ show s
+  show (FileNotExists path) = "File does not exist: " ++ path
+  show (UnknownError e) = "Unhandled error: " ++ e
 
 type JobParamInfo = M.Map String String
 

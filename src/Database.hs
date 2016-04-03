@@ -235,7 +235,7 @@ loadJobs :: String -> Maybe JobStatus -> DB [JobInfo]
 loadJobs qname mbStatus = do
   mbQ <- getQueue qname
   case mbQ of
-    Nothing -> throwR QueueNotExists
+    Nothing -> throwR (QueueNotExists qname)
     Just _ -> do
         jes <- getJobs qname mbStatus
         forM jes $ \je -> do
@@ -289,7 +289,7 @@ deleteQueue :: String -> Bool -> DB ()
 deleteQueue name forced = do
   mbQueue <- get (QueueKey name)
   case mbQueue of
-    Nothing -> throwR QueueNotExists
+    Nothing -> throwR (QueueNotExists name)
     Just qe -> do
       js <- selectFirst [JobQueueName ==. name] []
       if isNothing js || forced
@@ -304,7 +304,7 @@ addQueue' name scheduleId = do
   r <- insertUnique $ Queue name scheduleId Nothing
   case r of
     Just qid -> return qid
-    Nothing -> throwR QueueExists
+    Nothing -> throwR $ QueueExists name
 
 getQueue :: String -> DB (Maybe Queue)
 getQueue name = get (QueueKey name)
@@ -332,7 +332,7 @@ enqueue qname jinfo = do
   mbQueue <- getQueue qname
   lockQueue qname
   case mbQueue of
-    Nothing -> throwR QueueNotExists
+    Nothing -> throwR (QueueNotExists qname)
     Just qe -> do
       seq <- getLastJobSeq qname
       now <- liftIO getCurrentTime

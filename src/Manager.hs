@@ -81,7 +81,7 @@ raise404 t = do
   Scotty.text $ TL.pack $ "Specified " ++ t ++ " not found."
 
 raiseError :: Error -> Action ()
-raiseError QueueNotExists = raise404 "queue"
+raiseError (QueueNotExists _) = raise404 "queue"
 raiseError JobNotExists   = raise404 "job"
 raiseError (FileNotExists _)  = raise404 "file"
 raiseError QueueNotEmpty  = Scotty.status status403
@@ -96,7 +96,7 @@ getQueuesA = do
   Scotty.json qes
 
 parseStatus' :: Maybe JobStatus -> Maybe B.ByteString -> Action (Maybe JobStatus)
-parseStatus' dflt str = parseStatus dflt (raise InvalidJobStatus) str
+parseStatus' dflt str = parseStatus dflt (raise (InvalidJobStatus str)) str
 
 getQueueA :: Action ()
 getQueueA = do
@@ -208,7 +208,7 @@ deleteJobsA = do
   st <- getUrlParam "status"
   fltr <- parseStatus' Nothing st
   case fltr of
-    Nothing -> raise InvalidJobStatus
+    Nothing -> raise $ InvalidJobStatus st
     Just status -> runDBA $ removeJobs name status
 
 getJobTypesA :: Action ()

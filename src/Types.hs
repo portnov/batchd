@@ -45,7 +45,6 @@ dbio action = do
   x <- lift $ runExceptT $ runReaderT action backend
   case x of
     Left err -> do
-        liftIO $ print err
         return $ Left err
     Right r -> return $ Right r
 
