@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 
 module SSH where
 
@@ -13,6 +14,7 @@ import System.Environment
 import System.Exit
 
 import CommonTypes
+import Logging
 
 getKnownHosts :: IO FilePath
 getKnownHosts = do
@@ -29,8 +31,8 @@ getDfltPrivateKey = do
   home <- getEnv "HOME"
   return $ home </> ".ssh" </> "id_rsa"
 
-processOnHost :: Host -> JobType -> JobInfo -> String -> IO (ExitCode, T.Text)
-processOnHost h jtype job command = do
+processOnHost :: GlobalConfig -> Host -> JobType -> JobInfo -> String -> IO (ExitCode, T.Text)
+processOnHost cfg h jtype job command = do
   known_hosts <- getKnownHosts
   def_public_key <- getDfltPublicKey
   def_private_key <- getDfltPrivateKey
@@ -41,15 +43,15 @@ processOnHost h jtype job command = do
       port = hPort h
       hostname = hHostName h
 
-  putStrLn $ "CONNECTING TO " ++ hostname
-  print h
+  $infoDB cfg $ "CONNECTING TO " ++ hostname
+  $debugDB cfg $ show h
   withSSH2 known_hosts public_key private_key passphrase user hostname port $ \session -> do
-      putStrLn "Connected."
+      $infoDB cfg "Connected."
       execCommands session (hStartupCommands h)
-      uploadFiles (getInputFiles jtype job) (hInputDirectory h) session
-      putStrLn $ "EXECUTING: " ++ command
+      uploadFiles cfg (getInputFiles jtype job) (hInputDirectory h) session
+      $infoDB cfg $ "EXECUTING: " ++ command
       (ec,out) <- execCommands session [command]
-      downloadFiles (hOutputDirectory h) (getOutputFiles jtype job) session
+      downloadFiles cfg (hOutputDirectory h) (getOutputFiles jtype job) session
       let outText = TL.toStrict $ TLE.decodeUtf8 (head out)
           ec' = if ec == 0
                   then ExitSuccess
@@ -64,19 +66,19 @@ getOutputFiles :: JobType -> JobInfo -> [FilePath]
 getOutputFiles jt job =
   [value | (name, value) <- M.assocs (jiParams job), getParamType jt name == Just OutputFile]
 
-uploadFiles :: [FilePath] -> FilePath -> Session -> IO ()
-uploadFiles files input_directory session =
+uploadFiles :: GlobalConfig -> [FilePath] -> FilePath -> Session -> IO ()
+uploadFiles cfg files input_directory session =
   forM_ files $ \path -> do
     let remotePath = input_directory </> takeFileName path
-    putStrLn $ "Uploading: `" ++ path ++ "' to `" ++ remotePath ++ "'"
+    $infoDB cfg $ "Uploading: `" ++ path ++ "' to `" ++ remotePath ++ "'"
     size <- scpSendFile session 0o777 path remotePath
-    print size
+    $debugDB cfg $ "Done (" ++ show size ++ " bytes)."
 
-downloadFiles :: FilePath -> [FilePath] -> Session -> IO ()
-downloadFiles output_directory files session =
+downloadFiles :: GlobalConfig -> FilePath -> [FilePath] -> Session -> IO ()
+downloadFiles cfg output_directory files session =
   forM_ files $ \path -> do
     let remotePath = output_directory </> takeFileName path
-    putStrLn $ "Downloading: `" ++ remotePath ++ "' to `" ++ path ++ "'"
+    $infoDB cfg $ "Downloading: `" ++ remotePath ++ "' to `" ++ path ++ "'"
     scpReceiveFile session remotePath path
-    putStrLn "Done."
+    $debugDB cfg "Done."
 

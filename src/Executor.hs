@@ -58,7 +58,7 @@ executeJob cfg q jt job = do
       case hostR of
         Right host -> do
           let command = getCommand (Just host) jt job
-          (ec, stdout) <- processOnHost host jt job command
+          (ec, stdout) <- processOnHost cfg host jt job command
           now <- getCurrentTime
           return $ JobResult jid now ec stdout T.empty
         Left err -> do
