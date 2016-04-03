@@ -44,6 +44,7 @@ processOnHost h jtype job command = do
   putStrLn $ "CONNECTING TO " ++ hostname
   print h
   withSSH2 known_hosts public_key private_key passphrase user hostname port $ \session -> do
+      putStrLn "Connected."
       execCommands session (hStartupCommands h)
       uploadFiles (getInputFiles jtype job) (hInputDirectory h) session
       putStrLn $ "EXECUTING: " ++ command
