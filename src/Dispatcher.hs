@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Dispatcher (runDispatcher) where
 
@@ -39,7 +40,7 @@ dispatcher jobsChan = do
     qesr <- runDB getAllQueues
     cfg <- asks ciGlobalConfig
     case qesr of
-      Left err -> reportError (show err)
+      Left err -> $reportError (show err)
       Right qes -> do
         forM_ qes $ \qe -> runDB $ do
           schedule <- loadSchedule (queueSchedule $ entityVal qe)
@@ -48,7 +49,7 @@ dispatcher jobsChan = do
               let QueueKey qname = entityKey qe
               mbJob <- getNextJob (entityKey qe)
               case mbJob of
-                Nothing -> debugDB cfg $ "Queue " ++ qname ++ " exhaused."
+                Nothing -> $debugDB cfg $ "Queue " ++ qname ++ " exhaused."
                 Just job -> do
                     setJobStatus job Processing
                     liftIO $ writeChan jobsChan (entityVal qe, job)
@@ -68,14 +69,14 @@ callbackListener resChan = forever $ do
                   count <- increaseTryCount job
                   if count <= m
                     then do
-                      infoDB cfg "Retry now"
+                      $infoDB cfg "Retry now"
                       setJobStatus job New
                     else setJobStatus job Failed
                RetryLater m -> do
                   count <- increaseTryCount job
                   if count <= m
                     then do
-                      infoDB cfg "Retry later"
+                      $infoDB cfg "Retry later"
                       moveToEnd job
                     else setJobStatus job Failed
 
@@ -83,12 +84,12 @@ callbackListener resChan = forever $ do
 worker :: GlobalConfig -> Int -> Chan (Queue, JobInfo) -> Chan (JobInfo, JobResult, OnFailAction) -> IO ()
 worker cfg idx jobsChan resChan = forever $ do
   (queue, job) <- readChan jobsChan
-  infoIO cfg $ printf "[%d] got job #%d" idx (jiId job)
+  $infoDB cfg $ printf "[%d] got job #%d" idx (jiId job)
   jtypeR <- Config.loadTemplate (jiType job)
   (result, onFail) <-
       case jtypeR of
               Left err -> do
-                  reportErrorIO cfg $ printf "[%d] invalid job type %s: %s" idx (jiType job) (show err)
+                  $reportErrorDB cfg $ printf "[%d] invalid job type %s: %s" idx (jiType job) (show err)
                   let jid = JobKey (Sql.SqlBackendKey $ jiId job)
                   now <- getCurrentTime
                   let res = JobResult jid now (ExitFailure (-1)) T.empty (T.pack $ show err)
@@ -99,5 +100,5 @@ worker cfg idx jobsChan resChan = forever $ do
                   return (res, jtOnFail jtype)
 
   writeChan resChan (job, result, onFail)
-  infoIO cfg $ printf "[%d] done job #%d" idx (jiId job)
+  $infoDB cfg $ printf "[%d] done job #%d" idx (jiId job)
 

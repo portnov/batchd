@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Manager where
 
@@ -218,7 +219,7 @@ getJobTypesA = do
              r <- liftIO $ decodeFileEither path
              case r of
                Left err -> do
-                  lift $ reportError $ show err
+                  lift $ $reportError $ show err
                   return []
                Right jt -> return [jt]
   let types = concat ts :: [JobType]

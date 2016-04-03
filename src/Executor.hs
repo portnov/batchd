@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Executor where
 
@@ -61,7 +62,7 @@ executeJob cfg q jt job = do
           now <- getCurrentTime
           return $ JobResult jid now ec stdout T.empty
         Left err -> do
-          reportErrorIO cfg $ show err
+          $reportErrorDB cfg $ show err
           now <- getCurrentTime
           return $ JobResult jid now (ExitFailure (-1)) T.empty (T.pack $ show err)
 
