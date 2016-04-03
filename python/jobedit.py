@@ -53,6 +53,11 @@ class OutputFileWidget(QtGui.QWidget):
     def setReadOnly(self, val):
         self.line.setReadOnly(val)
 
+class IntEditor(QtGui.QSpinBox):
+    def setText(self, text):
+        val = int(text)
+        self.setValue(val)
+
 def create_widget(param, parent=None, readonly=False):
     title = param['title']
 
@@ -65,7 +70,7 @@ def create_widget(param, parent=None, readonly=False):
     elif param_type == 'String':
         widget = QtGui.QLineEdit(parent)
     elif param_type == 'Integer':
-        widget = QtGui.QSpinBox()
+        widget = IntEditor(parent)
     else:
         raise Exception("Unknown parameter type: " + param_type)
 

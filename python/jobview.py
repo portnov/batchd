@@ -18,6 +18,7 @@ class JobView(QtGui.QDialog):
         self.status_editor = self._line_editor('status', "Status:")
 
         job_params = job['params']
+        print job_params
         for param in jobtype['params']:
             title, widget = jobedit.create_widget(param, parent=self, readonly=True)
             widget.setText(job_params[param['name']])
@@ -38,7 +39,8 @@ class JobView(QtGui.QDialog):
             value = str(value)
         elif isinstance(value, str):
             value = unicode(value, "utf-8")
-        editor.setText(value)
+        if value:
+            editor.setText(value)
         editor.setReadOnly(True)
         return editor
 

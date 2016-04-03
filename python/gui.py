@@ -30,6 +30,10 @@ def get_jobs(url, qname):
     rs = requests.get(url + "/queue/" + qname + "?status=all")
     return json.loads(rs.text)
 
+def delete_job(url, jobid):
+    rs = requests.delete(url + "/job/" + str(jobid))
+    print rs
+
 def labelled(label, constructor, parent=None):
     result = QtGui.QWidget(parent)
     layout = QtGui.QHBoxLayout()
@@ -60,16 +64,13 @@ class GUI(QtGui.QMainWindow):
         self.queue_popup.currentIndexChanged.connect(self._on_select_queue)
         self.layout.addWidget(wrapper)
 
+        buttons = QtGui.QToolBar(self)
+        buttons.addAction("View", self._on_view)
+        buttons.addAction(QtGui.QIcon.fromTheme("edit-delete"), "Delete", self._on_delete)
+        self.layout.addWidget(buttons)
+
         self.qtable = queuetable.Table(parent=self)
         self.layout.addWidget(self.qtable)
-
-        buttons = QtGui.QWidget(self)
-        buttons.layout = QtGui.QHBoxLayout()
-        buttons.setLayout(buttons.layout)
-        view = QtGui.QPushButton("View", self)
-        view.clicked.connect(self._on_view)
-        buttons.layout.addWidget(view)
-        self.layout.addWidget(buttons)
 
         self.queue_info = QtGui.QLabel(self)
         self.layout.addWidget(self.queue_info)
@@ -84,7 +85,7 @@ class GUI(QtGui.QMainWindow):
         self.type_popup.currentIndexChanged.connect(self._on_select_type)
         self.layout.addWidget(wrapper)
 
-        ok = QtGui.QPushButton("Add", self)
+        ok = QtGui.QPushButton(QtGui.QIcon.fromTheme("list-add"), "Add", self)
         ok.clicked.connect(self._on_ok)
         self.layout.addWidget(ok)
 
@@ -103,6 +104,20 @@ class GUI(QtGui.QMainWindow):
         jobtype = self.type_by_name[job['type']]
         dlg = jobview.JobView(job, jobtype, parent=self)
         dlg.exec_()
+
+    def _on_delete(self):
+        buttons = QtGui.QMessageBox.Yes | QtGui.QMessageBox.No
+        job = self.qtable.currentJob()
+        job_id = job['id']
+        ok = QtGui.QMessageBox.question(self, "Delete?",
+                                        "Are you really sure you want to delete job #{}?".format(job_id),
+                                        buttons)
+        if ok == QtGui.QMessageBox.Yes:
+            print "Deleting!"
+            delete_job(self.url, job_id)
+            self._refresh_queue()
+        else:
+            print "do not delete"
 
     def _on_select_type(self, idx):
         jobtype = self.types[idx]
