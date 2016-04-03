@@ -4,8 +4,10 @@
 
 import GHC.Generics
 import Control.Monad
+import Control.Exception
 import qualified Data.Aeson as Aeson
 import Data.Yaml
+import qualified Data.ByteString.Lazy as L
 import qualified Data.Map as M
 import Data.Maybe
 import Data.List (intercalate)
@@ -13,7 +15,8 @@ import Data.Char (toLower)
 import Data.Generics hiding (Generic)
 import Data.Dates
 import Network.HTTP.Client
-import Network.HTTP.Types.Status (statusCode)
+import Network.HTTP.Types.Header (ResponseHeaders)
+import Network.HTTP.Types.Status
 import System.Console.CmdArgs
 import System.FilePath
 import System.Environment (lookupEnv)
@@ -37,6 +40,14 @@ defaultConfig = ClientConfig Nothing Nothing Nothing Nothing
 
 instance FromJSON ClientConfig where
   parseJSON = Aeson.genericParseJSON (jsonOptions "cc")
+
+data ClientException = ClientException String
+  deriving (Data, Typeable, Generic)
+
+instance Exception ClientException
+
+instance Show ClientException where
+  show (ClientException e) = e
 
 data CrudMode =
     View
@@ -122,7 +133,7 @@ loadClientConfig = do
     Just path -> do
       r <- decodeFileEither path
       case r of
-        Left err -> fail $ "Can't parse client config:\n" ++ show err
+        Left err -> throw $ ClientException $ "Can't parse client config:\n" ++ show err
         Right cfg -> return cfg
     
 getManagerUrl :: Maybe String -> ClientConfig -> IO String
@@ -212,14 +223,24 @@ parseParams desc e =
                    (key, (_:value)) -> (key, value)
                    (key, []) -> (key, "")
 
+handleStatus :: Response L.ByteString -> IO L.ByteString
+handleStatus rs =
+  if responseStatus rs == ok200
+    then return $ responseBody rs
+    else throw $ ClientException $ show $ responseBody rs
+
+allowAny :: Status -> ResponseHeaders -> CookieJar -> Maybe SomeException
+allowAny _ _ _ = Nothing
+
 doPut :: ToJSON a => Manager -> String -> a -> IO ()
 doPut manager urlStr object = do
   url <- parseUrl urlStr
   let request = url {
                   method="PUT",
+                  checkStatus = allowAny,
                   requestBody = RequestBodyLBS $ Aeson.encode object
                 }
-  httpLbs request manager
+  handleStatus =<< httpLbs request manager
   return ()
 
 doPost :: ToJSON a => Manager -> String -> a -> IO ()
@@ -227,24 +248,28 @@ doPost manager urlStr object = do
   url <- parseUrl urlStr
   let request = url {
                   method="POST",
+                  checkStatus = allowAny,
                   requestBody = RequestBodyLBS $ Aeson.encode object
                 }
-  httpLbs request manager
+  handleStatus =<< httpLbs request manager
   return ()
 
 doDelete :: Manager -> String -> IO ()
 doDelete manager urlStr = do
   url <- parseUrl urlStr
-  let request = url { method="DELETE" }
-  httpLbs request manager
+  let request = url { method="DELETE",
+                      checkStatus = allowAny
+                    }
+  handleStatus =<< httpLbs request manager
   return ()
 
 doGet :: FromJSON a => Manager -> String -> IO a
 doGet manager urlStr = do
   url <- parseUrl urlStr
-  responseLbs <- httpLbs url manager
-  case Aeson.eitherDecode (responseBody responseLbs) of
-    Left err -> fail err
+  let reqest = url {checkStatus = allowAny}
+  responseLbs <- handleStatus =<< httpLbs url manager
+  case Aeson.eitherDecode responseLbs of
+    Left err -> throw $ ClientException err
     Right res -> return res
 
 doEnqueue :: Manager -> Batch -> IO ()
@@ -254,7 +279,7 @@ doEnqueue manager opts = do
   t <- getTypeName (typeName opts) cfg
   jtr <- loadTemplate t
   case jtr of
-    Left err -> fail $ show err
+    Left err -> throw $ ClientException $ show err
     Right jtype -> do
       qname <- getQueueName (queueName opts) cfg
       host <- getHostName (hostName opts) cfg
@@ -294,7 +319,7 @@ doList manager opts = do
 
     qnames ->
       forM_ qnames $ \qname -> do
-        statusOpt <- parseStatus (Just New) (fail "Invalid status") (status opts)
+        statusOpt <- parseStatus (Just New) (throw $ ClientException "Invalid status") (status opts)
         let statusStr = case statusOpt of
                           Nothing -> "?status=all"
                           Just st -> case status opts of
@@ -389,11 +414,11 @@ doAddSchedule manager opts = do
   cfg <- loadClientConfig
   baseUrl <- getManagerUrl (managerUrl opts) cfg
   when (length (scheduleNames opts) /= 1) $
-    fail $ "Exactly one schedule name must be specified when creating a schedule"
+    throw $ ClientException $ "Exactly one schedule name must be specified when creating a schedule"
   let ts = forM (periods opts) $ \str -> do
              parsePeriod str
   case ts of
-    Left err -> fail $ "Can't parse period description: " ++ show err
+    Left err -> throw $ ClientException $ "Can't parse period description: " ++ show err
     Right times -> do
       let url = baseUrl </> "schedule"
       let schedule = ScheduleInfo {
@@ -408,7 +433,7 @@ doDeleteSchedule manager opts = do
   cfg <- loadClientConfig
   baseUrl <- getManagerUrl (managerUrl opts) cfg
   when (length (scheduleNames opts) /= 1) $
-    fail $ "Exactly one schedule name must be specified when deleting a schedule"
+    throw $ ClientException $ "Exactly one schedule name must be specified when deleting a schedule"
   let sname = head (scheduleNames opts)
   let forceStr = if force opts then "?forced=true" else ""
   let url = baseUrl </> "schedule" </> sname ++ forceStr
