@@ -4,6 +4,7 @@ module CommonTypes where
 
 import GHC.Generics
 import Control.Applicative
+import Control.Exception
 import Control.Monad
 import Control.Monad.Logger
 import Data.Generics hiding (Generic)
@@ -335,4 +336,28 @@ parseStatus _ handle (Just _) = handle
 instance ToJSON ExitCode where
   toJSON ExitSuccess = Number (fromIntegral 0)
   toJSON (ExitFailure n) = Number (fromIntegral n)
+
+data ExecException = ExecException SomeException
+  deriving (Typeable)
+
+instance Exception ExecException
+
+instance Show ExecException where
+  show (ExecException e) = "Exception during command execution: " ++ show e
+
+data UploadException = UploadException FilePath SomeException
+  deriving (Typeable)
+
+instance Exception UploadException
+
+instance Show UploadException where
+  show (UploadException path e) = "Exception uploading file `" ++ path ++ "': " ++ show e
+
+data DownloadException = DownloadException FilePath SomeException
+  deriving (Typeable)
+
+instance Exception DownloadException
+
+instance Show DownloadException where
+  show (DownloadException path e) = "Exception downloading file `" ++ path ++ "': " ++ show e
 

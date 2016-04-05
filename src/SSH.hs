@@ -1,8 +1,10 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module SSH where
 
 import Control.Monad
+import Control.Exception
 import Data.Maybe
 import qualified Data.Map as M
 import qualified Data.Text as T
@@ -45,9 +47,10 @@ processOnHost cfg h jtype job command = do
 
   $infoDB cfg $ "CONNECTING TO " ++ hostname
   $debugDB cfg $ show h
-  withSSH2 known_hosts public_key private_key passphrase user hostname port $ \session -> do
+  (withSSH2 known_hosts public_key private_key passphrase user hostname port $ \session -> do
       $infoDB cfg "Connected."
       execCommands session (hStartupCommands h)
+        `catch` (\(e :: SomeException) -> throw (ExecException e))
       uploadFiles cfg (getInputFiles jtype job) (hInputDirectory h) session
       $infoDB cfg $ "EXECUTING: " ++ command
       (ec,out) <- execCommands session [command]
@@ -57,6 +60,12 @@ processOnHost cfg h jtype job command = do
                   then ExitSuccess
                   else ExitFailure ec
       return (ec', outText)
+      )
+        `catch`
+          (\(e :: SomeException) -> do
+                                    $reportErrorDB cfg $ show e
+                                    return (ExitFailure (-1), T.pack (show e))
+                                    )
 
 getInputFiles :: JobType -> JobInfo -> [FilePath]
 getInputFiles jt job =
@@ -72,6 +81,7 @@ uploadFiles cfg files input_directory session =
     let remotePath = input_directory </> takeFileName path
     $infoDB cfg $ "Uploading: `" ++ path ++ "' to `" ++ remotePath ++ "'"
     size <- scpSendFile session 0o777 path remotePath
+              `catch` (\(e :: SomeException) -> throw (UploadException path e))
     $debugDB cfg $ "Done (" ++ show size ++ " bytes)."
 
 downloadFiles :: GlobalConfig -> FilePath -> [FilePath] -> Session -> IO ()
@@ -80,5 +90,6 @@ downloadFiles cfg output_directory files session =
     let remotePath = output_directory </> takeFileName path
     $infoDB cfg $ "Downloading: `" ++ remotePath ++ "' to `" ++ path ++ "'"
     scpReceiveFile session remotePath path
+              `catch` (\(e :: SomeException) -> throw (DownloadException path e))
     $debugDB cfg "Done."
 
