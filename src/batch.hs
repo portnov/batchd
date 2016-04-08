@@ -76,7 +76,8 @@ data Batch =
       queueObject :: String,
       scheduleName :: Maybe String,
       hostName :: Maybe String,
-      enabled :: Bool,
+      title :: Maybe String,
+      enabled :: Maybe Bool,
       force :: Bool
     }
   | Schedule {
@@ -182,7 +183,8 @@ queue = Queue {
     queueObject = defaultQueue &= argPos 0 &= typ "QUEUE",
     scheduleName = def &= typ "SCHEDULE" &= help "queue schedule name",
     hostName = Nothing &= name "host" &= typ "HOST" &= help "default host name for queue",
-    enabled = True &= name "active" &= typ "TRUE" &= help "enable/disable queue",
+    title = Nothing &= name "name" &= typ "TITLE" &= help "set queue title",
+    enabled = Nothing &= name "active" &= typ "TRUE" &= help "enable/disable queue",
     force = False &= help "force non-empty queue deletion"
   } &= help "create, update or delete queues"
     
@@ -314,9 +316,10 @@ doList manager opts = do
       let url = baseUrl </> "queue"
       response <- doGet manager url
       forM_ response $ \queue -> do
-        printf "[%s]\t%s:\t%s\t%s\n"
+        printf "[%s]\t%s:\t%s\t%s\t%s\n"
                ((if Database.queueEnabled queue then "*" else " ") :: String)
                (Database.queueName queue)
+               (Database.queueTitle queue)
                (Database.queueScheduleName queue)
                (fromMaybe "*" $ Database.queueHostName queue)
 
@@ -366,7 +369,8 @@ addQueue manager opts = do
   baseUrl <- getManagerUrl (managerUrl opts) cfg
   let queue = Database.Queue {
                 Database.queueName = queueObject opts,
-                Database.queueEnabled = enabled opts,
+                Database.queueTitle = fromMaybe (queueObject opts) (title opts),
+                Database.queueEnabled = fromMaybe True (enabled opts),
                 Database.queueScheduleName = fromMaybe "anytime" (scheduleName opts),
                 Database.queueHostName = hostName opts
               }
@@ -378,7 +382,8 @@ updateQueue manager opts = do
     cfg <- loadClientConfig
     baseUrl <- getManagerUrl (managerUrl opts) cfg
     let queue = object $
-                  ["enabled" .= enabled opts] ++
+                  toList "enabled" (enabled opts) ++
+                  toList "title" (title opts) ++
                   toList "schedule_name" (scheduleName opts) ++
                   toList "host_name" (hostName opts)
     -- print queue

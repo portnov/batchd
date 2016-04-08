@@ -75,6 +75,7 @@ JobResult
 
 Queue
   name String
+  title String default=''
   enabled Bool default=True
   scheduleName String
   hostName String Maybe
@@ -117,9 +118,10 @@ instance FromJSON [Update ScheduleTime] where
 instance FromJSON [Update Queue] where
   parseJSON o = do
     uSchedule <- parseUpdate QueueScheduleName "schedule_name" o
+    uTitle    <- parseUpdate QueueTitle "title" o
     uEnable   <- parseUpdate QueueEnabled "enabled" o
     uHostName <- parseUpdate' QueueHostName "host_name" o
-    return $ catMaybes [uEnable, uSchedule, uHostName]
+    return $ catMaybes [uEnable, uTitle, uSchedule, uHostName]
 
 deriving instance Generic JobResult
 
@@ -310,7 +312,7 @@ addQueue q = do
 
 addQueue' :: String -> String -> DB (Key Queue)
 addQueue' name scheduleId = do
-  r <- insertUnique $ Queue name True scheduleId Nothing
+  r <- insertUnique $ Queue name name True scheduleId Nothing
   case r of
     Just qid -> return qid
     Nothing -> throwR $ QueueExists name
