@@ -43,10 +43,10 @@ import Types
 getPool :: GlobalConfig -> IO Sql.ConnectionPool
 getPool cfg =
   case dbcDriver cfg of
-    Sqlite -> (enableLogging cfg) (Sqlite.createSqlitePool (dbcConnectionString cfg) 4)
+    Sqlite -> (enableLogging cfg) (Sqlite.createSqlitePool (dbcConnectionString cfg) 10)
     PostgreSql -> do
         let str = TE.encodeUtf8 (dbcConnectionString cfg)
-        (enableLogging cfg) (Postgres.createPostgresqlPool str 4)
+        (enableLogging cfg) (Postgres.createPostgresqlPool str 10)
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll", mkDeleteCascade sqlSettings] [persistLowerCase|
 JobParam

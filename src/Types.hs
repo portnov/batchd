@@ -82,6 +82,10 @@ runDB qry = do
   cfg <- asks ciGlobalConfig
   liftIO $ runResourceT $ (enableLogging cfg) $ Sql.runSqlPool (dbio qry) pool
 
+runDBIO :: GlobalConfig -> ConnectionPool -> DB a -> IO (Either Error a)
+runDBIO cfg pool qry = do
+  runResourceT $ (enableLogging cfg) $ Sql.runSqlPool (dbio qry) pool
+
 parseUpdate :: (PersistField t, FromJSON t) => EntityField v t -> T.Text -> Value -> Parser (Maybe (Update v))
 parseUpdate field label (Object v) = do
   mbValue <- v .:? label

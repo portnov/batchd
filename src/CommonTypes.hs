@@ -125,6 +125,7 @@ instance FromJSON OnFailAction where
 
 data JobStatus =
     New
+  | Waiting
   | Processing
   | Done
   | Failed
@@ -331,6 +332,7 @@ parseStatus :: (Eq s, IsString s, Monad m) => Maybe JobStatus -> m (Maybe JobSta
 parseStatus dflt _ Nothing = return dflt
 parseStatus _ _ (Just "all") = return Nothing
 parseStatus _ _ (Just "new") = return $ Just New
+parseStatus _ _ (Just "waiting") = return $ Just Waiting
 parseStatus _ _ (Just "processing") = return $ Just Processing
 parseStatus _ _ (Just "done") = return $ Just Done
 parseStatus _ _ (Just "failed") = return $ Just Failed

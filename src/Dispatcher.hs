@@ -35,7 +35,7 @@ runDispatcher cfg pool = do
   $infoDB cfg $ "Starting " ++ show (dbcWorkers cfg) ++ " workers"
   forM_ [1.. dbcWorkers cfg] $ \idx -> do
     $debugDB cfg $ "  Starting worker #" ++ show idx
-    forkIO $ worker cfg idx counters jobsChan resChan
+    forkIO $ worker cfg pool idx counters jobsChan resChan
   forkIO $ runReaderT (runConnection (callbackListener resChan)) connInfo
   runReaderT (runConnection (dispatcher jobsChan)) connInfo
 
@@ -56,7 +56,7 @@ dispatcher jobsChan = do
               case mbJob of
                 Nothing -> $debugDB cfg $ "Queue " ++ qname ++ " exhaused."
                 Just job -> do
-                    setJobStatus job Processing
+                    setJobStatus job Waiting
                     liftIO $ writeChan jobsChan (entityVal qe, job)
         liftIO $ threadDelay $ (dbcPollTimeout cfg) * 1000*1000
 
@@ -85,10 +85,11 @@ callbackListener resChan = forever $ do
                       moveToEnd job
                     else setJobStatus job Failed
 
-worker :: GlobalConfig -> Int -> HostCounters -> Chan (Queue, JobInfo) -> Chan (JobInfo, JobResult, OnFailAction) -> IO ()
-worker cfg idx hosts jobsChan resChan = forever $ do
+worker :: GlobalConfig -> Sql.ConnectionPool -> Int -> HostCounters -> Chan (Queue, JobInfo) -> Chan (JobInfo, JobResult, OnFailAction) -> IO ()
+worker cfg pool idx hosts jobsChan resChan = forever $ do
   (queue, job) <- readChan jobsChan
   $infoDB cfg $ printf "[%d] got job #%d" idx (jiId job)
+  runDBIO cfg pool $ setJobStatus job Processing
   jtypeR <- Config.loadTemplate (jiType job)
   (result, onFail) <-
       case jtypeR of
