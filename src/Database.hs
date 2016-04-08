@@ -75,6 +75,7 @@ JobResult
 
 Queue
   name String
+  enabled Bool default=True
   scheduleName String
   hostName String Maybe
   Primary name
@@ -116,8 +117,9 @@ instance FromJSON [Update ScheduleTime] where
 instance FromJSON [Update Queue] where
   parseJSON o = do
     uSchedule <- parseUpdate QueueScheduleName "schedule_name" o
+    uEnable   <- parseUpdate QueueEnabled "enabled" o
     uHostName <- parseUpdate' QueueHostName "host_name" o
-    return $ catMaybes [uSchedule, uHostName]
+    return $ catMaybes [uEnable, uSchedule, uHostName]
 
 deriving instance Generic JobResult
 
@@ -218,6 +220,9 @@ moveToEnd ji = do
 getAllQueues :: DB [Entity Queue]
 getAllQueues = selectList [] []
 
+getEnabledQueues :: DB [Entity Queue]
+getEnabledQueues = selectList [QueueEnabled ==. True] []
+
 getAllQueues' :: DB [Queue]
 getAllQueues' = map entityVal `fmap` selectList [] []
 
@@ -305,7 +310,7 @@ addQueue q = do
 
 addQueue' :: String -> String -> DB (Key Queue)
 addQueue' name scheduleId = do
-  r <- insertUnique $ Queue name scheduleId Nothing
+  r <- insertUnique $ Queue name True scheduleId Nothing
   case r of
     Just qid -> return qid
     Nothing -> throwR $ QueueExists name

@@ -26,7 +26,7 @@ import Logging
 runDispatcher :: GlobalConfig -> Sql.ConnectionPool -> IO ()
 runDispatcher cfg pool = do
   let connInfo = ConnectionInfo cfg pool
-  -- Sql.runSqlPool (Sql.runMigration migrateAll) (ciPool connInfo)
+  Sql.runSqlPool (Sql.runMigration migrateAll) (ciPool connInfo)
   jobsChan <- newChan
   resChan <- newChan
   forM_ [1.. dbcWorkers cfg] $ \idx ->
@@ -37,7 +37,7 @@ runDispatcher cfg pool = do
 dispatcher :: Chan (Queue, JobInfo) -> ConnectionM ()
 dispatcher jobsChan = do
   forever $ do
-    qesr <- runDB getAllQueues
+    qesr <- runDB getEnabledQueues
     cfg <- asks ciGlobalConfig
     case qesr of
       Left err -> $reportError (show err)
