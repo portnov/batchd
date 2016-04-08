@@ -86,7 +86,9 @@ class GUI(QtGui.QMainWindow):
         wrapper, self.queue_popup = labelled("Queue:", QtGui.QComboBox, self)
         self.queues = queues
         for q in queues:
-            self.queue_popup.addItem(q['name'])
+            enabled = "*" if q['enabled'] else " "
+            title = "[{0}] {1}".format(enabled, q['title'])
+            self.queue_popup.addItem(title, q['name'])
         self.queue_popup.currentIndexChanged.connect(self._on_select_queue)
         self.layout.addWidget(wrapper)
 
@@ -184,13 +186,14 @@ class GUI(QtGui.QMainWindow):
         self.qtable.setJobs(jobs)
 
     def _on_ok(self):
-        queue = unicode( self.queue_popup.currentText() )
+        queue_idx = self.queue_popup.currentIndex()
+        queue_name = self.queues[queue_idx]['name']
         typename = unicode( self.type_popup.currentText() )
         jobtype = self.types[self.type_popup.currentIndex()]
         params = {}
         for name, widget in self.param_widgets.iteritems():
             params[name] = unicode(widget.text())
-        do_enqueue(self.url, queue, typename, params)
+        do_enqueue(self.url, queue_name, typename, params)
         self._refresh_queue()
 
 if __name__ == "__main__":
