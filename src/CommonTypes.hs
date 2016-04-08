@@ -46,6 +46,7 @@ data JobType = JobType {
     jtTemplate :: String,
     jtOnFail :: OnFailAction,
     jtHostName :: Maybe String,
+    jtMaxJobs :: Maybe Int,
     jtParams :: [ParamDesc]
   }
   deriving (Eq, Show, Data, Typeable, Generic)
@@ -241,6 +242,7 @@ data Host = Host {
     hPassphrase :: String,
     hUserName :: String,
     hPort :: Int,
+    hMaxJobs :: Maybe Int,
     hInputDirectory :: String,
     hOutputDirectory :: String,
     hStartupCommands :: [String]
@@ -257,6 +259,7 @@ instance FromJSON Host where
       <*> v .:? "passphrase" .!= ""
       <*> v .: "user_name"
       <*> v .:? "port" .!= 22
+      <*> v .:? "max_jobs"
       <*> v .:? "input_directory" .!= "."
       <*> v .:? "output_directory" .!= "."
       <*> v .:? "startup_commands" .!= []

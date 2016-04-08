@@ -8,6 +8,7 @@ import Control.Concurrent
 import Control.Monad
 import Control.Monad.Reader
 import qualified Data.Text as T
+import qualified Data.Map as M
 import Data.Time
 import Data.Dates
 import Database.Persist
@@ -22,6 +23,7 @@ import Database
 import Schedule
 import Executor
 import Logging
+import Hosts
 
 runDispatcher :: GlobalConfig -> Sql.ConnectionPool -> IO ()
 runDispatcher cfg pool = do
@@ -29,8 +31,11 @@ runDispatcher cfg pool = do
   Sql.runSqlPool (Sql.runMigration migrateAll) (ciPool connInfo)
   jobsChan <- newChan
   resChan <- newChan
-  forM_ [1.. dbcWorkers cfg] $ \idx ->
-    forkIO $ worker cfg idx jobsChan resChan
+  counters <- newMVar M.empty
+  $infoDB cfg $ "Starting " ++ show (dbcWorkers cfg) ++ " workers"
+  forM_ [1.. dbcWorkers cfg] $ \idx -> do
+    $debugDB cfg $ "  Starting worker #" ++ show idx
+    forkIO $ worker cfg idx counters jobsChan resChan
   forkIO $ runReaderT (runConnection (callbackListener resChan)) connInfo
   runReaderT (runConnection (dispatcher jobsChan)) connInfo
 
@@ -80,9 +85,8 @@ callbackListener resChan = forever $ do
                       moveToEnd job
                     else setJobStatus job Failed
 
-
-worker :: GlobalConfig -> Int -> Chan (Queue, JobInfo) -> Chan (JobInfo, JobResult, OnFailAction) -> IO ()
-worker cfg idx jobsChan resChan = forever $ do
+worker :: GlobalConfig -> Int -> HostCounters -> Chan (Queue, JobInfo) -> Chan (JobInfo, JobResult, OnFailAction) -> IO ()
+worker cfg idx hosts jobsChan resChan = forever $ do
   (queue, job) <- readChan jobsChan
   $infoDB cfg $ printf "[%d] got job #%d" idx (jiId job)
   jtypeR <- Config.loadTemplate (jiType job)
@@ -96,7 +100,7 @@ worker cfg idx jobsChan resChan = forever $ do
                   return (res, Continue)
 
               Right jtype -> do
-                  res <- executeJob cfg queue jtype job
+                  res <- executeJob cfg hosts queue jtype job
                   return (res, jtOnFail jtype)
 
   writeChan resChan (job, result, onFail)

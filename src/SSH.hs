@@ -17,6 +17,7 @@ import System.Exit
 
 import CommonTypes
 import Logging
+import Hosts
 
 getKnownHosts :: IO FilePath
 getKnownHosts = do
@@ -33,8 +34,8 @@ getDfltPrivateKey = do
   home <- getEnv "HOME"
   return $ home </> ".ssh" </> "id_rsa"
 
-processOnHost :: GlobalConfig -> Host -> JobType -> JobInfo -> String -> IO (ExitCode, T.Text)
-processOnHost cfg h jtype job command = do
+processOnHost :: GlobalConfig -> HostCounters -> Host -> JobType -> JobInfo -> String -> IO (ExitCode, T.Text)
+processOnHost cfg counters h jtype job command = do
   known_hosts <- getKnownHosts
   def_public_key <- getDfltPublicKey
   def_private_key <- getDfltPrivateKey
@@ -47,25 +48,27 @@ processOnHost cfg h jtype job command = do
 
   $infoDB cfg $ "CONNECTING TO " ++ hostname
   $debugDB cfg $ show h
-  (withSSH2 known_hosts public_key private_key passphrase user hostname port $ \session -> do
-      $infoDB cfg "Connected."
-      execCommands session (hStartupCommands h)
-        `catch` (\(e :: SomeException) -> throw (ExecException e))
-      uploadFiles cfg (getInputFiles jtype job) (hInputDirectory h) session
-      $infoDB cfg $ "EXECUTING: " ++ command
-      (ec,out) <- execCommands session [command]
-      downloadFiles cfg (hOutputDirectory h) (getOutputFiles jtype job) session
-      let outText = TL.toStrict $ TLE.decodeUtf8 (head out)
-          ec' = if ec == 0
-                  then ExitSuccess
-                  else ExitFailure ec
-      return (ec', outText)
-      )
-        `catch`
-          (\(e :: SomeException) -> do
-                                    $reportErrorDB cfg $ show e
-                                    return (ExitFailure (-1), T.pack (show e))
-                                    )
+  withHost counters h jtype $ do
+    (withSSH2 known_hosts public_key private_key passphrase user hostname port $ \session -> do
+        $infoDB cfg "Connected."
+        execCommands session (hStartupCommands h)
+          `catch` (\(e :: SomeException) -> throw (ExecException e))
+        uploadFiles cfg (getInputFiles jtype job) (hInputDirectory h) session
+        $infoDB cfg $ "EXECUTING: " ++ command
+        (ec,out) <- execCommands session [command]
+        $infoDB cfg "Done."
+        downloadFiles cfg (hOutputDirectory h) (getOutputFiles jtype job) session
+        let outText = TL.toStrict $ TLE.decodeUtf8 (head out)
+            ec' = if ec == 0
+                    then ExitSuccess
+                    else ExitFailure ec
+        return (ec', outText)
+        )
+          `catch`
+            (\(e :: SomeException) -> do
+                                      $reportErrorDB cfg $ show e
+                                      return (ExitFailure (-1), T.pack (show e))
+                                      )
 
 getInputFiles :: JobType -> JobInfo -> [FilePath]
 getInputFiles jt job =

@@ -19,6 +19,7 @@ import CommonTypes
 import Config
 import Logging
 import Database
+import Hosts
 import SSH
 
 mkContext :: JobParamInfo -> Context
@@ -43,8 +44,8 @@ hostContext (Just host) jt params = M.fromList $ map update $ M.assocs params
         Just OutputFile -> (key, hOutputDirectory host </> takeFileName value)
         _ -> (key, value)
 
-executeJob :: GlobalConfig -> Queue -> JobType -> JobInfo -> IO JobResult
-executeJob cfg q jt job = do
+executeJob :: GlobalConfig -> HostCounters -> Queue -> JobType -> JobInfo -> IO JobResult
+executeJob cfg counters q jt job = do
   let mbHostName = getHostName q jt job
       jid = JobKey (Sql.SqlBackendKey $ jiId job)
   case mbHostName of
@@ -58,7 +59,7 @@ executeJob cfg q jt job = do
       case hostR of
         Right host -> do
           let command = getCommand (Just host) jt job
-          (ec, stdout) <- processOnHost cfg host jt job command
+          (ec, stdout) <- processOnHost cfg counters host jt job command
           now <- getCurrentTime
           return $ JobResult jid now ec stdout T.empty
         Left err -> do
