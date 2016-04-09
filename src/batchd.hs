@@ -3,7 +3,6 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 
 import Control.Concurrent
-import Data.Generics
 import System.Console.CmdArgs
 
 import CommonTypes

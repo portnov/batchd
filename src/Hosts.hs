@@ -6,18 +6,9 @@ module Hosts where
 
 import Control.Concurrent
 import Control.Exception
-import Control.Monad
-import Control.Monad.Reader
-import Data.Maybe
-import qualified Data.Text as T
 import qualified Data.Map as M
 
 import CommonTypes
-import Types
-import Config
-import Database
-import Schedule
-import Logging
 
 type HostName = String
 type HostCounters = MVar (M.Map HostName (MVar Int))
