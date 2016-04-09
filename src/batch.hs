@@ -80,6 +80,14 @@ data Batch =
       enabled :: Maybe Bool,
       force :: Bool
     }
+  | Job {
+      managerUrl :: Maybe String,
+      jobId :: Int,
+      queueName :: Maybe String,
+      status :: Maybe String,
+      hostName :: Maybe String,
+      jobMode :: CrudMode
+    }
   | Schedule {
       managerUrl :: Maybe String,
       scheduleMode :: CrudMode,
@@ -187,6 +195,19 @@ queue = Queue {
     enabled = Nothing &= name "active" &= typ "TRUE" &= help "enable/disable queue",
     force = False &= help "force non-empty queue deletion"
   } &= help "create, update or delete queues"
+
+job :: Batch
+job = Job {
+    managerUrl = managerUrlAnn,
+    jobId = def &= typ "ID" &= argPos 0,
+    status = def &= typ "STATUS" &= help "set job status",
+    hostName = Nothing &= name "host" &= typ "HOST" &= help "set job host",
+    queueName = def &= name "queue" &= typ "QUEUE" &= help "set job queue",
+    jobMode = enum [
+                Update &= help "modify job",
+                Delete &= help "delete job"
+              ]
+  } &= help "update or delete jobs"
     
 schedule :: Batch
 schedule = Schedule {
@@ -363,6 +384,24 @@ doStats manager opts = do
       forM_ (M.assocs stat) $ \(st, cnt) ->
           printf "\t%s:\t%d\n" (show st) cnt
 
+updateJob :: Manager -> Batch -> IO ()
+updateJob manager opts = do
+  cfg <- loadClientConfig
+  baseUrl <- getManagerUrl (managerUrl opts) cfg
+  let job = object $
+              toList "queue_name" (queueName opts) ++
+              toList "status" (status opts) ++
+              toList "host_name" (hostName opts)
+  let url = baseUrl </> "job" </> show (jobId opts)
+  doPost manager url job
+
+deleteJob :: Manager -> Batch -> IO ()
+deleteJob manager opts = do
+  cfg <- loadClientConfig
+  baseUrl <- getManagerUrl (managerUrl opts) cfg
+  let url = baseUrl </> "job" </> show (jobId opts)
+  doDelete manager url
+
 addQueue :: Manager -> Batch -> IO ()
 addQueue manager opts = do
   cfg <- loadClientConfig
@@ -389,9 +428,9 @@ updateQueue manager opts = do
     -- print queue
     let url = baseUrl </> "queue" </> queueObject opts
     doPost manager url queue
-  where
-    toList _ Nothing = []
-    toList name (Just str) = [name .= str]
+
+toList _ Nothing = []
+toList name (Just str) = [name .= str]
 
 deleteQueue :: Manager -> Batch -> IO ()
 deleteQueue manager opts = do
@@ -474,7 +513,7 @@ doType manager opts = do
 
 main :: IO ()
 main = do
-  let mode = cmdArgsMode $ modes [enqueue, list &= name "ls", queue, schedule, typesList, stats]
+  let mode = cmdArgsMode $ modes [enqueue, list &= name "ls", job, queue, schedule, typesList, stats]
   opts <- cmdArgsRun mode
 
   manager <- newManager defaultManagerSettings
@@ -484,6 +523,10 @@ main = do
     List {} -> doList manager opts
     Stats {} -> doStats manager opts
     Type {} -> doType manager opts
+    Job {} ->
+      case jobMode opts of
+        Update -> updateJob manager opts
+        Delete -> deleteJob manager opts
     Queue {} ->
       case queueMode opts of
         Add -> addQueue manager opts
