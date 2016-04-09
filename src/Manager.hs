@@ -43,6 +43,7 @@ routes = do
   Scotty.delete "/queue/:name" removeQueueA
 
   Scotty.get "/job/:id" getJobA
+  Scotty.post "/job/:id" updateJobA
   Scotty.delete "/job/:id" removeJobByIdA
   Scotty.get "/jobs" getJobsA
 
@@ -194,6 +195,13 @@ getJobA = do
   jid <- Scotty.param "id"
   result <- runDBA $ loadJob' jid
   Scotty.json result
+
+updateJobA :: Action ()
+updateJobA = do
+  jid <- Scotty.param "id"
+  upd <- jsonData
+  runDBA $ updateJob jid upd
+  Scotty.json ("done" :: String)
 
 getJobsA :: Action ()
 getJobsA = do

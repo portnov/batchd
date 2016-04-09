@@ -123,6 +123,13 @@ instance FromJSON [Update Queue] where
     uHostName <- parseUpdate' QueueHostName "host_name" o
     return $ catMaybes [uEnable, uTitle, uSchedule, uHostName]
 
+instance FromJSON [Update Job] where
+  parseJSON o = do
+    uQueue <- parseUpdate JobQueueName "queue_name" o
+    uStatus <- parseUpdate JobStatus "status" o
+    uHost   <- parseUpdate' JobHostName "host_name" o
+    return $ catMaybes [uQueue, uStatus, uHost]
+
 deriving instance Generic JobResult
 
 instance ToJSON JobResult where
@@ -191,6 +198,11 @@ loadJobSeq qname seq = do
       let j = entityVal je
       let params = M.fromList [(jobParamName p, jobParamValue p) | p <- map entityVal ps]
       return $ buildJobInfo jid j (fmap entityVal mbr) params
+
+updateJob :: Int64 -> [Update Job] -> DB ()
+updateJob jid updates = do
+  let jkey = JobKey (SqlBackendKey jid)
+  update jkey updates
 
 setJobStatus :: JobInfo -> JobStatus -> DB ()
 setJobStatus ji status = do
