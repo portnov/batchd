@@ -192,7 +192,7 @@ updateQueueA = do
 getJobA :: Action ()
 getJobA = do
   jid <- Scotty.param "id"
-  result <- runDBA $ getJobResult jid
+  result <- runDBA $ loadJob' jid
   Scotty.json result
 
 getJobsA :: Action ()

@@ -157,6 +157,9 @@ loadJob jkey@(JobKey (SqlBackendKey jid)) = do
       let params = M.fromList [(jobParamName p, jobParamValue p) | p <- map entityVal ps]
       return $ buildJobInfo jid j (fmap entityVal mbr) params
 
+loadJob' :: Int64 -> DB JobInfo
+loadJob' jid = loadJob (JobKey (SqlBackendKey jid))
+
 lockJob :: JobInfo -> DB ()
 lockJob ji = do
   let qname = jiQueue ji
