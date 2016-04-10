@@ -94,8 +94,8 @@ queue :: Batch
 queue = Queue {
     managerUrl = managerUrlAnn,
     queueMode = enum [
-                  Add &= help "create new queue",
                   Update &= help "modify queue",
+                  Add &= help "create new queue",
                   Delete &= help "delete queue"],
     queueObject = defaultQueue &= argPos 0 &= typ "QUEUE",
     scheduleName = def &= typ "SCHEDULE" &= help "queue schedule name",
