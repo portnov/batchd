@@ -4,7 +4,14 @@
 name:                batchd
 version:             0.1.0.0
 synopsis:            Batch processing daemon and utilities
--- description:         
+description:         The batchd is a toolset for batch processing. It enables one to:
+
+                      * Create and manage queues of tasks (batch jobs);
+
+                      * Specify time periods (schedules) when jobs from each queue can be executed;
+
+                      * Run batch jobs on localhost or on several machines one-by-one or in parallel.
+
 license:             BSD3
 license-file:        LICENSE
 author:              Ilya Portnov
