@@ -2,7 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Dispatcher (runDispatcher) where
+module Daemon.Dispatcher (runDispatcher) where
 
 import Control.Concurrent
 import Control.Monad
@@ -16,14 +16,16 @@ import qualified Database.Persist.Sql as Sql
 import System.Exit
 import Text.Printf
 
-import CommonTypes
-import Types
-import Config
-import Database
-import Schedule
-import Executor
-import Logging
-import Hosts
+import Common.CommonTypes
+import Daemon.Types
+import Common.Config as Config
+import Common.Data
+import Daemon.Database
+import Common.Schedule
+import Daemon.Schedule
+import Daemon.Executor
+import Daemon.Logging
+import Daemon.Hosts
 
 runDispatcher :: GlobalConfig -> Sql.ConnectionPool -> IO ()
 runDispatcher cfg pool = do

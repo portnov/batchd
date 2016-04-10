@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable, ScopedTypeVariables, TemplateHaskell, GeneralizedNewtypeDeriving, DeriveGeneric, StandaloneDeriving, OverloadedStrings, FlexibleInstances #-}
 
-module CommonTypes where
+module Common.CommonTypes where
 
 import GHC.Generics
 import Control.Applicative
@@ -13,6 +13,8 @@ import Data.Char
 import Data.String
 import Data.Time
 import Data.List (isPrefixOf)
+import Database.Persist
+import Database.Persist.TH
 import qualified Data.Map as M
 import qualified Data.HashMap.Strict as H
 import qualified Data.ByteString as B
@@ -366,3 +368,24 @@ instance Exception DownloadException
 instance Show DownloadException where
   show (DownloadException path e) = "Exception downloading file `" ++ path ++ "': " ++ show e
 
+derivePersistField "WeekDay"
+derivePersistField "JobStatus"
+derivePersistField "ExitCode"
+
+parseUpdate :: (PersistField t, FromJSON t) => EntityField v t -> T.Text -> Value -> Parser (Maybe (Update v))
+parseUpdate field label (Object v) = do
+  mbValue <- v .:? label
+  let upd = case mbValue of
+              Nothing -> Nothing
+              Just value -> Just (field =. value)
+  return upd
+
+parseUpdate' :: (PersistField t, FromJSON t, IsString t, Eq t)
+             => EntityField v (Maybe t) -> T.Text -> Value -> Parser (Maybe (Update v))
+parseUpdate' field label (Object v) = do
+  mbValue <- v .:? label
+  let upd = case mbValue of
+              Nothing -> Nothing
+              Just "*" -> Just (field =. Nothing)
+              Just value -> Just (field =. Just value)
+  return upd

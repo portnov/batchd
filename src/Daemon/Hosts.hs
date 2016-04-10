@@ -2,13 +2,13 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Hosts where
+module Daemon.Hosts where
 
 import Control.Concurrent
 import Control.Exception
 import qualified Data.Map as M
 
-import CommonTypes
+import Common.CommonTypes
 
 type HostName = String
 type HostCounters = MVar (M.Map HostName (MVar Int))

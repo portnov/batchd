@@ -1,5 +1,5 @@
 
-module Config where
+module Common.Config where
 
 import Control.Monad
 import Data.Yaml
@@ -7,7 +7,7 @@ import System.FilePath
 import System.Environment
 import System.Directory
 
-import CommonTypes
+import Common.CommonTypes
 
 getConfigDirs :: String -> IO [FilePath]
 getConfigDirs t = do

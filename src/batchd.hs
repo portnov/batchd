@@ -5,11 +5,11 @@
 import Control.Concurrent
 import System.Console.CmdArgs
 
-import CommonTypes
-import Config
-import Database
-import Manager
-import Dispatcher
+import Common.CommonTypes
+import Common.Config
+import Daemon.Database
+import Daemon.Manager as Manager
+import Daemon.Dispatcher as Dispatcher
 
 batchd :: DaemonMode
 batchd =

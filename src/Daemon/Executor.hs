@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Executor where
+module Daemon.Executor where
 
 import Control.Monad
 import Data.Maybe
@@ -15,12 +15,12 @@ import System.Process
 import System.FilePath
 import System.Exit
 
-import CommonTypes
-import Config
-import Logging
-import Database
-import Hosts
-import SSH
+import Common.CommonTypes
+import Common.Config
+import Daemon.Logging
+import Common.Data
+import Daemon.Hosts
+import Daemon.SSH
 
 mkContext :: JobParamInfo -> Context
 mkContext m key =

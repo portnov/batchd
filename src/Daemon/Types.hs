@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable, ScopedTypeVariables, TemplateHaskell, GeneralizedNewtypeDeriving, DeriveGeneric, StandaloneDeriving, OverloadedStrings #-}
 
-module Types where
+module Daemon.Types where
 
 import Control.Applicative
 import Control.Monad.Reader
@@ -20,18 +20,13 @@ import Database.Persist.Sql as Sql
 import Web.Scotty.Trans as Scotty
 import System.Exit
 
-import CommonTypes
-
+import Common.CommonTypes
 
 instance ScottyError Error where
   stringError e = UnknownError e
   showError e = TL.pack (show e)
 
 type Result a = ExceptT Error IO a
-
-derivePersistField "WeekDay"
-derivePersistField "JobStatus"
-derivePersistField "ExitCode"
 
 type DB a = ReaderT SqlBackend (ExceptT Error (LoggingT (ResourceT IO))) a
 type DBIO a = ReaderT SqlBackend (LoggingT (ResourceT IO)) a
@@ -85,24 +80,6 @@ runDB qry = do
 runDBIO :: GlobalConfig -> ConnectionPool -> DB a -> IO (Either Error a)
 runDBIO cfg pool qry = do
   runResourceT $ (enableLogging cfg) $ Sql.runSqlPool (dbio qry) pool
-
-parseUpdate :: (PersistField t, FromJSON t) => EntityField v t -> T.Text -> Value -> Parser (Maybe (Update v))
-parseUpdate field label (Object v) = do
-  mbValue <- v .:? label
-  let upd = case mbValue of
-              Nothing -> Nothing
-              Just value -> Just (field =. value)
-  return upd
-
-parseUpdate' :: (PersistField t, FromJSON t, IsString t, Eq t)
-             => EntityField v (Maybe t) -> T.Text -> Value -> Parser (Maybe (Update v))
-parseUpdate' field label (Object v) = do
-  mbValue <- v .:? label
-  let upd = case mbValue of
-              Nothing -> Nothing
-              Just "*" -> Just (field =. Nothing)
-              Just value -> Just (field =. Just value)
-  return upd
 
 enableLogging cfg actions = runSyslogLoggingT $ filterLogger check actions
   where

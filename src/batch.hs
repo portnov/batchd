@@ -22,10 +22,10 @@ import System.FilePath
 import System.Environment (lookupEnv)
 import Text.Printf
 
-import CommonTypes
-import qualified Database
-import Schedule
-import Config
+import Common.CommonTypes
+import qualified Common.Data as Database
+import Common.Schedule
+import Common.Config
 
 data ClientConfig = ClientConfig {
     ccManagerUrl :: Maybe String,

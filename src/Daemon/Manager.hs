@@ -2,7 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Manager where
+module Daemon.Manager where
 
 import Control.Concurrent
 import Control.Monad
@@ -19,12 +19,14 @@ import Web.Scotty.Trans as Scotty
 import System.FilePath
 import System.FilePath.Glob
 
-import CommonTypes
-import Types
-import Config
-import Database
-import Schedule
-import Logging
+import Common.CommonTypes
+import Daemon.Types
+import Common.Config
+import Common.Data
+import Daemon.Database
+import Common.Schedule
+import Daemon.Schedule
+import Daemon.Logging
 
 routes :: ScottyT Error ConnectionM ()
 routes = do

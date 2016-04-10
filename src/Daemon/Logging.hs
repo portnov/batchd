@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Logging where
+module Daemon.Logging where
 
 import Control.Monad.Reader hiding (lift)
 import Control.Monad.Logger
@@ -8,8 +8,8 @@ import qualified Data.Text as T
 import Language.Haskell.TH.Syntax
 import Language.Haskell.TH.Lift
 
-import CommonTypes
-import Types
+import Common.CommonTypes
+import Daemon.Types
 
 deriveLift ''DaemonMode
 

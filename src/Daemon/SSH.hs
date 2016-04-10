@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module SSH where
+module Daemon.SSH where
 
 import Control.Monad
 import Control.Exception
@@ -15,9 +15,9 @@ import System.FilePath
 import System.Environment
 import System.Exit
 
-import CommonTypes
-import Logging
-import Hosts
+import Common.CommonTypes
+import Daemon.Logging
+import Daemon.Hosts
 
 getKnownHosts :: IO FilePath
 getKnownHosts = do
