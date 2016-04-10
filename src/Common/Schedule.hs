@@ -3,12 +3,9 @@
 module Common.Schedule where
 
 import GHC.Generics
-import Control.Monad.Reader
-import Data.Maybe
 import Data.Dates
 import Data.Dates.Formats
 import Data.Time
-import Database.Persist
 import Data.Aeson
 import Text.Parsec
 import Text.Parsec.String

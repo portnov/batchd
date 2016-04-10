@@ -22,9 +22,7 @@ import System.FilePath.Glob
 import Common.CommonTypes
 import Daemon.Types
 import Common.Config
-import Common.Data
 import Daemon.Database
-import Common.Schedule
 import Daemon.Schedule
 import Daemon.Logging
 

@@ -8,17 +8,9 @@ import Control.Monad.Except
 import Control.Monad.Logger
 import Control.Monad.Logger.Syslog (runSyslogLoggingT)
 import Control.Monad.Trans.Resource
-import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
-import Data.String
-import Data.Dates
-import Data.Aeson as Aeson
-import Data.Aeson.Types
-import Database.Persist
-import Database.Persist.TH
 import Database.Persist.Sql as Sql
 import Web.Scotty.Trans as Scotty
-import System.Exit
 
 import Common.CommonTypes
 

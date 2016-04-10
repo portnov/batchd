@@ -17,24 +17,15 @@
 module Common.Data where
 
 import GHC.Generics
-import Control.Monad.Reader
 
 import Data.Time
 import Data.Dates
 import Database.Persist
 import Data.Maybe
-import Data.Int
 import Data.Aeson
-import qualified Data.Map as M
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as TE
 
-import           Database.Persist.Sql as Sql
-import           Database.Persist.Sqlite as Sqlite
-import           Database.Persist.Postgresql as Postgres
 import           Database.Persist.TH
-import qualified Database.Esqueleto as E
-import Database.Esqueleto ((^.))
 import System.Exit
 
 import Common.CommonTypes
