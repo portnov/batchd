@@ -28,7 +28,7 @@ import qualified Data.Text as T
 import           Database.Persist.TH
 import System.Exit
 
-import Common.CommonTypes
+import Common.Types
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll", mkDeleteCascade sqlSettings] [persistLowerCase|
 JobParam

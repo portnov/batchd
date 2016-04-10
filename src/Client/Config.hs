@@ -12,7 +12,7 @@ import Data.Generics hiding (Generic)
 import Data.Maybe
 import System.Environment
 
-import Common.CommonTypes
+import Common.Types
 import Common.Config
 import Client.Types
 import Client.CmdLine

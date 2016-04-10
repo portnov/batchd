@@ -9,7 +9,7 @@ import qualified Data.Map as M
 import Data.Dates
 import System.Console.CmdArgs
 
-import Common.CommonTypes
+import Common.Types
 import Client.Types
 
 data Batch =

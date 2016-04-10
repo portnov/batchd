@@ -9,7 +9,7 @@ import Control.Exception
 import Data.Generics hiding (Generic)
 import Data.Yaml
 
-import Common.CommonTypes
+import Common.Types
 
 data ClientException = ClientException String
   deriving (Data, Typeable, Generic)

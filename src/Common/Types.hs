@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable, ScopedTypeVariables, TemplateHaskell, GeneralizedNewtypeDeriving, DeriveGeneric, StandaloneDeriving, OverloadedStrings, FlexibleInstances #-}
 
-module Common.CommonTypes where
+module Common.Types where
 
 import GHC.Generics
 import Control.Applicative

@@ -7,7 +7,7 @@ import System.FilePath
 import System.Environment
 import System.Directory
 
-import Common.CommonTypes
+import Common.Types
 
 getConfigDirs :: String -> IO [FilePath]
 getConfigDirs t = do

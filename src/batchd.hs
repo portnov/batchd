@@ -5,7 +5,7 @@
 import Control.Concurrent
 import System.Console.CmdArgs
 
-import Common.CommonTypes
+import Common.Types
 import Common.Config
 import Daemon.Database
 import Daemon.Manager as Manager

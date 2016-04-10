@@ -6,7 +6,7 @@ import Control.Monad.Reader
 import Data.Maybe
 import Database.Persist
 
-import Common.CommonTypes
+import Common.Types
 import Daemon.Types
 import Common.Data
 import Common.Schedule

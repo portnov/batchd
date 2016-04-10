@@ -8,7 +8,7 @@ import Control.Concurrent
 import Control.Exception
 import qualified Data.Map as M
 
-import Common.CommonTypes
+import Common.Types
 
 type HostName = String
 type HostCounters = MVar (M.Map HostName (MVar Int))

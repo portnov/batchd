@@ -10,7 +10,7 @@ import Data.Aeson
 import Text.Parsec
 import Text.Parsec.String
 
-import Common.CommonTypes
+import Common.Types
 import Common.Data
 
 data Period =

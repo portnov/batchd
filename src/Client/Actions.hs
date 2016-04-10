@@ -16,7 +16,7 @@ import Network.HTTP.Client
 import System.FilePath
 import Text.Printf
 
-import Common.CommonTypes
+import Common.Types
 import qualified Common.Data as Database
 import Common.Schedule
 import Common.Config

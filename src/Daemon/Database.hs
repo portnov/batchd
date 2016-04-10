@@ -30,7 +30,7 @@ import           Database.Persist.Postgresql as Postgres
 import qualified Database.Esqueleto as E
 import Database.Esqueleto ((^.))
 
-import Common.CommonTypes
+import Common.Types
 import Daemon.Types
 import Common.Data
 

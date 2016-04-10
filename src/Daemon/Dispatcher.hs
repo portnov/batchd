@@ -16,7 +16,7 @@ import qualified Database.Persist.Sql as Sql
 import System.Exit
 import Text.Printf
 
-import Common.CommonTypes
+import Common.Types
 import Daemon.Types
 import Common.Config as Config
 import Common.Data

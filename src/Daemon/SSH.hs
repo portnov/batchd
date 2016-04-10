@@ -15,7 +15,7 @@ import System.FilePath
 import System.Environment
 import System.Exit
 
-import Common.CommonTypes
+import Common.Types
 import Daemon.Logging
 import Daemon.Hosts
 

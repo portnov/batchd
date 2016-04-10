@@ -12,7 +12,7 @@ import qualified Data.Text.Lazy as TL
 import Database.Persist.Sql as Sql
 import Web.Scotty.Trans as Scotty
 
-import Common.CommonTypes
+import Common.Types
 
 instance ScottyError Error where
   stringError e = UnknownError e

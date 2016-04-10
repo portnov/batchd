@@ -19,7 +19,7 @@ import Web.Scotty.Trans as Scotty
 import System.FilePath
 import System.FilePath.Glob
 
-import Common.CommonTypes
+import Common.Types
 import Daemon.Types
 import Common.Config
 import Daemon.Database

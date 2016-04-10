@@ -8,7 +8,7 @@ import qualified Data.Text as T
 import Language.Haskell.TH.Syntax
 import Language.Haskell.TH.Lift
 
-import Common.CommonTypes
+import Common.Types
 import Daemon.Types
 
 deriveLift ''DaemonMode
