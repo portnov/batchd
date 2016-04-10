@@ -131,6 +131,7 @@ data JobStatus =
   | Processing
   | Done
   | Failed
+  | Postponed
   deriving (Eq, Ord, Show, Read, Data, Typeable, Generic)
 
 instance ToJSON JobStatus
@@ -338,6 +339,7 @@ parseStatus _ _ (Just "waiting") = return $ Just Waiting
 parseStatus _ _ (Just "processing") = return $ Just Processing
 parseStatus _ _ (Just "done") = return $ Just Done
 parseStatus _ _ (Just "failed") = return $ Just Failed
+parseStatus _ _ (Just "postponed") = return $ Just Postponed
 parseStatus _ handle (Just _) = handle
 
 instance ToJSON ExitCode where
