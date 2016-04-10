@@ -2,32 +2,10 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-import GHC.Generics
-import Control.Monad
-import Control.Exception
-import qualified Data.Aeson as Aeson
-import Data.Yaml
-import qualified Data.ByteString.Lazy as L
-import qualified Data.Map as M
-import Data.Maybe
-import Data.List (intercalate)
-import Data.Char (toLower)
-import Data.Generics hiding (Generic)
-import Data.Dates
 import Network.HTTP.Client
-import Network.HTTP.Types.Header (ResponseHeaders)
-import Network.HTTP.Types.Status
 import System.Console.CmdArgs
-import System.FilePath
-import System.Environment (lookupEnv)
-import Text.Printf
 
-import Common.CommonTypes
-import qualified Common.Data as Database
-import Common.Schedule
-import Common.Config
 import Client.Types
-import Client.Config
 import Client.Actions
 import Client.CmdLine
 
