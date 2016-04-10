@@ -7,9 +7,6 @@ module Client.Types where
 import GHC.Generics
 import Control.Exception
 import Data.Generics hiding (Generic)
-import Data.Yaml
-
-import Common.Types
 
 data ClientException = ClientException String
   deriving (Data, Typeable, Generic)

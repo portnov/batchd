@@ -11,9 +11,7 @@ import Network.HTTP.Client
 import Network.HTTP.Types.Header (ResponseHeaders)
 import Network.HTTP.Types.Status
 
-import Common.Config
 import Client.Types
-import Client.CmdLine
 
 handleStatus :: Response L.ByteString -> IO L.ByteString
 handleStatus rs =
