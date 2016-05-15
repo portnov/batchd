@@ -27,7 +27,7 @@ executable batchd
   hs-source-dirs:      src/
   -- other-modules:       
   other-extensions:    TypeFamilies, DeriveDataTypeable, TemplateHaskell, StandaloneDeriving, RecordWildCards
-  build-depends:       base >=4.7 && <4.8,
+  build-depends:       base >=4.7 && <5.0,
                        persistent >= 2.2 && < 2.3,
                        persistent-sqlite >= 2.2,
                        persistent-postgresql >= 2.2,
@@ -70,7 +70,7 @@ executable batch
   main-is:             batch.hs
   hs-source-dirs:      src/
   -- other-modules:       
-  build-depends:       base >=4.7 && <4.8,
+  build-depends:       base >=4.7 && <5.0,
                        data-default >= 0.5,
                        mtl >=2.2 && <2.3,
                        transformers >= 0.5,
