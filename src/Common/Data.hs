@@ -53,7 +53,7 @@ JobResult
   exitCode ExitCode
   stdout T.Text sqltype=TEXT
   stderr T.Text sqltype=TEXT
-  Primary jobId
+  Primary jobId time
 
 Queue
   name String
