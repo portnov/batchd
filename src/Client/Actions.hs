@@ -64,7 +64,7 @@ doList manager opts = do
     [] -> do
       let url = baseUrl </> "queue"
       response <- doGet manager url
-      forM_ response $ \queue -> do
+      forM_ (response :: [Database.Queue]) $ \queue -> do
         printf "[%s]\t%s:\t%s\t%s\t%s\n"
                ((if Database.queueEnabled queue then "*" else " ") :: String)
                (Database.queueName queue)
@@ -82,7 +82,7 @@ doList manager opts = do
                                        _ -> "?status=" ++ map toLower (show st)
         let url = baseUrl </> "queue" </> qname ++ statusStr
         response <- doGet manager url
-        forM_ response $ \job -> do
+        forM_ (response :: [JobInfo]) $ \job -> do
           printf "#%d: [%d]\t%s\t%s\n" (jiId job) (jiSeq job) (jiType job) (show $ jiStatus job)
           forM_ (M.assocs $ jiParams job) $ \(name, value) -> do
             printf "\t%s:\t%s\n" name value
@@ -177,7 +177,7 @@ doListSchedules manager opts = do
   let check = if null (scheduleNames opts)
                 then const True
                 else \si -> sName si `elem` scheduleNames opts
-  forM_ response $ \si -> do
+  forM_ (response :: [ScheduleInfo]) $ \si -> do
     when (check si) $ do
       putStrLn $ sName si ++ ":"
       case sWeekdays si of
@@ -226,7 +226,7 @@ doType manager opts = do
   let check = if null (types opts)
                 then const True
                 else \jt -> jtName jt `elem` types opts
-  forM_ response $ \jt -> do
+  forM_ (response :: [JobType]) $ \jt -> do
     when (check jt) $ do
       putStrLn $ jtName jt ++ ":"
       putStrLn $ "\tTemplate:\t" ++ jtTemplate jt
