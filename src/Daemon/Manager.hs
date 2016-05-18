@@ -308,8 +308,11 @@ updateJobA = do
   jid <- Scotty.param "id"
   job <- runDBA $ loadJob' jid
   checkPermission "modify job" ManageJobs (jiQueue job)
-  upd <- jsonData
-  runDBA $ updateJob jid upd
+  qry <- jsonData
+  runDBA $ case qry of
+            UpdateJob upd -> updateJob job upd
+            Move qname -> moveJob jid qname
+            Prioritize action -> prioritizeJob jid action
   done
 
 getJobsA :: Action ()

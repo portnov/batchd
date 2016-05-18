@@ -132,6 +132,42 @@ updateJob jid (UpdateList updates) = do
   let jkey = JobKey (SqlBackendKey jid)
   update jkey updates
 
+moveJob :: Int64 -> String -> DB ()
+moveJob jid qname = do
+  let jkey = JobKey (SqlBackendKey jid)
+  oldJob <- loadJob' jid
+  lockQueue (jiQueue oldJob)
+  lockQueue qname
+  seq <- getLastJobSeq qname
+  update jkey [JobQueueName =. qname, JobSeq =. (seq+1)]
+
+prioritizeJob :: Int64 -> MoveAction -> DB ()
+prioritizeJob jid action = do
+  let jkey = JobKey (SqlBackendKey jid)
+  oldJob <- loadJob' jid
+  let qname = jiQueue oldJob
+  let oldSeq = jiSeq oldJob
+  lockQueue qname
+  case action of
+    Last -> do
+            lastSeq <- getLastJobSeq qname
+            let seq' = lastSeq + 1
+            update jkey [JobSeq =. seq']
+    First -> do
+            lastSeq <- getFirstJobSeq qname
+            let seq' = lastSeq - 1
+            update jkey [JobSeq =. seq']
+    _ -> do
+         let next = action == Less
+         (mbJid, seq') <- getAdjJob next qname oldSeq
+         update jkey [JobSeq =. seq']
+         case mbJid of
+           Nothing -> return ()
+           Just jid' -> do
+             let jkey' = JobKey (SqlBackendKey jid')
+             update jkey' [JobSeq =. oldSeq]
+  
+
 setJobStatus :: JobInfo -> JobStatus -> DB ()
 setJobStatus ji status = do
   updateWhere [JobQueueName ==. jiQueue ji, JobSeq ==. jiSeq ji] [JobStatus =. status]
@@ -243,6 +279,33 @@ getLastJobSeq qid = do
   case map E.unValue lst of
     (Just r:_) -> return r
     _ -> return 0
+
+getFirstJobSeq :: String -> DB Int
+getFirstJobSeq qid = do
+  lst <- E.select $
+         E.from $ \job -> do
+         E.where_ (job ^. JobQueueName `equals` E.val qid)
+         return $ E.min_ (job ^. JobSeq)
+  case map E.unValue lst of
+    (Just r:_) -> return r
+    _ -> return 1
+
+getAdjJob :: Bool -> String -> Int -> DB (Maybe Int64, Int)
+getAdjJob next qname seq = do
+  let cmp = if next then (E.>.) else (E.<.)
+  let aggr = if next then E.min_ else E.max_
+  lst <- E.select $
+         E.from $ \job -> do
+         E.where_ ((job ^. JobQueueName `equals` E.val qname) `eand` (job ^. JobSeq `cmp` E.val seq))
+         return $ aggr (job ^. JobSeq)
+  seq' <- case map E.unValue lst of
+            (Just r:_) -> return r
+            _ -> return $  if next then (seq+1) else (seq-1)
+  mbJob <- getBy (UniqJobSeq qname seq')
+  let mbJid = case entityKey `fmap` mbJob of
+                Nothing -> Nothing
+                Just (JobKey (SqlBackendKey jid)) -> Just jid
+  return (mbJid, seq')
 
 getNextJob :: Key Queue -> DB (Maybe JobInfo)
 getNextJob (QueueKey qname) = do
