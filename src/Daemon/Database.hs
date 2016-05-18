@@ -180,11 +180,12 @@ loadJobsByStatus mbStatus = do
       loadJob (entityKey je)
 
 getJobResult :: Int64 -> DB JobResult
-getJobResult i = do
-  r <- get (JobResultKey (JobKey (SqlBackendKey i)))
+getJobResult jid = do
+  let jkey = JobKey (SqlBackendKey jid)
+  r <- selectFirst [JobResultJobId ==. jkey] [Desc JobResultTime]
   case r of
     Nothing -> throwR JobNotExists
-    Just res -> return res
+    Just res -> return $ entityVal res
 
 equals = (E.==.)
 infix 4 `equals`
