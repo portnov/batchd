@@ -11,6 +11,7 @@ from PyQt4 import QtGui, QtCore
 import queuetable
 import jobview
 import jobedit
+import queues as qeditor
 
 def load_config():
     home = os.environ['HOME']
@@ -83,7 +84,14 @@ class GUI(QtGui.QMainWindow):
 
         self.setCentralWidget(central_widget)
 
-        wrapper, self.queue_popup = labelled("Queue:", QtGui.QComboBox, self)
+        wrapper = QtGui.QWidget(self)
+        hbox = QtGui.QHBoxLayout()
+        wrapper.setLayout(hbox)
+        lbl = QtGui.QLabel("Queue:", wrapper)
+        hbox.addWidget(lbl)
+        self.queue_popup = QtGui.QComboBox(wrapper)
+        hbox.addWidget(self.queue_popup, stretch=1)
+
         self.queues = queues
         for q in queues:
             enabled = "*" if q['enabled'] else " "
@@ -91,6 +99,10 @@ class GUI(QtGui.QMainWindow):
             self.queue_popup.addItem(title, q['name'])
         self.queue_popup.currentIndexChanged.connect(self._on_select_queue)
         self.layout.addWidget(wrapper)
+
+        queue_buttons = QtGui.QToolBar(self)
+        queue_buttons.addAction(QtGui.QIcon.fromTheme("list-add"), "New queue", self._on_add_queue)
+        hbox.addWidget(queue_buttons)
 
         self.queue_info = QtGui.QLabel(self)
         self.layout.addWidget(self.queue_info)
@@ -160,6 +172,10 @@ class GUI(QtGui.QMainWindow):
         self.layout.insertWidget(5, form)
         self.form.show()
 
+    def _on_add_queue(self):
+        dlg = qeditor.QueueEditor(self)
+        dlg.exec_()
+
     def _on_select_queue(self, idx):
         self._refresh_queue(idx)
 
@@ -200,6 +216,15 @@ class GUI(QtGui.QMainWindow):
             params[name] = unicode(widget.text())
         do_enqueue(self.url, queue_name, typename, params)
         self._refresh_queue()
+
+    def get_schedules(self):
+        rs = requests.get(self.url + "/schedule")
+        return json.loads(rs.text)
+
+    def new_queue(self, queue):
+        rs = requests.put(self.url + "/queue", data=json.dumps(queue))
+        print(rs.text)
+
 
 if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)

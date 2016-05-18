@@ -32,17 +32,7 @@ class JobView(QtGui.QDialog):
         self.stderr_editor = self._text_editor('stderr', "Errors:")
 
     def _line_editor(self, name, title):
-        editor = QtGui.QLineEdit(self)
-        self.layout.addRow(title, editor)
-        value = self.job[name]
-        if isinstance(value, int):
-            value = str(value)
-        elif isinstance(value, str):
-            value = unicode(value, "utf-8")
-        if value:
-            editor.setText(value)
-        editor.setReadOnly(True)
-        return editor
+        return common.mk_line_editor(self, name, title, self.job[name], readonly=True)
 
     def _time_editor(self, name, title):
         editor = QtGui.QLineEdit(self)
