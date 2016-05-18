@@ -72,7 +72,7 @@ def labelled(label, constructor, parent=None):
     return result, widget
 
 class GUI(QtGui.QMainWindow):
-    def __init__(self, url, types, queues):
+    def __init__(self, url):
         QtGui.QMainWindow.__init__(self)
 
         self.url = url
@@ -92,7 +92,7 @@ class GUI(QtGui.QMainWindow):
         self.queue_popup = QtGui.QComboBox(wrapper)
         hbox.addWidget(self.queue_popup, stretch=1)
 
-        self.queues = queues
+        self.queues = queues = get_queues(self.url)
         for q in queues:
             enabled = "*" if q['enabled'] else " "
             title = "[{0}] {1}".format(enabled, q['title'])
@@ -116,7 +116,7 @@ class GUI(QtGui.QMainWindow):
         self.layout.addWidget(self.qtable)
 
         wrapper, self.type_popup = labelled("Job type:", QtGui.QComboBox, self)
-        self.types = types
+        self.types = types = get_job_types(self.url)
         self.type_by_name = {}
         for t in types:
             name = t['name']
@@ -229,9 +229,7 @@ class GUI(QtGui.QMainWindow):
 if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)
     URL = get_manager_url()
-    types = get_job_types(URL)
-    queues = get_queues(URL)
-    gui = GUI(URL, types, queues)
+    gui = GUI(URL)
     gui.show()
     sys.exit(app.exec_())
 
