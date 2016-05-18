@@ -169,6 +169,11 @@ class GUI(QtGui.QMainWindow):
     def _refresh_queue(self, idx=None):
         if idx is None:
             idx = self.queue_popup.currentIndex()
+
+        if len(self.queues) == 0:
+            print("No queues.")
+            return
+
         queue = self.queues[idx]
         schedule = queue['schedule_name']
         host = queue['host_name']
