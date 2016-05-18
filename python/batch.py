@@ -92,11 +92,7 @@ class GUI(QtGui.QMainWindow):
         self.queue_popup = QtGui.QComboBox(wrapper)
         hbox.addWidget(self.queue_popup, stretch=1)
 
-        self.queues = queues = get_queues(self.url)
-        for q in queues:
-            enabled = "*" if q['enabled'] else " "
-            title = "[{0}] {1}".format(enabled, q['title'])
-            self.queue_popup.addItem(title, q['name'])
+        self._fill_queues()
         self.queue_popup.currentIndexChanged.connect(self._on_select_queue)
         self.layout.addWidget(wrapper)
 
@@ -139,6 +135,14 @@ class GUI(QtGui.QMainWindow):
         timer.timeout.connect(self._on_timer)
         timer.start(5*1000)
 
+    def _fill_queues(self):
+        self.queue_popup.clear()
+        self.queues = queues = get_queues(self.url)
+        for q in queues:
+            enabled = "*" if q['enabled'] else " "
+            title = "[{0}] {1}".format(enabled, q['title'])
+            self.queue_popup.addItem(title, q['name'])
+
     def _on_view(self):
         job = self.qtable.currentJob()
         jobtype = self.type_by_name[job['type']]
@@ -175,6 +179,7 @@ class GUI(QtGui.QMainWindow):
     def _on_add_queue(self):
         dlg = qeditor.QueueEditor(self)
         dlg.exec_()
+        self._fill_queues()
 
     def _on_select_queue(self, idx):
         self._refresh_queue(idx)
