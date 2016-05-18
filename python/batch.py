@@ -2,7 +2,7 @@
 
 import sys
 import os
-from os.path import isfile, join
+from os.path import isfile, join, dirname
 import requests
 import json
 import yaml
@@ -12,6 +12,8 @@ import queuetable
 import jobview
 import jobedit
 import queues as qeditor
+
+APPDIR = dirname(sys.argv[0])
 
 def load_config():
     home = os.environ['HOME']
@@ -71,6 +73,10 @@ def labelled(label, constructor, parent=None):
     layout.addWidget(widget)
     return result, widget
 
+def get_icon(name):
+    path = join(APPDIR, "icons", name)
+    return QtGui.QIcon(path)
+
 class GUI(QtGui.QMainWindow):
     def __init__(self, url):
         QtGui.QMainWindow.__init__(self)
@@ -97,15 +103,15 @@ class GUI(QtGui.QMainWindow):
         self.layout.addWidget(wrapper)
 
         queue_buttons = QtGui.QToolBar(self)
-        queue_buttons.addAction(QtGui.QIcon.fromTheme("list-add"), "New queue", self._on_add_queue)
+        queue_buttons.addAction(get_icon("list-add.svg"), "New queue", self._on_add_queue)
         hbox.addWidget(queue_buttons)
 
         self.queue_info = QtGui.QLabel(self)
         self.layout.addWidget(self.queue_info)
 
         buttons = QtGui.QToolBar(self)
-        buttons.addAction("View", self._on_view)
-        buttons.addAction(QtGui.QIcon.fromTheme("edit-delete"), "Delete", self._on_delete)
+        buttons.addAction(get_icon("quickview.svg"), "View", self._on_view)
+        buttons.addAction(get_icon("edit-delete.svg"), "Delete", self._on_delete)
         self.layout.addWidget(buttons)
 
         self.qtable = queuetable.Table(parent=self)
@@ -121,7 +127,7 @@ class GUI(QtGui.QMainWindow):
         self.type_popup.currentIndexChanged.connect(self._on_select_type)
         self.layout.addWidget(wrapper)
 
-        ok = QtGui.QPushButton(QtGui.QIcon.fromTheme("list-add"), "Add", self)
+        ok = QtGui.QPushButton(get_icon("list-add.svg"), "Add", self)
         ok.clicked.connect(self._on_ok)
         self.layout.addWidget(ok)
 
