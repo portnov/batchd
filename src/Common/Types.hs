@@ -391,3 +391,4 @@ parseUpdate' field label (Object v) = do
               Just "*" -> Just (field =. Nothing)
               Just value -> Just (field =. Just value)
   return upd
+

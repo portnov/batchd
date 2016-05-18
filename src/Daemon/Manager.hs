@@ -20,8 +20,9 @@ import System.FilePath
 import System.FilePath.Glob
 
 import Common.Types
-import Daemon.Types
 import Common.Config
+import Common.Data
+import Daemon.Types
 import Daemon.Database
 import Daemon.Schedule
 import Daemon.Logging
@@ -199,8 +200,11 @@ getJobA = do
 updateJobA :: Action ()
 updateJobA = do
   jid <- Scotty.param "id"
-  upd <- jsonData
-  runDBA $ updateJob jid upd
+  qry <- jsonData
+  runDBA $ case qry of
+            UpdateJob upd -> updateJob jid upd
+            Move qname -> moveJob jid qname
+            Prioritize action -> prioritizeJob jid action
   Scotty.json ("done" :: String)
 
 getJobsA :: Action ()
