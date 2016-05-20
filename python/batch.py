@@ -104,6 +104,10 @@ class GUI(QtGui.QMainWindow):
 
         queue_buttons = QtGui.QToolBar(self)
         queue_buttons.addAction(get_icon("list-add.svg"), "New queue", self._on_add_queue)
+        self.enable_queue = QtGui.QAction(get_icon("checkbox.svg"), "Enable", self)
+        self.enable_queue.setCheckable(True)
+        self.enable_queue.toggled.connect(self._on_queue_toggle)
+        queue_buttons.addAction(self.enable_queue)
         hbox.addWidget(queue_buttons)
 
         self.queue_info = QtGui.QLabel(self)
@@ -154,6 +158,10 @@ class GUI(QtGui.QMainWindow):
         jobtype = self.type_by_name[job['type']]
         dlg = jobview.JobView(job, jobtype, parent=self)
         dlg.exec_()
+
+    def _on_queue_toggle(self):
+        enabled = self.enable_queue.isChecked()
+        print enabled
 
     def _on_delete(self):
         buttons = QtGui.QMessageBox.Yes | QtGui.QMessageBox.No
@@ -213,6 +221,7 @@ class GUI(QtGui.QMainWindow):
         failed = stats.get('failed', 0)
         info = "Schedule: {}\nHost: {}\nNew/Processing/Done: {} / {} / {}\nFailed: {}".format(schedule, host, new, processing, done, failed)
         self.queue_info.setText(info)
+        self.enable_queue.setChecked(queue['enabled'])
 
         jobs = get_jobs(self.url, queue['name'])
         self.qtable.setJobs(jobs)
