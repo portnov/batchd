@@ -4,13 +4,20 @@
 
 import Network.HTTP.Client
 import System.Console.CmdArgs
+import Control.Exception
 
 import Client.Types
 import Client.Actions
 import Client.CmdLine
 
 main :: IO ()
-main = do
+main = realMain `catch` errorHandler
+
+errorHandler :: ClientException -> IO ()
+errorHandler (ClientException e) = putStrLn $ "Error: " ++ e
+
+realMain :: IO ()
+realMain = do
   let mode = cmdArgsMode $ modes [enqueue, list &= name "ls", job, queue, schedule, typesList, stats]
   opts <- cmdArgsRun mode
 
