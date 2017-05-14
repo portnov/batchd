@@ -90,6 +90,9 @@ raiseError e = do
   Scotty.status status500
   Scotty.text $ TL.pack $ show e
 
+done :: Action ()
+done = Scotty.json ("done" :: String)
+
 getQueuesA :: Action ()
 getQueuesA = do
   qes <- runDBA getAllQueues'
@@ -130,13 +133,13 @@ removeJobA = do
   qname <- Scotty.param "name"
   jseq <- Scotty.param "seq"
   runDBA $ removeJob qname jseq
-  Scotty.json ("done" :: String)
+  done
 
 removeJobByIdA :: Action ()
 removeJobByIdA = do
   jid <- Scotty.param "id"
   runDBA $ removeJobById jid
-  Scotty.json ("done" :: String)
+  done
 
 removeQueueA :: Action ()
 removeQueueA = do
@@ -151,10 +154,10 @@ removeQueueA = do
         Left QueueNotEmpty -> do
             Scotty.status status403
         Left e -> Scotty.raise e
-        Right _ -> Scotty.json ("done" :: String)
+        Right _ -> done
     Just status -> do
         runDBA $ removeJobs qname status
-        Scotty.json ("done" :: String)
+        done
 
 getSchedulesA :: Action ()
 getSchedulesA = do
@@ -175,7 +178,7 @@ removeScheduleA = do
   case r of
     Left ScheduleUsed -> Scotty.status status403
     Left e -> Scotty.raise e
-    Right _ -> Scotty.json ("done" :: String)
+    Right _ -> done
 
 addQueueA :: Action ()
 addQueueA = do
@@ -188,7 +191,7 @@ updateQueueA = do
   name <- Scotty.param "name"
   upd <- jsonData
   runDBA $ updateQueue name upd
-  Scotty.json ("done" :: String)
+  done
 
 getJobA :: Action ()
 getJobA = do
@@ -201,7 +204,7 @@ updateJobA = do
   jid <- Scotty.param "id"
   upd <- jsonData
   runDBA $ updateJob jid upd
-  Scotty.json ("done" :: String)
+  done
 
 getJobsA :: Action ()
 getJobsA = do
