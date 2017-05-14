@@ -6,6 +6,7 @@ module Client.Http where
 
 import Control.Exception
 import qualified Data.ByteString.Lazy as L
+import Data.Char
 import Data.Aeson as Aeson
 import Network.HTTP.Client
 import Network.HTTP.Types.Header (ResponseHeaders)
@@ -17,7 +18,7 @@ handleStatus :: Response L.ByteString -> IO L.ByteString
 handleStatus rs =
   if responseStatus rs == ok200
     then return $ responseBody rs
-    else throw $ ClientException $ show $ responseBody rs
+    else throw $ ClientException $ map (chr . fromIntegral) $ L.unpack $ responseBody rs
 
 allowAny :: Status -> ResponseHeaders -> CookieJar -> Maybe SomeException
 allowAny _ _ _ = Nothing
