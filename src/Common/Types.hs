@@ -223,10 +223,10 @@ instance FromJSON JobInfo where
       <*> v .:? "status" .!= New
       <*> v .:? "try_count" .!= 0
       <*> v .:? "host_name"
-      <*> return Nothing
-      <*> return Nothing
-      <*> return Nothing
-      <*> return Nothing
+      <*> v .:? "result_time"
+      <*> v .:? "exit_code"
+      <*> v .:? "stdout"
+      <*> v .:? "stderr"
       <*> v .:? "params" .!= M.empty
   parseJSON invalid = typeMismatch "job" invalid
 
@@ -347,6 +347,11 @@ parseStatus _ handle (Just _) = handle
 instance ToJSON ExitCode where
   toJSON ExitSuccess = Number (fromIntegral 0)
   toJSON (ExitFailure n) = Number (fromIntegral n)
+
+instance FromJSON ExitCode where
+  parseJSON (Number 0) = return ExitSuccess
+  parseJSON (Number n) = return $ ExitFailure $ round n
+  parseJSON x = typeMismatch "exit code" x
 
 data ExecException = ExecException SomeException
   deriving (Typeable)

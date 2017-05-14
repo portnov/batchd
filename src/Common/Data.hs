@@ -117,3 +117,6 @@ deriving instance Generic JobResult
 instance ToJSON JobResult where
   toJSON = genericToJSON (jsonOptions "jobResult")
 
+instance FromJSON JobResult where
+  parseJSON = genericParseJSON (jsonOptions "jobResult")
+

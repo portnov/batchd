@@ -42,6 +42,9 @@ data Batch =
       queueName :: Maybe String,
       status :: Maybe String,
       hostName :: Maybe String,
+      viewDescription :: Bool,
+      viewResult :: Bool,
+      viewAll :: Bool,
       jobMode :: CrudMode
     }
   | Schedule {
@@ -112,7 +115,11 @@ job = Job {
     status = def &= typ "STATUS" &= help "set job status",
     hostName = Nothing &= name "host" &= typ "HOST" &= help "set job host",
     queueName = def &= name "queue" &= typ "QUEUE" &= help "set job queue",
+    viewDescription = False &= name "description" &= help "view job description",
+    viewResult = False &= name "result" &= help "view job result",
+    viewAll = False &= name "all" &= help "view all job results",
     jobMode = enum [
+                View &= help "view job description or result",
                 Update &= help "modify job",
                 Delete &= help "delete job"
               ]

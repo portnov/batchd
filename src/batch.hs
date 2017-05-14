@@ -5,6 +5,7 @@
 import Network.HTTP.Client
 import System.Console.CmdArgs
 import Control.Exception
+import Data.Maybe
 
 import Client.Types
 import Client.Actions
@@ -28,8 +29,14 @@ realMain = do
     List {} -> doList manager opts
     Stats {} -> doStats manager opts
     Type {} -> doType manager opts
-    Job {} ->
-      case jobMode opts of
+    Job {} -> do
+      let mode = if jobMode opts == Delete
+                    then Delete
+                    else if jobMode opts == Update || isJust (status opts) || isJust (hostName opts) || isJust (queueName opts)
+                          then Update
+                          else View
+      case mode of
+        View -> viewJob manager opts
         Update -> updateJob manager opts
         Delete -> deleteJob manager opts
     Queue {} ->

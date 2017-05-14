@@ -21,5 +21,5 @@ data CrudMode =
   | Add
   | Update
   | Delete
-  deriving (Show, Data, Typeable)
+  deriving (Eq, Show, Data, Typeable)
 

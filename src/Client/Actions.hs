@@ -9,6 +9,7 @@ import Control.Exception
 import Control.Monad
 import Data.Maybe
 import qualified Data.Map as M
+import qualified Data.Text as T
 import Data.Char
 import Data.List (intercalate)
 import Data.Aeson
@@ -111,6 +112,61 @@ doStats manager opts = do
     printStats stat =
       forM_ (M.assocs stat) $ \(st, cnt) ->
           printf "\t%s:\t%d\n" (show st) cnt
+
+viewJob :: Manager -> Batch -> IO ()
+viewJob manager opts = do
+    cfg <- loadClientConfig
+    baseUrl <- getManagerUrl (managerUrl opts) cfg
+    let showDescription = if viewDescription opts
+                            then True
+                            else if not (viewResult opts) && not (viewAll opts)
+                                   then True
+                                   else viewDescription opts
+    if (showDescription || viewResult opts) && not (viewAll opts)
+      then do
+           let url = baseUrl </> "job" </> show (jobId opts)
+           response <- doGet manager url
+           when (showDescription) $
+               printJob response
+           when (viewResult opts) $
+               printLastResult response
+      else do
+           when (showDescription) $ do
+               let url = baseUrl </> "job" </> show (jobId opts)
+               response <- doGet manager url
+               printJob response
+           when (viewAll opts) $ do
+               let url = baseUrl </> "job" </> show (jobId opts) </> "results"
+               response <- doGet manager url
+               forM_ (response :: [Database.JobResult]) $ \result ->
+                   printResult result
+  where
+    printJob :: JobInfo -> IO ()
+    printJob job = do
+      let host = fromMaybe "*" $ jiHostName job
+      printf "Order:\t%d\nType:\t%s\nQueue:\t%s\nHost:\t%s\nCreated:\t%s\nStatus:\t%s\nTry count:\t%d\n"
+        (jiSeq job) (jiType job) (jiQueue job) host (show $ jiCreateTime job)
+        (show $ jiStatus job) (jiTryCount job)
+      forM_ (M.assocs $ jiParams job) $ \(name, value) -> do
+          printf "%s:\t%s\n" name value
+
+    printLastResult :: JobInfo -> IO ()
+    printLastResult job = do
+      let time = case jiResultTime job of
+                   Nothing -> "-"
+                   Just t -> show t
+      let code = show (jiExitCode job)
+      printf "Exit code:\t%s\nTime:\t%s\n\n" code time
+      case jiStdout job of
+        Nothing -> return ()
+        Just text -> putStrLn $ T.unpack text
+
+    printResult :: Database.JobResult -> IO ()
+    printResult r = do
+      let time = show (Database.jobResultTime r)
+      let code = show (Database.jobResultExitCode r)
+      printf "Exit code:\t%s\nTime:\t%s\n\n" code time
+      putStrLn $ T.unpack $ Database.jobResultStdout r
 
 updateJob :: Manager -> Batch -> IO ()
 updateJob manager opts = do

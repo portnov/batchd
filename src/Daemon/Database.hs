@@ -198,6 +198,12 @@ getJobResult jid = do
     Nothing -> throwR JobNotExists
     Just res -> return $ entityVal res
 
+getJobResults :: Int64 -> DB [JobResult]
+getJobResults jid = do
+  let jkey = JobKey (SqlBackendKey jid)
+  res <- selectList [JobResultJobId ==. jkey] [Asc JobResultTime]
+  return $ map entityVal res
+
 equals = (E.==.)
 infix 4 `equals`
 

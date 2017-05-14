@@ -43,6 +43,8 @@ routes = do
   Scotty.delete "/queue/:name" removeQueueA
 
   Scotty.get "/job/:id" getJobA
+  Scotty.get "/job/:id/results" getJobResultsA
+  Scotty.get "/job/:id/results/last" getJobLastResultA
   Scotty.post "/job/:id" updateJobA
   Scotty.delete "/job/:id" removeJobByIdA
   Scotty.get "/jobs" getJobsA
@@ -142,6 +144,18 @@ removeJobByIdA = do
   jid <- Scotty.param "id"
   runDBA $ removeJobById jid
   done
+
+getJobLastResultA :: Action ()
+getJobLastResultA = do
+  jid <- Scotty.param "id"
+  res <- runDBA $ getJobResult jid
+  Scotty.json res
+
+getJobResultsA :: Action ()
+getJobResultsA = do
+  jid <- Scotty.param "id"
+  res <- runDBA $ getJobResults jid
+  Scotty.json res
 
 removeQueueA :: Action ()
 removeQueueA = do
