@@ -23,6 +23,7 @@ import Data.Maybe
 import Data.Int
 import qualified Data.Map as M
 import qualified Data.Text.Encoding as TE
+import qualified Data.Text as T
 
 import           Database.Persist.Sql as Sql
 import           Database.Persist.Sqlite as Sqlite
@@ -74,23 +75,33 @@ loadJob jkey@(JobKey (SqlBackendKey jid)) = do
 loadJob' :: Int64 -> DB JobInfo
 loadJob' jid = loadJob (JobKey (SqlBackendKey jid))
 
+canLock :: DB Bool
+canLock = do
+  -- Dirty hack: we can't do "for update" in sqlite
+  backend <- ask
+  return $ connRDBMS backend /= "sqlite"
+
 lockJob :: JobInfo -> DB ()
 lockJob ji = do
-  let qname = jiQueue ji
-      seq = jiSeq ji
-  E.select $
-    E.from $ \job -> do
-    E.where_ $ (job ^. JobQueueName `equals` E.val qname) `eand` (job ^. JobSeq `equals` E.val seq)
-    E.locking E.ForUpdate
-  return ()
+  ok <- canLock
+  when ok $ do
+    let qname = jiQueue ji
+        seq = jiSeq ji
+    E.select $
+      E.from $ \job -> do
+      E.where_ $ (job ^. JobQueueName `equals` E.val qname) `eand` (job ^. JobSeq `equals` E.val seq)
+      E.locking E.ForUpdate
+    return ()
 
 lockQueue :: String -> DB ()
 lockQueue qname = do
-  E.select $
-    E.from $ \queue -> do
-    E.where_ (queue ^. QueueName `equals` E.val qname)
-    E.locking E.ForUpdate
-  return ()
+  ok <- canLock
+  when ok $ do
+    E.select $
+      E.from $ \queue -> do
+      E.where_ (queue ^. QueueName `equals` E.val qname)
+      E.locking E.ForUpdate
+    return ()
 
 loadJobSeq :: String -> Int -> DB JobInfo
 loadJobSeq qname seq = do
