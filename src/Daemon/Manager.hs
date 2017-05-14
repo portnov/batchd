@@ -76,15 +76,17 @@ getUrlParam key = do
   let qry = Wai.queryString rq
   return $ join $ lookup key qry
 
-raise404 :: String -> Action ()
-raise404 t = do
+raise404 :: String -> Maybe String -> Action ()
+raise404 t mbs = do
   Scotty.status status404
-  Scotty.text $ TL.pack $ "Specified " ++ t ++ " not found."
+  case mbs of
+    Nothing -> Scotty.text $ TL.pack $ "Specified " ++ t ++ " not found."
+    Just name -> Scotty.text $ TL.pack $ "Specified " ++ t ++ " not found: " ++ name
 
 raiseError :: Error -> Action ()
-raiseError (QueueNotExists _) = raise404 "queue"
-raiseError JobNotExists   = raise404 "job"
-raiseError (FileNotExists _)  = raise404 "file"
+raiseError (QueueNotExists name) = raise404 "queue" (Just name)
+raiseError JobNotExists   = raise404 "job" Nothing
+raiseError (FileNotExists name)  = raise404 "file" (Just name)
 raiseError QueueNotEmpty  = Scotty.status status403
 raiseError e = do
   Scotty.status status500
