@@ -37,7 +37,7 @@ import Common.Data
 getPool :: GlobalConfig -> IO Sql.ConnectionPool
 getPool cfg =
   case dbcDriver cfg of
-    Sqlite -> (enableLogging cfg) (Sqlite.createSqlitePool (dbcConnectionString cfg) 10)
+    Sqlite -> (enableLogging cfg) (Sqlite.createSqlitePool (dbcConnectionString cfg) 1)
     PostgreSql -> do
         let str = TE.encodeUtf8 (dbcConnectionString cfg)
         (enableLogging cfg) (Postgres.createPostgresqlPool str 10)
@@ -230,7 +230,11 @@ addQueue :: Queue -> DB (Key Queue)
 addQueue q = do
   r <- getQueue (queueName q)
   case r of
-    Nothing -> insert q
+    Nothing -> do
+        mbSchedule <- get (queueSchedule q)
+        case mbSchedule of
+          Nothing -> throwR (ScheduleNotExists (queueScheduleName q))
+          otherwise -> insert q
     Just _ -> throwR (QueueExists (queueName q))
 
 addQueue' :: String -> String -> DB (Key Queue)

@@ -15,7 +15,7 @@ loadSchedule :: Key Schedule -> DB ScheduleInfo
 loadSchedule scheduleId@(ScheduleKey sname) = do
   mbSchedule <- get scheduleId
   case mbSchedule of
-    Nothing -> fail "No such schedule"
+    Nothing -> throwR (ScheduleNotExists sname)
     Just s -> do
       let name = scheduleName s
       ts <- selectList [ScheduleTimeScheduleName ==. sname] []

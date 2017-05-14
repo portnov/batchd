@@ -161,6 +161,7 @@ data Error =
   | QueueNotExists String
   | QueueNotEmpty
   | ScheduleUsed
+  | ScheduleNotExists String
   | JobNotExists
   | InvalidJobType ParseException
   | InvalidHost ParseException
@@ -174,6 +175,7 @@ instance Show Error where
   show (QueueNotExists name) = "Queue does not exist: " ++ name
   show (QueueExists name) = "Queue already exists: " ++ name
   show QueueNotEmpty = "Queue is not empty"
+  show (ScheduleNotExists name) = "Schedule does not exist: " ++ name
   show ScheduleUsed = "Schedule is used by queues"
   show JobNotExists = "Job does not exist"
   show (InvalidJobType e) = "Invalid job type: " ++ show e
