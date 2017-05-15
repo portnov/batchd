@@ -11,6 +11,7 @@ import Data.Aeson as Aeson
 import Data.Generics hiding (Generic)
 import Data.Maybe
 import System.Environment
+import System.Posix.User (getLoginName)
 
 import Common.Types
 import Common.Config
@@ -21,12 +22,14 @@ data ClientConfig = ClientConfig {
     ccManagerUrl :: Maybe String,
     ccQueue :: Maybe String,
     ccType :: Maybe String,
-    ccHost :: Maybe String
+    ccHost :: Maybe String,
+    ccUsername :: Maybe String,
+    ccPassword :: Maybe String
   }
   deriving (Show, Data, Typeable, Generic)
 
 defaultConfig :: ClientConfig
-defaultConfig = ClientConfig Nothing Nothing Nothing Nothing
+defaultConfig = ClientConfig Nothing Nothing Nothing Nothing Nothing Nothing
 
 instance FromJSON ClientConfig where
   parseJSON = Aeson.genericParseJSON (jsonOptions "cc")
@@ -77,4 +80,9 @@ getTypeName cmdline cfg =
 getQueueName :: Maybe String -> ClientConfig -> IO String
 getQueueName cmdline cfg =
   getConfigParam cmdline "BATCH_QUEUE" (ccQueue cfg) defaultQueue
+
+getUserName :: Maybe String -> ClientConfig -> IO String
+getUserName cmdline cfg = do
+  osuser <- getLoginName
+  getConfigParam cmdline "BATCH_USERNAME" (ccUsername cfg) osuser
 

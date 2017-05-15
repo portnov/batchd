@@ -19,12 +19,16 @@ data Batch =
       typeName :: Maybe String,
       hostName :: Maybe String,
       command :: [String],
-      parameters :: [String]
+      parameters :: [String],
+      username :: Maybe String,
+      password :: Maybe String
     }
   | List {
       managerUrl :: Maybe String,
       status :: Maybe String,
-      queueToList :: [String]
+      queueToList :: [String],
+      username :: Maybe String,
+      password :: Maybe String
     }
   | Queue {
       managerUrl :: Maybe String,
@@ -34,7 +38,9 @@ data Batch =
       hostName :: Maybe String,
       title :: Maybe String,
       enabled :: Maybe Bool,
-      force :: Bool
+      force :: Bool,
+      username :: Maybe String,
+      password :: Maybe String
     }
   | Job {
       managerUrl :: Maybe String,
@@ -45,7 +51,9 @@ data Batch =
       viewDescription :: Bool,
       viewResult :: Bool,
       viewAll :: Bool,
-      jobMode :: CrudMode
+      jobMode :: CrudMode,
+      username :: Maybe String,
+      password :: Maybe String
     }
   | Schedule {
       managerUrl :: Maybe String,
@@ -53,15 +61,21 @@ data Batch =
       scheduleNames :: [String],
       periods :: [String],
       weekdays :: [WeekDay],
-      force :: Bool
+      force :: Bool,
+      username :: Maybe String,
+      password :: Maybe String
     }
   | Type {
       managerUrl :: Maybe String,
-      types :: [String]
+      types :: [String],
+      username :: Maybe String,
+      password :: Maybe String
     }
   | Stats {
       managerUrl :: Maybe String,
-      queueToStat :: [String]
+      queueToStat :: [String],
+      username :: Maybe String,
+      password :: Maybe String
     }
   deriving (Show, Data, Typeable)
 
@@ -76,6 +90,10 @@ defaultType = "command"
 
 managerUrlAnn = Nothing &= name "url" &= typ defaultUrl &= help "batchd manager API URL"
 
+usernameAnn = Nothing &= name "user" &= typ "USER" &= help "batchd user name"
+
+passwordAnn = Nothing &= name "password" &= typ "PASSWORD" &= help "batchd user password"
+
 enqueue :: Batch
 enqueue = Enqueue {
     managerUrl = managerUrlAnn,
@@ -83,14 +101,18 @@ enqueue = Enqueue {
     typeName = def &= name "type" &= typ "TYPE" &= help "job type name",
     hostName = def &= name "host" &= typ "HOST" &= help "worker host name",
     command = def &= typ "COMMAND PARAMETERS" &= args,
-    parameters = def &= typ "NAME=VALUE" &= help "job parameters specified by name"
+    parameters = def &= typ "NAME=VALUE" &= help "job parameters specified by name",
+    username = usernameAnn,
+    password = passwordAnn
   } &= help "put a new job into queue"
 
 list :: Batch
 list = List {
     managerUrl = managerUrlAnn,
     status = def &= typ "STATUS" &= help "list only jobs of specified status",
-    queueToList = def &= args &= typ "QUEUE"
+    queueToList = def &= args &= typ "QUEUE",
+    username = usernameAnn,
+    password = passwordAnn
   } &= help "list queues or jobs"
 
 queue :: Batch
@@ -105,7 +127,9 @@ queue = Queue {
     hostName = Nothing &= name "host" &= typ "HOST" &= help "default host name for queue",
     title = Nothing &= name "name" &= typ "TITLE" &= help "set queue title",
     enabled = Nothing &= name "active" &= typ "TRUE" &= help "enable/disable queue",
-    force = False &= help "force non-empty queue deletion"
+    force = False &= help "force non-empty queue deletion",
+    username = usernameAnn,
+    password = passwordAnn
   } &= help "create, update or delete queues"
 
 job :: Batch
@@ -122,7 +146,9 @@ job = Job {
                 View &= help "view job description or result",
                 Update &= help "modify job",
                 Delete &= help "delete job"
-              ]
+              ],
+    username = usernameAnn,
+    password = passwordAnn
   } &= help "update or delete jobs"
     
 schedule :: Batch
@@ -136,20 +162,26 @@ schedule = Schedule {
     scheduleNames = def &= typ "SCHEDULE" &= args,
     periods = [] &= typ "HH:MM:SS HH:MM:SS" &= help "time of day period(s)",
     weekdays = [] &= typ "WEEKDAY" &= help "week day(s)",
-    force = False &= help "delete also all queues which use this schedule and their jobs"
+    force = False &= help "delete also all queues which use this schedule and their jobs",
+    username = usernameAnn,
+    password = passwordAnn
   } &= help "create, update or delete schedules"
 
 typesList :: Batch
 typesList = Type {
     managerUrl = managerUrlAnn,
-    types = [] &= typ "TYPE" &= args
+    types = [] &= typ "TYPE" &= args,
+    username = usernameAnn,
+    password = passwordAnn
   } &= name "type"
     &= help "show defined job types"
 
 stats :: Batch
 stats = Stats {
     managerUrl = managerUrlAnn,
-    queueToStat = [] &= typ "QUEUE" &= args
+    queueToStat = [] &= typ "QUEUE" &= args,
+    username = usernameAnn,
+    password = passwordAnn
   } &= help "print statistics on queue or on all jobs"
 
 parseParams :: [ParamDesc] -> Batch -> JobParamInfo

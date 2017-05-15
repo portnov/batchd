@@ -1,7 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Daemon.Auth where
 
+import Control.Monad
 import Control.Monad.Reader
+import Control.Exception
 import Data.Maybe
 import qualified Data.Vault.Lazy as V
 import Database.Persist
@@ -96,18 +98,13 @@ basicAuth gcfg app req sendResponse =
                    Nothing -> "anonymous"
                    Just (name,_) -> bstrToString name
       req' = req {vault = V.insert usernameKey username $ vault req}
-  in  HA.basicAuth (checkUser gcfg) settings app req' sendResponse
-
-getAuthUserRq :: Request -> Maybe String
-getAuthUserRq req = V.lookup usernameKey $ vault req
-
-getAuthUserName :: Action (Maybe String)
-getAuthUserName = do
-  rq <- Scotty.request
-  return $ getAuthUserRq rq
+  in  case getAuthUserRq req of
+        Nothing -> HA.basicAuth (checkUser gcfg) settings app req' sendResponse
+        Just _ -> app req sendResponse
 
 headerAuth :: GlobalConfig -> Middleware
 headerAuth gcfg app req sendResponse = do
+  -- liftIO $ putStrLn $ "X-Auth-User: " ++ show req
   case lookup "X-Auth-User" (requestHeaders req) of
     Nothing -> do
       case getAuthUserRq req of
@@ -121,13 +118,68 @@ headerAuth gcfg app req sendResponse = do
         then app req' sendResponse
         else sendResponse $ responseLBS status401 [] "Specified user does not exist"
 
-authentication :: GlobalConfig -> Middleware
-authentication gcfg =
-  let m1 = if dbcEnableHeaderAuth gcfg
-             then headerAuth gcfg
-             else id
-      m2 = if dbcEnableBasicAuth gcfg
-             then basicAuth gcfg
-             else id
-  in m2 . m1
+-- authentication :: GlobalConfig -> Middleware
+-- authentication gcfg =
+--   let m1 = if dbcEnableHeaderAuth gcfg
+--              then headerAuth gcfg
+--              else id
+--       m2 = if dbcEnableBasicAuth gcfg
+--              then basicAuth gcfg
+--              else id
+--   in m2 . m1
+
+------------ Get current user ------------
+
+getAuthUserRq :: Request -> Maybe String
+getAuthUserRq req = V.lookup usernameKey $ vault req
+
+getAuthUserName :: Action (Maybe String)
+getAuthUserName = do
+  rq <- Scotty.request
+  return $ getAuthUserRq rq
+
+getAuthUser :: Action User
+getAuthUser = do
+  mbName <- getAuthUserName
+  case mbName of
+    Nothing -> throw $ InsufficientRights "user has to be authenticated"
+    Just name -> do
+        mbUser <- runDBA $ get (UserKey name)
+        case mbUser of
+          Nothing -> throw $ UnknownError "user does not exist"
+          Just user -> return user
+
+----------- Check user rights ---------------
+
+isSuperUser :: String -> DB Bool
+isSuperUser name = do
+  res <- selectList [UserPermissionUserName ==. name, UserPermissionPermission ==. SuperUser] []
+  return $ not $ null res
+
+checkSuperUser :: Action ()
+checkSuperUser = do
+  user <- getAuthUser
+  ok <- runDBA $ isSuperUser (userName user)
+  when (not ok) $ do
+    throw $ InsufficientRights "user has to be superuser"
+
+hasPermission :: String -> Permission -> String -> DB Bool
+hasPermission name perm qname = do
+  super <- isSuperUser name
+  if super
+    then return True
+    else do
+      exact <- selectList [UserPermissionUserName ==. name, UserPermissionPermission ==. perm, UserPermissionQueueName ==. Just qname] []
+      if not (null exact)
+        then return True
+        else do
+          any <- selectList [UserPermissionUserName ==. name, UserPermissionPermission ==. perm, UserPermissionQueueName ==. Nothing] []
+          return $ not $ null any
+
+checkPermission :: String -> Permission -> String -> Action ()
+checkPermission message perm qname = do
+  user <- getAuthUser
+  ok <- runDBA $ hasPermission (userName user) perm qname
+  when (not ok) $ do
+    throw $ InsufficientRights message
 

@@ -147,6 +147,7 @@ executable batch
                        monad-logger >= 0.3,
                        monad-logger-syslog >= 0.1,
                        resourcet >= 1.1.7,
+                       unix >= 2.7.0,
                        scotty >= 0.10
 
   ghc-options: -fwarn-unused-imports -fwarn-missing-signatures

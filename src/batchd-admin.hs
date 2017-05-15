@@ -2,10 +2,8 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 
-import Control.Exception
 import System.Console.CmdArgs
 import Data.Generics hiding (Generic)
-import System.IO
 
 import Common.Types
 import Common.Config
@@ -20,19 +18,6 @@ createSuperuser :: Admin
 createSuperuser = CreateSuperuser {
     userName = "root" &= typ "NAME" &= argPos 0
   } &= help "create superuser"
-
-getPassword :: String -> IO String
-getPassword prompt = do
-  putStr prompt
-  hFlush stdout
-  pass <- withEcho False getLine
-  putChar '\n'
-  return pass
-
-withEcho :: Bool -> IO a -> IO a
-withEcho echo action = do
-  old <- hGetEcho stdin
-  bracket_ (hSetEcho stdin echo) (hSetEcho stdin old) action
 
 main :: IO ()
 main = do

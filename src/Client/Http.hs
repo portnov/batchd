@@ -13,6 +13,13 @@ import Network.HTTP.Types.Header (ResponseHeaders)
 import Network.HTTP.Types.Status
 
 import Client.Types
+import Common.Types
+
+applyAuth :: Credentials -> Request -> Request
+applyAuth (name,password) rq =
+  if not (secure rq) && host rq == "localhost"
+    then rq {requestHeaders = ("X-Auth-User", stringToBstr name) : requestHeaders rq}
+    else applyBasicAuth (stringToBstr name) (stringToBstr password) rq
 
 handleStatus :: Response L.ByteString -> IO L.ByteString
 handleStatus rs =
@@ -23,10 +30,10 @@ handleStatus rs =
 allowAny :: Status -> ResponseHeaders -> CookieJar -> Maybe SomeException
 allowAny _ _ _ = Nothing
 
-doPut :: ToJSON a => Manager -> String -> a -> IO ()
-doPut manager urlStr object = do
+doPut :: ToJSON a => Manager -> Credentials -> String -> a -> IO ()
+doPut manager creds urlStr object = do
   url <- parseUrl urlStr
-  let request = url {
+  let request = applyAuth creds $ url {
                   method="PUT",
                   checkStatus = allowAny,
                   requestBody = RequestBodyLBS $ Aeson.encode object
@@ -34,10 +41,10 @@ doPut manager urlStr object = do
   handleStatus =<< httpLbs request manager
   return ()
 
-doPost :: ToJSON a => Manager -> String -> a -> IO ()
-doPost manager urlStr object = do
+doPost :: ToJSON a => Manager -> Credentials -> String -> a -> IO ()
+doPost manager creds urlStr object = do
   url <- parseUrl urlStr
-  let request = url {
+  let request = applyAuth creds $ url {
                   method="POST",
                   checkStatus = allowAny,
                   requestBody = RequestBodyLBS $ Aeson.encode object
@@ -45,20 +52,21 @@ doPost manager urlStr object = do
   handleStatus =<< httpLbs request manager
   return ()
 
-doDelete :: Manager -> String -> IO ()
-doDelete manager urlStr = do
+doDelete :: Manager -> Credentials -> String -> IO ()
+doDelete manager creds urlStr = do
   url <- parseUrl urlStr
-  let request = url { method="DELETE",
+  let request = applyAuth creds $ url { method="DELETE",
                       checkStatus = allowAny
                     }
   handleStatus =<< httpLbs request manager
   return ()
 
-doGet :: FromJSON a => Manager -> String -> IO a
-doGet manager urlStr = do
+doGet :: FromJSON a => Manager -> Credentials -> String -> IO a
+doGet manager creds urlStr = do
   url <- parseUrl urlStr
-  let reqest = url {checkStatus = allowAny}
-  responseLbs <- handleStatus =<< httpLbs url manager
+  let request = applyAuth creds $ url {checkStatus = allowAny}
+  -- print request
+  responseLbs <- handleStatus =<< httpLbs request manager
   case Aeson.eitherDecode responseLbs of
     Left err -> throw $ ClientException err
     Right res -> return res

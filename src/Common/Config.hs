@@ -2,10 +2,12 @@
 module Common.Config where
 
 import Control.Monad
+import Control.Exception
 import Data.Yaml
 import System.FilePath
 import System.Environment
 import System.Directory
+import System.IO
 
 import Common.Types
 
@@ -57,4 +59,17 @@ loadGlobalConfig = do
       case r of
         Left err -> return $ Left $ InvalidDbCfg err
         Right cfg -> return $ Right cfg
+
+getPassword :: String -> IO String
+getPassword prompt = do
+  putStr prompt
+  hFlush stdout
+  pass <- withEcho False getLine
+  putChar '\n'
+  return pass
+
+withEcho :: Bool -> IO a -> IO a
+withEcho echo action = do
+  old <- hGetEcho stdin
+  bracket_ (hSetEcho stdin echo) (hSetEcho stdin old) action
 

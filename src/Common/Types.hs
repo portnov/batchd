@@ -169,6 +169,7 @@ data Error =
   | InvalidConfig ParseException
   | InvalidJobStatus (Maybe B.ByteString)
   | FileNotExists FilePath
+  | InsufficientRights String
   | UnknownError String
 
 instance Show Error where
@@ -185,7 +186,10 @@ instance Show Error where
   show (InvalidJobStatus Nothing) = "Invalid job status"
   show (InvalidJobStatus (Just s)) = "Invalid job status: " ++ show s
   show (FileNotExists path) = "File does not exist: " ++ path
+  show (InsufficientRights msg) = "Insufficient privileges: " ++ msg
   show (UnknownError e) = "Unhandled error: " ++ e
+
+instance Exception Error
 
 type JobParamInfo = M.Map String String
 
@@ -392,6 +396,7 @@ derivePersistField "ExitCode"
 
 data Permission =
     SuperUser
+  | CreateJobs
   | ViewJobs
   | ManageJobs
   | ViewQueues

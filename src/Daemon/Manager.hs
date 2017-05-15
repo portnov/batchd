@@ -29,7 +29,12 @@ import Daemon.Logging
 
 routes :: GlobalConfig -> ScottyT Error ConnectionM ()
 routes cfg = do
-  Scotty.middleware (authentication cfg)
+  -- Scotty.middleware (authentication cfg)
+  when (dbcEnableHeaderAuth cfg) $
+    Scotty.middleware (headerAuth cfg)
+  when (dbcEnableBasicAuth cfg) $
+    Scotty.middleware (basicAuth cfg)
+    
   Scotty.defaultHandler raiseError
 
   Scotty.get "/stats" getStatsA
@@ -92,6 +97,9 @@ raiseError (QueueNotExists name) = raise404 "queue" (Just name)
 raiseError JobNotExists   = raise404 "job" Nothing
 raiseError (FileNotExists name)  = raise404 "file" (Just name)
 raiseError QueueNotEmpty  = Scotty.status status403
+raiseError (InsufficientRights msg) = do
+  Scotty.status status401
+  Scotty.text $ TL.pack msg
 raiseError e = do
   Scotty.status status500
   Scotty.text $ TL.pack $ show e
@@ -131,6 +139,7 @@ enqueueA :: Action ()
 enqueueA = do
   jinfo <- jsonData
   qname <- Scotty.param "name"
+  checkPermission "no permission to create jobs" CreateJobs qname
   r <- runDBA $ enqueue qname jinfo
   Scotty.json r
 

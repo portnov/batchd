@@ -23,3 +23,5 @@ data CrudMode =
   | Delete
   deriving (Eq, Show, Data, Typeable)
 
+type Credentials = (String, String)
+
