@@ -5,8 +5,10 @@ import Control.Monad
 import Control.Monad.Reader
 import Control.Exception
 import Data.Maybe
+import Data.Int
 import qualified Data.Vault.Lazy as V
 import Database.Persist
+import Database.Persist.Sql as Sql
 import qualified Data.ByteString as B
 import Network.HTTP.Types (status401, hAuthorization)
 import Network.Wai
@@ -24,6 +26,8 @@ import Daemon.Database
 usernameKey :: V.Key String
 usernameKey = unsafePerformIO V.newKey
 {-# NOINLINE usernameKey #-}
+
+---------- Users manipulation --------------------
 
 createUserDb :: String -> String -> String -> DB (Key User)
 createUserDb name password staticSalt = do
@@ -56,6 +60,34 @@ createSuperUser gcfg name password = do
   case res of
     Left _ -> return False
     Right _ -> return True
+
+createPermission :: String -> UserPermission -> DB (Key UserPermission)
+createPermission name perm = do
+  let perm' = perm {userPermissionUserName = name}
+  insert perm'
+
+getPermissions :: String -> DB [UserPermission]
+getPermissions name = do
+  res <- selectList [UserPermissionUserName ==. name] []
+  return $ map entityVal res
+
+deletePermission :: Int64 -> String -> DB ()
+deletePermission id name = do
+  let pid = UserPermissionKey (SqlBackendKey id)
+  mbPerm <- get pid
+  case mbPerm of
+    Nothing -> throwR $ UnknownError "Permission does not exist"
+    Just perm -> do
+      if userPermissionUserName perm == name
+        then delete pid
+        else throwR $ UnknownError "Permission does not belong to specified user"
+
+getUsers :: DB [String]
+getUsers = do
+  res <- selectList [] []
+  return $ map (userName . entityVal) res
+
+------------------ Check user -----------------------
 
 checkUserDb :: String -> String -> String -> DB Bool
 checkUserDb name password staticSalt = do
@@ -91,6 +123,8 @@ checkUserExists gcfg nameBstr = do
     Left _ -> return False
     Right r -> return r
 
+------------------ Authentication ---------------------
+
 basicAuth :: GlobalConfig -> Middleware
 basicAuth gcfg app req sendResponse =
   let settings = "batchd" :: HA.AuthSettings
@@ -107,9 +141,10 @@ headerAuth gcfg app req sendResponse = do
   -- liftIO $ putStrLn $ "X-Auth-User: " ++ show req
   case lookup "X-Auth-User" (requestHeaders req) of
     Nothing -> do
-      case getAuthUserRq req of
-        Nothing -> sendResponse $ responseLBS status401 [] "User name not provided"
-        Just _ -> app req sendResponse
+        app req sendResponse
+--       case getAuthUserRq req of
+--         Nothing -> sendResponse $ responseLBS status401 [] "User name not provided"
+--         Just _ -> app req sendResponse
     Just name -> do
       let username = bstrToString name
           req' = req {vault = V.insert usernameKey username $ vault req}

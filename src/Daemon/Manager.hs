@@ -63,6 +63,12 @@ routes cfg = do
   Scotty.get "/type" getJobTypesA
   Scotty.get "/type/:name" getJobTypeA
 
+  Scotty.put "/user" createUserA
+  Scotty.get "/user" getUsersA
+  Scotty.get "/user/:name/permissions" getPermissionsA
+  Scotty.put "/user/:name/permissions" createPermissionA
+  Scotty.delete "/user/:name/permissions/:id" deletePermissionA
+
 runManager :: GlobalConfig -> Sql.ConnectionPool -> IO ()
 runManager cfg pool = do
   let connInfo = ConnectionInfo cfg pool
@@ -270,4 +276,42 @@ getJobTypeA = do
   case r of
     Left err -> raise err
     Right jt -> Scotty.json jt
+
+getUsersA :: Action ()
+getUsersA = do
+  checkSuperUser
+  names <- runDBA getUsers
+  Scotty.json names
+
+createUserA :: Action ()
+createUserA = do
+  checkSuperUser
+  user <- jsonData
+  cfg <- lift $ asks ciGlobalConfig
+  let staticSalt = dbcStaticSalt cfg
+  name <- runDBA $ createUserDb (uiName user) (uiPassword user) staticSalt
+  Scotty.json name
+
+createPermissionA :: Action ()
+createPermissionA = do
+  checkSuperUser
+  name <- Scotty.param "name"
+  perm <- jsonData
+  id <- runDBA $ createPermission name perm
+  Scotty.json id
+
+getPermissionsA :: Action ()
+getPermissionsA = do
+  checkSuperUser
+  name <- Scotty.param "name"
+  perms <- runDBA $ getPermissions name
+  Scotty.json perms
+
+deletePermissionA :: Action ()
+deletePermissionA = do
+  checkSuperUser
+  name <- Scotty.param "name"
+  id <- Scotty.param "id"
+  runDBA $ deletePermission id name
+  done
 

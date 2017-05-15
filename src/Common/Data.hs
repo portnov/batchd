@@ -126,10 +126,17 @@ instance FromJSON [Update Job] where
     return $ catMaybes [uQueue, uStatus, uHost]
 
 deriving instance Generic JobResult
+deriving instance Generic UserPermission
 
 instance ToJSON JobResult where
   toJSON = genericToJSON (jsonOptions "jobResult")
 
 instance FromJSON JobResult where
   parseJSON = genericParseJSON (jsonOptions "jobResult")
+
+instance ToJSON UserPermission where
+  toJSON = genericToJSON (jsonOptions "userPermission")
+
+instance FromJSON UserPermission where
+  parseJSON = genericParseJSON (jsonOptions "userPermission")
 

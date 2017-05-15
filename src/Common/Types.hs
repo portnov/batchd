@@ -234,6 +234,17 @@ instance FromJSON JobInfo where
       <*> v .:? "params" .!= M.empty
   parseJSON invalid = typeMismatch "job" invalid
 
+data UserInfo = UserInfo {
+    uiName :: String,
+    uiPassword :: String
+  } deriving (Generic, Show)
+
+instance ToJSON UserInfo where
+  toJSON = genericToJSON (jsonOptions "ui")
+
+instance FromJSON UserInfo where
+  parseJSON = genericParseJSON (jsonOptions "ui")
+
 lookupParam :: String -> [ParamDesc] -> Maybe ParamDesc
 lookupParam _ [] = Nothing
 lookupParam name (p:ps)
@@ -405,6 +416,12 @@ data Permission =
   deriving (Eq, Show, Read, Data, Typeable, Generic)
 
 derivePersistField "Permission"
+
+instance FromJSON Permission where
+  parseJSON = genericParseJSON $ defaultOptions {fieldLabelModifier = camelCaseToUnderscore}
+
+instance ToJSON Permission where
+  toJSON = genericToJSON $ defaultOptions {fieldLabelModifier = camelCaseToUnderscore}
 
 parseUpdate :: (PersistField t, FromJSON t) => EntityField v t -> T.Text -> Value -> Parser (Maybe (Update v))
 parseUpdate field label (Object v) = do
