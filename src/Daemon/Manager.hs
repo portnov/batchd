@@ -15,6 +15,8 @@ import qualified Database.Persist.Sql as Sql
 import Network.HTTP.Types
 import qualified Network.Wai as Wai
 import Network.Wai.Handler.Warp (defaultSettings, setPort)
+import Network.Wai.Middleware.Cors
+import Network.Wai.Middleware.Static as Static
 import Web.Scotty.Trans as Scotty
 import System.FilePath
 import System.FilePath.Glob
@@ -28,8 +30,20 @@ import Daemon.Schedule
 import Daemon.Auth
 import Daemon.Logging
 
+corsPolicy :: GlobalConfig -> CorsResourcePolicy
+corsPolicy cfg =
+  let origins = case dbcAllowedOrigin cfg of
+                  Nothing -> Nothing
+                  Just url -> Just ([stringToBstr url], not (dbcDisableAuth cfg))
+  in simpleCorsResourcePolicy {
+    corsOrigins = origins,
+    corsMethods = ["GET", "POST", "PUT", "DELETE"]
+  }
+
 routes :: GlobalConfig -> ScottyT Error ConnectionM ()
 routes cfg = do
+  Scotty.middleware $ cors $ const $ Just $ corsPolicy cfg
+  Scotty.middleware $ staticPolicy (addBase "web/")
   -- Scotty.middleware (authentication cfg)
   when (dbcEnableHeaderAuth cfg) $
     Scotty.middleware (headerAuth cfg)
@@ -72,6 +86,8 @@ routes cfg = do
   Scotty.get "/user/:name/permissions" getPermissionsA
   Scotty.put "/user/:name/permissions" createPermissionA
   Scotty.delete "/user/:name/permissions/:id" deletePermissionA
+
+  Scotty.options (Scotty.regex "/.*") $ done
 
 runManager :: GlobalConfig -> Sql.ConnectionPool -> IO ()
 runManager cfg pool = do

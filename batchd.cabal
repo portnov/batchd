@@ -50,6 +50,8 @@ executable batchd
                        http-types >= 0.9,
                        wai >= 3.0,
                        wai-extra >= 3.0,
+                       wai-cors >= 0.2.5,
+                       wai-middleware-static >= 0.8.1,
                        vault,
                        scotty >= 0.10,
                        warp >= 3.2,
