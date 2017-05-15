@@ -22,12 +22,21 @@ usernameKey :: V.Key String
 usernameKey = unsafePerformIO V.newKey
 {-# NOINLINE usernameKey #-}
 
-createUser :: String -> String -> String -> DB (Key User)
-createUser name password staticSalt = do
+createUserDb :: String -> String -> String -> DB (Key User)
+createUserDb name password staticSalt = do
   dynamicSalt <- liftIO randomSalt
   let hash = calcHash password dynamicSalt staticSalt
   let user = User name hash dynamicSalt
   insert user
+
+createUser :: GlobalConfig -> String -> String -> IO Bool
+createUser gcfg name password = do
+  pool <- getPool gcfg
+  let staticSalt = dbcStaticSalt gcfg
+  res <- runDBIO gcfg pool (createUserDb name password staticSalt)
+  case res of
+    Left _ -> return False
+    Right _ -> return True
 
 checkUserDb :: String -> String -> String -> DB Bool
 checkUserDb name password staticSalt = do
