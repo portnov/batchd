@@ -211,10 +211,26 @@ hasPermission name perm qname = do
           any <- selectList [UserPermissionUserName ==. name, UserPermissionPermission ==. perm, UserPermissionQueueName ==. Nothing] []
           return $ not $ null any
 
+hasPermissionToList :: String -> Permission -> DB Bool
+hasPermissionToList name perm = do
+  super <- isSuperUser name
+  if super
+    then return True
+    else do
+         any <- selectList [UserPermissionUserName ==. name, UserPermissionPermission ==. perm, UserPermissionQueueName ==. Nothing] []
+         return $ not $ null any
+
 checkPermission :: String -> Permission -> String -> Action ()
 checkPermission message perm qname = do
   user <- getAuthUser
   ok <- runDBA $ hasPermission (userName user) perm qname
+  when (not ok) $ do
+    throw $ InsufficientRights message
+
+checkPermissionToList :: String -> Permission -> Action ()
+checkPermissionToList message perm = do
+  user <- getAuthUser
+  ok <- runDBA $ hasPermissionToList (userName user) perm
   when (not ok) $ do
     throw $ InsufficientRights message
 

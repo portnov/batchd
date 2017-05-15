@@ -68,6 +68,14 @@ getPassword prompt = do
   putChar '\n'
   return pass
 
+getPassword2 :: IO String
+getPassword2 = do
+  pwd1 <- getPassword "Password: "
+  pwd2 <- getPassword "Password again: "
+  if pwd1 /= pwd2
+    then fail "passwords do not match"
+    else return pwd1
+
 withEcho :: Bool -> IO a -> IO a
 withEcho echo action = do
   old <- hGetEcho stdin

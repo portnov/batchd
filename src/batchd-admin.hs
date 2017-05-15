@@ -27,11 +27,7 @@ main = do
   case cfgR of
     Left err -> fail $ show err
     Right cfg -> do
-      pwd1 <- getPassword "Password: "
-      pwd2 <- getPassword "Password again: "
-      if pwd1 /= pwd2
-        then fail "passwords do not match"
-        else do
-             createSuperUser cfg (userName cmd) pwd1
-             return ()
+      password <- getPassword2
+      createSuperUser cfg (userName cmd) password
+      return ()
 

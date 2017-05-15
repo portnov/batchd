@@ -318,3 +318,25 @@ doType manager opts = do
         putStrLn $ "\t  Title:\t" ++ piTitle desc
         putStrLn $ "\t  Default:\t" ++ piDefault desc
 
+doListUsers :: Manager -> Batch -> IO ()
+doListUsers manager opts = do
+  cfg <- loadClientConfig
+  baseUrl <- getManagerUrl (managerUrl opts) cfg
+  creds <- getCredentials opts
+  let url = baseUrl </> "user"
+  response <- doGet manager creds url
+  forM_ (response :: [String]) $ \name -> putStrLn name
+
+doAddUser :: Manager -> Batch -> IO ()
+doAddUser manager opts = do
+  cfg <- loadClientConfig
+  baseUrl <- getManagerUrl (managerUrl opts) cfg
+  creds <- getCredentials opts
+  let url = baseUrl </> "user"
+  pwd <- getPassword2
+  name <- case objectUserName opts of
+            [n] -> return n
+            _ -> fail "user name must be provided"
+  let user = UserInfo name pwd
+  doPut manager creds url user
+

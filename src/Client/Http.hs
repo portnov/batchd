@@ -17,9 +17,10 @@ import Common.Types
 
 applyAuth :: Credentials -> Request -> Request
 applyAuth (name,password) rq =
-  if not (secure rq) && host rq == "localhost"
-    then rq {requestHeaders = ("X-Auth-User", stringToBstr name) : requestHeaders rq}
-    else applyBasicAuth (stringToBstr name) (stringToBstr password) rq
+  applyBasicAuth (stringToBstr name) (stringToBstr password) rq
+--   if not (secure rq) && host rq == "localhost"
+--     then rq {requestHeaders = ("X-Auth-User", stringToBstr name) : requestHeaders rq}
+--     else applyBasicAuth (stringToBstr name) (stringToBstr password) rq
 
 handleStatus :: Response L.ByteString -> IO L.ByteString
 handleStatus rs =

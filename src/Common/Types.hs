@@ -412,6 +412,7 @@ data Permission =
   | ManageJobs
   | ViewQueues
   | ManageQueues
+  | ViewSchedules
   | ManageSchedules
   deriving (Eq, Show, Read, Data, Typeable, Generic)
 

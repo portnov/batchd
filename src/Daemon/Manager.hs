@@ -115,6 +115,7 @@ done = Scotty.json ("done" :: String)
 
 getQueuesA :: Action ()
 getQueuesA = do
+  checkPermissionToList "view list of queues" ViewQueues
   qes <- runDBA getAllQueues'
   -- let qnames = map (queueName . entityVal) qes
   Scotty.json qes
@@ -125,6 +126,7 @@ parseStatus' dflt str = parseStatus dflt (raise (InvalidJobStatus str)) str
 getQueueA :: Action ()
 getQueueA = do
   qname <- Scotty.param "name"
+  checkPermission "view queue jobs" ViewJobs qname
   st <- getUrlParam "status"
   fltr <- parseStatus' (Just New) st
   jobs <- runDBA $ loadJobs qname fltr
@@ -133,11 +135,13 @@ getQueueA = do
 getQueueStatsA :: Action ()
 getQueueStatsA = do
   qname <- Scotty.param "name"
+  checkPermission "view queue statistics" ManageJobs qname
   stats <- runDBA $ getQueueStats qname
   Scotty.json stats
 
 getStatsA :: Action ()
 getStatsA = do
+  checkPermissionToList "view queue statistics" ManageJobs
   stats <- runDBA getStats
   Scotty.json stats
 
@@ -145,19 +149,21 @@ enqueueA :: Action ()
 enqueueA = do
   jinfo <- jsonData
   qname <- Scotty.param "name"
-  checkPermission "no permission to create jobs" CreateJobs qname
+  checkPermission "add jobs into queue" CreateJobs qname
   r <- runDBA $ enqueue qname jinfo
   Scotty.json r
 
 removeJobA :: Action ()
 removeJobA = do
   qname <- Scotty.param "name"
+  checkPermission "delete jobs from queue" ManageJobs qname
   jseq <- Scotty.param "seq"
   runDBA $ removeJob qname jseq
   done
 
 removeJobByIdA :: Action ()
 removeJobByIdA = do
+  checkPermissionToList "delete jobs" ManageJobs
   jid <- Scotty.param "id"
   runDBA $ removeJobById jid
   done
@@ -165,18 +171,23 @@ removeJobByIdA = do
 getJobLastResultA :: Action ()
 getJobLastResultA = do
   jid <- Scotty.param "id"
+  job <- runDBA $ loadJob' jid
+  checkPermission "view job result" ViewJobs (jiQueue job)
   res <- runDBA $ getJobResult jid
   Scotty.json res
 
 getJobResultsA :: Action ()
 getJobResultsA = do
   jid <- Scotty.param "id"
+  job <- runDBA $ loadJob' jid
+  checkPermission "view job result" ViewJobs (jiQueue job)
   res <- runDBA $ getJobResults jid
   Scotty.json res
 
 removeQueueA :: Action ()
 removeQueueA = do
   qname <- Scotty.param "name"
+  checkPermission "delete queue" ManageQueues qname
   forced <- getUrlParam "forced"
   st <- getUrlParam "status"
   fltr <- parseStatus' Nothing st
@@ -194,17 +205,20 @@ removeQueueA = do
 
 getSchedulesA :: Action ()
 getSchedulesA = do
+  checkPermissionToList "get list of schedules" ViewSchedules
   ss <- runDBA loadAllSchedules
   Scotty.json ss
 
 addScheduleA :: Action ()
 addScheduleA = do
+  checkPermissionToList "create schedule" ManageSchedules
   sd <- jsonData
   name <- runDBA $ addSchedule sd
   Scotty.json name
 
 removeScheduleA :: Action ()
 removeScheduleA = do
+  checkPermissionToList "delete schedule" ManageSchedules
   name <- Scotty.param "name"
   forced <- getUrlParam "forced"
   r <- runDBA' $ removeSchedule name (forced == Just "true")
@@ -215,6 +229,7 @@ removeScheduleA = do
 
 addQueueA :: Action ()
 addQueueA = do
+  checkPermissionToList "create queue" ManageQueues
   qd <- jsonData
   name <- runDBA $ addQueue qd
   Scotty.json name
@@ -222,6 +237,7 @@ addQueueA = do
 updateQueueA :: Action ()
 updateQueueA = do
   name <- Scotty.param "name"
+  checkPermission "modify queue" ManageQueues name
   upd <- jsonData
   runDBA $ updateQueue name upd
   done
@@ -229,18 +245,22 @@ updateQueueA = do
 getJobA :: Action ()
 getJobA = do
   jid <- Scotty.param "id"
-  result <- runDBA $ loadJob' jid
-  Scotty.json result
+  job <- runDBA $ loadJob' jid
+  checkPermission "view job" ViewJobs (jiQueue job)
+  Scotty.json job
 
 updateJobA :: Action ()
 updateJobA = do
   jid <- Scotty.param "id"
+  job <- runDBA $ loadJob' jid
+  checkPermission "modify job" ManageJobs (jiQueue job)
   upd <- jsonData
   runDBA $ updateJob jid upd
   done
 
 getJobsA :: Action ()
 getJobsA = do
+  checkPermissionToList "view jobs from all queues" ViewJobs
   st <- getUrlParam "status"
   fltr <- parseStatus' (Just New) st
   jobs <- runDBA $ loadJobsByStatus fltr
@@ -249,6 +269,7 @@ getJobsA = do
 deleteJobsA :: Action ()
 deleteJobsA = do
   name <- Scotty.param "name"
+  checkPermission "delete jobs" ManageJobs name
   st <- getUrlParam "status"
   fltr <- parseStatus' Nothing st
   case fltr of

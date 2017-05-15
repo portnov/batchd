@@ -65,6 +65,13 @@ data Batch =
       username :: Maybe String,
       password :: Maybe String
     }
+  | User {
+      managerUrl :: Maybe String,
+      userMode :: CrudMode,
+      objectUserName :: [String],
+      username :: Maybe String,
+      password :: Maybe String
+    }
   | Type {
       managerUrl :: Maybe String,
       types :: [String],
@@ -166,6 +173,18 @@ schedule = Schedule {
     username = usernameAnn,
     password = passwordAnn
   } &= help "create, update or delete schedules"
+
+user :: Batch
+user = User {
+    managerUrl = managerUrlAnn,
+    userMode = enum [
+                 View &= name "ls" &= help "list existing users",
+                 Add &= help "create new user"
+               ],
+    objectUserName = def &= typ "NAME" &= args,
+    username = usernameAnn,
+    password = passwordAnn
+  } &= help "create, update or delete users"
 
 typesList :: Batch
 typesList = Type {

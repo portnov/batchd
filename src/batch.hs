@@ -19,7 +19,7 @@ errorHandler (ClientException e) = putStrLn $ "Error: " ++ e
 
 realMain :: IO ()
 realMain = do
-  let mode = cmdArgsMode $ modes [enqueue, list &= name "ls", job, queue, schedule, typesList, stats]
+  let mode = cmdArgsMode $ modes [enqueue, list &= name "ls", job, queue, schedule, typesList, stats, user]
   opts <- cmdArgsRun mode
 
   manager <- newManager defaultManagerSettings
@@ -49,4 +49,8 @@ realMain = do
         View -> doListSchedules manager opts
         Add -> doAddSchedule manager opts
         Delete -> doDeleteSchedule manager opts
+    User {} ->
+      case userMode opts of
+        View -> doListUsers manager opts
+        Add -> doAddUser manager opts
 
