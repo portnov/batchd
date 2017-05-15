@@ -313,6 +313,7 @@ data GlobalConfig = GlobalConfig {
     dbcStaticSalt :: String,
     dbcEnableBasicAuth :: Bool,
     dbcEnableHeaderAuth :: Bool,
+    dbcDisableAuth :: Bool,
     dbcStoreDone :: Int
   }
   deriving (Eq, Show, Data, Typeable, Generic)
@@ -336,6 +337,7 @@ instance FromJSON GlobalConfig where
       <*> v .:? "static_salt" .!= defaultStaticSalt
       <*> v .:? "enable_basic_auth" .!= True
       <*> v .:? "enable_header_auth" .!= False
+      <*> v .:? "disable_auth" .!= False
       <*> v .:? "store_done" .!= 2
   parseJSON invalid = typeMismatch "global configuration" invalid
 

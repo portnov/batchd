@@ -35,6 +35,8 @@ routes cfg = do
     Scotty.middleware (headerAuth cfg)
   when (dbcEnableBasicAuth cfg) $
     Scotty.middleware (basicAuth cfg)
+  when (dbcDisableAuth cfg) $
+    Scotty.middleware noAuth
     
   Scotty.defaultHandler raiseError
 

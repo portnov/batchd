@@ -132,12 +132,16 @@ checkUserExists gcfg nameBstr = do
 
 ------------------ Authentication ---------------------
 
+extractBasicUser :: Request -> String
+extractBasicUser req =
+  case (lookup hAuthorization $ requestHeaders req) >>= HA.extractBasicAuth of
+    Nothing -> "anonymous"
+    Just (name,_) -> bstrToString name
+
 basicAuth :: GlobalConfig -> Middleware
 basicAuth gcfg app req sendResponse =
   let settings = "batchd" :: HA.AuthSettings
-      username = case (lookup hAuthorization $ requestHeaders req) >>= HA.extractBasicAuth of
-                   Nothing -> "anonymous"
-                   Just (name,_) -> bstrToString name
+      username = extractBasicUser req
       req' = req {vault = V.insert usernameKey username $ vault req}
   in  case getAuthUserRq req of
         Nothing -> HA.basicAuth (checkUser gcfg) settings app req' sendResponse
@@ -159,6 +163,14 @@ headerAuth gcfg app req sendResponse = do
       if ok
         then app req' sendResponse
         else sendResponse $ responseLBS status401 [] "Specified user does not exist"
+
+noAuth :: Middleware
+noAuth app req sendResponse = do
+  let username = case lookup "X-Auth-User" (requestHeaders req) of
+                   Just n -> bstrToString n
+                   Nothing -> extractBasicUser req
+      req' = req {vault = V.insert usernameKey username $ vault req}
+  app req' sendResponse
 
 -- authentication :: GlobalConfig -> Middleware
 -- authentication gcfg =
@@ -200,10 +212,12 @@ isSuperUser name = do
 
 checkSuperUser :: Action ()
 checkSuperUser = do
-  user <- getAuthUser
-  ok <- runDBA $ isSuperUser (userName user)
-  when (not ok) $ do
-    throw $ InsufficientRights "user has to be superuser"
+  cfg <- lift $ asks ciGlobalConfig
+  when (not $ dbcDisableAuth cfg) $ do
+      user <- getAuthUser
+      ok <- runDBA $ isSuperUser (userName user)
+      when (not ok) $ do
+        throw $ InsufficientRights "user has to be superuser"
 
 hasPermission :: String -> Permission -> String -> DB Bool
 hasPermission name perm qname = do
@@ -229,15 +243,19 @@ hasPermissionToList name perm = do
 
 checkPermission :: String -> Permission -> String -> Action ()
 checkPermission message perm qname = do
-  user <- getAuthUser
-  ok <- runDBA $ hasPermission (userName user) perm qname
-  when (not ok) $ do
-    throw $ InsufficientRights message
+  cfg <- lift $ asks ciGlobalConfig
+  when (not $ dbcDisableAuth cfg) $ do
+      user <- getAuthUser
+      ok <- runDBA $ hasPermission (userName user) perm qname
+      when (not ok) $ do
+        throw $ InsufficientRights message
 
 checkPermissionToList :: String -> Permission -> Action ()
 checkPermissionToList message perm = do
-  user <- getAuthUser
-  ok <- runDBA $ hasPermissionToList (userName user) perm
-  when (not ok) $ do
-    throw $ InsufficientRights message
+  cfg <- lift $ asks ciGlobalConfig
+  when (not $ dbcDisableAuth cfg) $ do
+      user <- getAuthUser
+      ok <- runDBA $ hasPermissionToList (userName user) perm
+      when (not ok) $ do
+        throw $ InsufficientRights message
 

@@ -23,16 +23,25 @@ data ClientConfig = ClientConfig {
     ccQueue :: Maybe String,
     ccType :: Maybe String,
     ccHost :: Maybe String,
+    ccDisableAuth :: Bool,
     ccUsername :: Maybe String,
     ccPassword :: Maybe String
   }
   deriving (Show, Data, Typeable, Generic)
 
 defaultConfig :: ClientConfig
-defaultConfig = ClientConfig Nothing Nothing Nothing Nothing Nothing Nothing
+defaultConfig = ClientConfig Nothing Nothing Nothing Nothing False Nothing Nothing
 
 instance FromJSON ClientConfig where
-  parseJSON = Aeson.genericParseJSON (jsonOptions "cc")
+  parseJSON (Object v) =
+    ClientConfig
+      <$> v .:? "manager_url"
+      <*> v .:? "queue"
+      <*> v .:? "type"
+      <*> v .:? "host"
+      <*> v .:? "disable_auth" .!= False
+      <*> v .:? "username"
+      <*> v .:? "password"
 
 getConfigParam :: Maybe String -> String -> Maybe String -> String -> IO String
 getConfigParam cmdline varname cfg dflt = do

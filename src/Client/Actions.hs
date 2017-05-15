@@ -31,9 +31,11 @@ getCredentials opts = do
   cfg <- loadClientConfig
   name <- getUserName (username opts) cfg
   mbPassword <- getConfigParam' (password opts) "BATCH_PASSWORD" (ccPassword cfg)
-  pass <- case mbPassword of
-            Just p -> return p
-            Nothing -> getPassword "Password: "
+  pass <- if ccDisableAuth cfg
+            then return ""
+            else case mbPassword of
+                  Just p -> return p
+                  Nothing -> getPassword $ name ++ " password: "
   return (name, pass)
 
 doEnqueue :: Manager -> Batch -> IO ()
