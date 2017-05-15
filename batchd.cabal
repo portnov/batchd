@@ -49,6 +49,8 @@ executable batchd
                        resourcet >= 1.1.7,
                        http-types >= 0.9,
                        wai >= 3.0,
+                       wai-extra >= 3.0,
+                       vault,
                        scotty >= 0.10,
                        warp >= 3.2,
                        aeson >= 0.11,
@@ -60,6 +62,7 @@ executable batchd
                        template >= 0.2,
                        process >= 1.2.3.0,
                        libssh2 >= 0.2,
+                       cryptonite >= 0.23,
                        template-haskell >= 2.8,
                        th-lift >= 0.6
   -- hs-source-dirs:      

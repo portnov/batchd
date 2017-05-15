@@ -295,9 +295,15 @@ data GlobalConfig = GlobalConfig {
     dbcWorkers :: Int,
     dbcPollTimeout :: Int,
     dbcLogLevel :: LogLevel,
+    dbcStaticSalt :: String,
+    dbcEnableBasicAuth :: Bool,
+    dbcEnableHeaderAuth :: Bool,
     dbcStoreDone :: Int
   }
   deriving (Eq, Show, Data, Typeable, Generic)
+
+defaultStaticSalt :: String
+defaultStaticSalt = "1234567890abcdef"
 
 instance ToJSON GlobalConfig where
   toJSON = genericToJSON (jsonOptions "dbc")
@@ -308,10 +314,13 @@ instance FromJSON GlobalConfig where
       <$> v .:? "daemon" .!= Both
       <*> v .:? "manager_port" .!= defaultManagerPort
       <*> v .:? "driver" .!= Sqlite
-      <*> v .:? "connection_string" .!= ":memory"
+      <*> v .:? "connection_string" .!= ":memory:"
       <*> v .:? "workers" .!= 1
       <*> v .:? "poll_timeout" .!= 10
       <*> v .:? "log_level" .!= LevelInfo
+      <*> v .:? "static_salt" .!= defaultStaticSalt
+      <*> v .:? "enable_basic_auth" .!= True
+      <*> v .:? "enable_header_auth" .!= False
       <*> v .:? "store_done" .!= 2
   parseJSON invalid = typeMismatch "global configuration" invalid
 
@@ -398,3 +407,10 @@ parseUpdate' field label (Object v) = do
               Just "*" -> Just (field =. Nothing)
               Just value -> Just (field =. Just value)
   return upd
+
+bstrToString :: B.ByteString -> String
+bstrToString bstr = map (chr . fromIntegral) $ B.unpack bstr
+
+stringToBstr :: String -> B.ByteString
+stringToBstr str = B.pack $ map (fromIntegral . ord) str
+

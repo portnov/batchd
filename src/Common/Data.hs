@@ -78,6 +78,12 @@ ScheduleWeekDay
   scheduleName String
   weekDay WeekDay
   Foreign Schedule schedule scheduleName
+
+User
+  name String
+  pwdHash String
+  salt String
+  Primary name
 |]
 
 deriving instance Eq ScheduleTime

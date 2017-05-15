@@ -21,7 +21,8 @@ class JobView(QtGui.QDialog):
         print job_params
         for param in jobtype['params']:
             title, widget = jobedit.create_widget(param, parent=self, readonly=True)
-            widget.setText(job_params[param['name']])
+            name = param['name']
+            widget.setText(job_params.get(name, ""))
             self.layout.addRow(title, widget)
 
         self.create_time_editor = self._time_editor('create_time', "Created:")

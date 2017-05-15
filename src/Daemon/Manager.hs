@@ -24,10 +24,12 @@ import Daemon.Types
 import Common.Config
 import Daemon.Database
 import Daemon.Schedule
+import Daemon.Auth
 import Daemon.Logging
 
-routes :: ScottyT Error ConnectionM ()
-routes = do
+routes :: GlobalConfig -> ScottyT Error ConnectionM ()
+routes cfg = do
+  Scotty.middleware (authentication cfg)
   Scotty.defaultHandler raiseError
 
   Scotty.get "/stats" getStatsA
@@ -63,7 +65,7 @@ runManager cfg pool = do
   let options = def {Scotty.settings = setPort (dbcManagerPort cfg) defaultSettings}
   let r m = runReaderT (runConnection m) connInfo
   forkIO $ runReaderT (runConnection maintainer) connInfo
-  scottyOptsT options r routes
+  scottyOptsT options r $ routes cfg
 
 maintainer :: ConnectionM ()
 maintainer = forever $ do
