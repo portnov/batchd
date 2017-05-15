@@ -9,6 +9,7 @@ import qualified Data.ByteString as B
 import Network.HTTP.Types (status401, hAuthorization)
 import Network.Wai
 import qualified Network.Wai.Middleware.HttpAuth as HA
+import qualified Web.Scotty.Trans as Scotty
 
 import System.IO.Unsafe (unsafePerformIO)
 
@@ -81,10 +82,21 @@ basicAuth gcfg app req sendResponse =
       req' = req {vault = V.insert usernameKey username $ vault req}
   in  HA.basicAuth (checkUser gcfg) settings app req' sendResponse
 
+getAuthUserRq :: Request -> Maybe String
+getAuthUserRq req = V.lookup usernameKey $ vault req
+
+getAuthUserName :: Action (Maybe String)
+getAuthUserName = do
+  rq <- Scotty.request
+  return $ getAuthUserRq rq
+
 headerAuth :: GlobalConfig -> Middleware
 headerAuth gcfg app req sendResponse = do
   case lookup "X-Auth-User" (requestHeaders req) of
-    Nothing -> app req sendResponse
+    Nothing -> do
+      case getAuthUserRq req of
+        Nothing -> sendResponse $ responseLBS status401 [] "User name not provided"
+        Just _ -> app req sendResponse
     Just name -> do
       let username = bstrToString name
           req' = req {vault = V.insert usernameKey username $ vault req}
