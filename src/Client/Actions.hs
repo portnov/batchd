@@ -340,3 +340,25 @@ doAddUser manager opts = do
   let user = UserInfo name pwd
   doPut manager creds url user
 
+doListPermissions :: Manager -> Batch -> IO ()
+doListPermissions manager opts = do
+  cfg <- loadClientConfig
+  baseUrl <- getManagerUrl (managerUrl opts) cfg
+  creds <- getCredentials opts
+  let url = baseUrl </> "user" </> grantUserName opts </> "permissions"
+  response <- doGet manager creds url
+  forM_ (response :: [Database.UserPermission]) $ \perm -> do
+      let qname = fromMaybe "*" $ Database.userPermissionQueueName perm
+      printf "Permission:\t%s\nQueue:\t%s\n\n"
+        (show $ Database.userPermissionPermission perm) qname
+
+doAddPermission :: Manager -> Batch -> IO ()
+doAddPermission manager opts = do
+  cfg <- loadClientConfig
+  baseUrl <- getManagerUrl (managerUrl opts) cfg
+  creds <- getCredentials opts
+  let name = grantUserName opts
+      url = baseUrl </> "user" </> name </> "permissions"
+      perm = Database.UserPermission name (permission opts) (queueName opts)
+  doPut manager creds url perm
+

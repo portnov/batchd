@@ -72,6 +72,15 @@ data Batch =
       username :: Maybe String,
       password :: Maybe String
     }
+  | Grant {
+      managerUrl :: Maybe String,
+      grantMode :: CrudMode,
+      grantUserName :: String,
+      permission :: Permission,
+      queueName :: Maybe String,
+      username :: Maybe String,
+      password :: Maybe String
+    }
   | Type {
       managerUrl :: Maybe String,
       types :: [String],
@@ -185,6 +194,20 @@ user = User {
     username = usernameAnn,
     password = passwordAnn
   } &= help "create, update or delete users"
+
+grant :: Batch
+grant = Grant {
+    managerUrl = managerUrlAnn,
+    grantMode = enum [
+                  View &= name "ls" &= help "view permissions of user",
+                  Add &= help "add permissions to user"
+                ],
+    grantUserName = def &= typ "NAME" &= argPos 0,
+    permission = CreateJobs &= typ "PERMISSION" &= help "specify permission, for example ViewJobs",
+    queueName = Nothing &= typ "QUEUE" &= help "queue to grant permission to, by default - any",
+    username = usernameAnn,
+    password = passwordAnn
+  } &= help "create, update or delete user permissions"
 
 typesList :: Batch
 typesList = Type {
