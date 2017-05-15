@@ -390,6 +390,17 @@ derivePersistField "WeekDay"
 derivePersistField "JobStatus"
 derivePersistField "ExitCode"
 
+data Permission =
+    SuperUser
+  | ViewJobs
+  | ManageJobs
+  | ViewQueues
+  | ManageQueues
+  | ManageSchedules
+  deriving (Eq, Show, Read, Data, Typeable, Generic)
+
+derivePersistField "Permission"
+
 parseUpdate :: (PersistField t, FromJSON t) => EntityField v t -> T.Text -> Value -> Parser (Maybe (Update v))
 parseUpdate field label (Object v) = do
   mbValue <- v .:? label

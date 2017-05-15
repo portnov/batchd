@@ -30,11 +30,27 @@ createUserDb name password staticSalt = do
   let user = User name hash dynamicSalt
   insert user
 
+createSuperUserDb :: String -> String -> String -> DB (Key User)
+createSuperUserDb name password staticSalt = do
+  userKey <- createUserDb name password staticSalt
+  let perm = UserPermission name SuperUser Nothing
+  insert perm
+  return userKey
+
 createUser :: GlobalConfig -> String -> String -> IO Bool
 createUser gcfg name password = do
   pool <- getPool gcfg
   let staticSalt = dbcStaticSalt gcfg
   res <- runDBIO gcfg pool (createUserDb name password staticSalt)
+  case res of
+    Left _ -> return False
+    Right _ -> return True
+
+createSuperUser :: GlobalConfig -> String -> String -> IO Bool
+createSuperUser gcfg name password = do
+  pool <- getPool gcfg
+  let staticSalt = dbcStaticSalt gcfg
+  res <- runDBIO gcfg pool (createSuperUserDb name password staticSalt)
   case res of
     Left _ -> return False
     Right _ -> return True

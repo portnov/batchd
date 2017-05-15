@@ -84,6 +84,13 @@ User
   pwdHash String
   salt String
   Primary name
+
+UserPermission
+  userName String
+  permission Permission
+  queueName String Maybe
+  Foreign User user userName
+  Foreign Queue queue queueName
 |]
 
 deriving instance Eq ScheduleTime

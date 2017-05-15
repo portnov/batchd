@@ -13,12 +13,13 @@ import Daemon.Database
 import Daemon.Auth
 
 data Admin =
-  CreateSuperuser
+  CreateSuperuser {userName :: String}
   deriving (Show, Data, Typeable)
 
-admin :: Admin
-admin = modes [CreateSuperuser]
-          &= program "batchd-admin"
+createSuperuser :: Admin
+createSuperuser = CreateSuperuser {
+    userName = "root" &= typ "NAME" &= argPos 0
+  } &= help "create superuser"
 
 getPassword :: String -> IO String
 getPassword prompt = do
@@ -35,7 +36,8 @@ withEcho echo action = do
 
 main :: IO ()
 main = do
-  cmd <- cmdArgs admin
+  let mode = cmdArgsMode $ modes [createSuperuser] &= program "batchd-admin"
+  cmd <- cmdArgsRun mode
   cfgR <- loadGlobalConfig
   case cfgR of
     Left err -> fail $ show err
@@ -45,6 +47,6 @@ main = do
       if pwd1 /= pwd2
         then fail "passwords do not match"
         else do
-             createUser cfg "root" pwd1
+             createSuperUser cfg (userName cmd) pwd1
              return ()
 
