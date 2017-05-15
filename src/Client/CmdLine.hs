@@ -188,7 +188,8 @@ user = User {
     managerUrl = managerUrlAnn,
     userMode = enum [
                  View &= name "ls" &= help "list existing users",
-                 Add &= help "create new user"
+                 Add &= help "create new user",
+                 Update &= name "passwd" &= help "change user password"
                ],
     objectUserName = def &= typ "NAME" &= args,
     username = usernameAnn,

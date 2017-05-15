@@ -82,6 +82,13 @@ deletePermission id name = do
         then delete pid
         else throwR $ UnknownError "Permission does not belong to specified user"
 
+changePassword :: String -> String -> String -> DB ()
+changePassword name password staticSalt = do
+  dynamicSalt <- liftIO randomSalt
+  let hash = calcHash password dynamicSalt staticSalt
+      key = UserKey name
+  update key [UserPwdHash =. hash, UserSalt =. dynamicSalt]
+
 getUsers :: DB [String]
 getUsers = do
   res <- selectList [] []

@@ -53,6 +53,7 @@ realMain = do
       case userMode opts of
         View -> doListUsers manager opts
         Add -> doAddUser manager opts
+        Update -> doChangePassword manager opts
     Grant {} ->
       case grantMode opts of
         View -> doListPermissions manager opts

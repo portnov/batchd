@@ -20,8 +20,9 @@ import System.FilePath
 import System.FilePath.Glob
 
 import Common.Types
-import Daemon.Types
 import Common.Config
+import Common.Data
+import Daemon.Types
 import Daemon.Database
 import Daemon.Schedule
 import Daemon.Auth
@@ -65,6 +66,7 @@ routes cfg = do
 
   Scotty.put "/user" createUserA
   Scotty.get "/user" getUsersA
+  Scotty.post "/user/:name" changePasswordA
   Scotty.get "/user/:name/permissions" getPermissionsA
   Scotty.put "/user/:name/permissions" createPermissionA
   Scotty.delete "/user/:name/permissions/:id" deletePermissionA
@@ -312,6 +314,18 @@ createUserA = do
   let staticSalt = dbcStaticSalt cfg
   name <- runDBA $ createUserDb (uiName user) (uiPassword user) staticSalt
   Scotty.json name
+
+changePasswordA :: Action ()
+changePasswordA = do
+  name <- Scotty.param "name"
+  curUser <- getAuthUser
+  when (userName curUser /= name) $
+      checkSuperUser
+  user <- jsonData
+  cfg <- lift $ asks ciGlobalConfig
+  let staticSalt = dbcStaticSalt cfg
+  runDBA $ changePassword name (uiPassword user) staticSalt
+  done
 
 createPermissionA :: Action ()
 createPermissionA = do

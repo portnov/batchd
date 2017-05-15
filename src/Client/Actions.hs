@@ -340,6 +340,19 @@ doAddUser manager opts = do
   let user = UserInfo name pwd
   doPut manager creds url user
 
+doChangePassword :: Manager -> Batch -> IO ()
+doChangePassword manager opts = do
+  cfg <- loadClientConfig
+  baseUrl <- getManagerUrl (managerUrl opts) cfg
+  creds <- getCredentials opts
+  name <- case objectUserName opts of
+            [n] -> return n
+            _ -> return $ fst creds
+  let url = baseUrl </> "user" </> name
+  pwd <- getPassword2
+  let user = UserInfo name pwd
+  doPost manager creds url user
+
 doListPermissions :: Manager -> Batch -> IO ()
 doListPermissions manager opts = do
   cfg <- loadClientConfig
