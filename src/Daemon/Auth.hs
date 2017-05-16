@@ -196,11 +196,11 @@ getAuthUser :: Action User
 getAuthUser = do
   mbName <- getAuthUserName
   case mbName of
-    Nothing -> throw $ InsufficientRights "user has to be authenticated"
+    Nothing -> Scotty.raise $ InsufficientRights "user has to be authenticated"
     Just name -> do
         mbUser <- runDBA $ get (UserKey name)
         case mbUser of
-          Nothing -> throw $ UnknownError "user does not exist"
+          Nothing -> Scotty.raise $ UnknownError "user does not exist"
           Just user -> return user
 
 ----------- Check user rights ---------------
@@ -217,7 +217,7 @@ checkSuperUser = do
       user <- getAuthUser
       ok <- runDBA $ isSuperUser (userName user)
       when (not ok) $ do
-        throw $ InsufficientRights "user has to be superuser"
+        Scotty.raise $ InsufficientRights "user has to be superuser"
 
 hasPermission :: String -> Permission -> String -> DB Bool
 hasPermission name perm qname = do
@@ -258,7 +258,7 @@ checkPermission message perm qname = do
       user <- getAuthUser
       ok <- runDBA $ hasPermission (userName user) perm qname
       when (not ok) $ do
-        throw $ InsufficientRights message
+        Scotty.raise $ InsufficientRights message
 
 checkCanCreateJobs :: String -> String -> Action ()
 checkCanCreateJobs qname typename = do
@@ -267,7 +267,7 @@ checkCanCreateJobs qname typename = do
       user <- getAuthUser
       ok <- runDBA $ hasCreatePermission (userName user) qname typename
       when (not ok) $ do
-        throw $ InsufficientRights "create jobs"
+        Scotty.raise $ InsufficientRights "create jobs"
 
 checkPermissionToList :: String -> Permission -> Action ()
 checkPermissionToList message perm = do
@@ -276,5 +276,5 @@ checkPermissionToList message perm = do
       user <- getAuthUser
       ok <- runDBA $ hasPermissionToList (userName user) perm
       when (not ok) $ do
-        throw $ InsufficientRights message
+        Scotty.raise $ InsufficientRights message
 
