@@ -45,8 +45,8 @@
       <div id='addjob'>
         <label for='selecttype'>Job type:</label>
         <select id='selecttype' onchange='fillEnqueueForm()'></select>
-        <div id='jobparams'>
-        </div>
+        <table id='jobparams'>
+        </table>
         <input type='button' onclick='enqueueJob()' value='Enqueue'/>
       </div>
     </div>
@@ -141,8 +141,14 @@ function fillEnqueueForm() {
     $.each(data.params, function(k,v) {
       //var id = 'param_' + v.name;
       $('#jobparams').append(
-          $('<p>').append("<label>" + v.title + "</label><input name='" + v.name + "'/>")
-        );
+          $('<tr>').append(
+            $('<td>').text(v.title)
+          ).append(
+            $('<td>').append(
+              $('<input>').attr('name', v.name)
+            )
+          )
+      );
     });
   });
 };
@@ -151,7 +157,7 @@ function enqueueJob() {
   var type = $('#selecttype').val();
   var qname = $('#queuelist').val();
   var params = {};
-  $('#jobparams>p>input').each(function(k, input) {
+  $('#jobparams>tr>td>input').each(function(k, input) {
     params[input.name] = input.value;
   });
   var job = {

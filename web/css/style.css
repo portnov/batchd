@@ -7,30 +7,33 @@ body {
 
 div#content {
   width: 100%;
+  padding: 1em;
 }
 
 table#jobslist {
   border: 1px black solid;
   width: 100%;
+  margin-top: 1ex;
+  margin-bottom: 1ex;
 }
 
-table td {
+table#jobslist td {
   text-align: center;
 }
 
-table tr td {
+table#jobslist tr td {
   border-right: 1px gray solid;
   border-bottom: 1px gray solid;
 }
 
-table thead {
+table#jobslist thead {
   font-weight: bold;
 }
 
-table tr.Done {
+table#jobslist tr.Done {
   background-color: #84b561;
 }
-table tr.Failed {
+table#jobslist tr.Failed {
   background-color: #e47a7a;
 }
 
@@ -43,5 +46,10 @@ div#viewjob {
   left: 2em;
   right: 2em;
   background-color: #4d4d4d;
+  padding: 1ex;
+}
+
+div#addjob {
+  border: 1px black solid;
   padding: 1ex;
 }
