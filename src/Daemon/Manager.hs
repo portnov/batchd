@@ -65,31 +65,31 @@ routes cfg = do
   Scotty.get "/queue" getQueuesA
   Scotty.get "/queue/:name" getQueueA
   Scotty.get "/queue/:name/types" $ getAllowedJobTypesA
-  Scotty.post "/queue/:name" updateQueueA
-  Scotty.put "/queue" addQueueA
-  Scotty.put "/queue/:name" enqueueA
+  Scotty.put "/queue/:name" updateQueueA
+  Scotty.post "/queue" addQueueA
+  Scotty.post "/queue/:name" enqueueA
   Scotty.delete "/queue/:name/:seq" removeJobA
   Scotty.delete "/queue/:name" removeQueueA
 
   Scotty.get "/job/:id" getJobA
   Scotty.get "/job/:id/results" getJobResultsA
   Scotty.get "/job/:id/results/last" getJobLastResultA
-  Scotty.post "/job/:id" updateJobA
+  Scotty.put "/job/:id" updateJobA
   Scotty.delete "/job/:id" removeJobByIdA
   Scotty.get "/jobs" getJobsA
 
   Scotty.get "/schedule" getSchedulesA
-  Scotty.put "/schedule" addScheduleA
+  Scotty.post "/schedule" addScheduleA
   Scotty.delete "/schedule/:name" removeScheduleA
 
   Scotty.get "/type" $ getJobTypesA
   Scotty.get "/type/:name" getJobTypeA
 
-  Scotty.put "/user" createUserA
+  Scotty.post "/user" createUserA
   Scotty.get "/user" getUsersA
-  Scotty.post "/user/:name" changePasswordA
+  Scotty.put "/user/:name" changePasswordA
   Scotty.get "/user/:name/permissions" getPermissionsA
-  Scotty.put "/user/:name/permissions" createPermissionA
+  Scotty.post "/user/:name/permissions" createPermissionA
   Scotty.delete "/user/:name/permissions/:id" deletePermissionA
 
   Scotty.options (Scotty.regex "/.*") $ done

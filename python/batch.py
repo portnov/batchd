@@ -48,7 +48,7 @@ def get_queues(url):
 
 def do_enqueue(url, qname, typename, params):
     rq = dict(queue = qname, type=typename, params=params)
-    rs = requests.put(url+ "/queue/" + qname, data=json.dumps(rq))
+    rs = requests.post(url+ "/queue/" + qname, data=json.dumps(rq))
     print(rs.text)
 
 def get_queue_stats(url, qname):
@@ -242,7 +242,7 @@ class GUI(QtGui.QMainWindow):
         return json.loads(rs.text)
 
     def new_queue(self, queue):
-        rs = requests.put(self.url + "/queue", data=json.dumps(queue))
+        rs = requests.post(self.url + "/queue", data=json.dumps(queue))
         print(rs.text)
 
 

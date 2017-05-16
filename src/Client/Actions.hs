@@ -68,7 +68,7 @@ doEnqueue manager opts = do
         }
 
       let url = baseUrl </> "queue" </> qname
-      doPut manager creds url job
+      doPost manager creds url job
 
 doList :: Manager -> Batch -> IO ()
 doList manager opts = do
@@ -194,7 +194,7 @@ updateJob manager opts = do
               toList "status" (status opts) ++
               toList "host_name" (hostName opts)
   let url = baseUrl </> "job" </> show (jobId opts)
-  doPost manager creds url job
+  doPut manager creds url job
 
 deleteJob :: Manager -> Batch -> IO ()
 deleteJob manager opts = do
@@ -217,7 +217,7 @@ addQueue manager opts = do
                 Database.queueHostName = hostName opts
               }
   let url = baseUrl </> "queue"
-  doPut manager creds url queue
+  doPost manager creds url queue
 
 updateQueue :: Manager -> Batch -> IO ()
 updateQueue manager opts = do
@@ -231,7 +231,7 @@ updateQueue manager opts = do
                   toList "host_name" (hostName opts)
     -- print queue
     let url = baseUrl </> "queue" </> queueObject opts
-    doPost manager creds url queue
+    doPut manager creds url queue
 
 toList _ Nothing = []
 toList name (Just str) = [name .= str]
@@ -283,7 +283,7 @@ doAddSchedule manager opts = do
                        sWeekdays = if null (weekdays opts) then Nothing else Just (weekdays opts),
                        sTime = if null times then Nothing else Just times
                      }
-      doPut manager creds url schedule
+      doPost manager creds url schedule
 
 doDeleteSchedule :: Manager -> Batch -> IO ()
 doDeleteSchedule manager opts = do
@@ -340,7 +340,7 @@ doAddUser manager opts = do
             [n] -> return n
             _ -> fail "user name must be provided"
   let user = UserInfo name pwd
-  doPut manager creds url user
+  doPost manager creds url user
 
 doChangePassword :: Manager -> Batch -> IO ()
 doChangePassword manager opts = do
@@ -353,7 +353,7 @@ doChangePassword manager opts = do
   let url = baseUrl </> "user" </> name
   pwd <- getPassword2
   let user = UserInfo name pwd
-  doPost manager creds url user
+  doPut manager creds url user
 
 doListPermissions :: Manager -> Batch -> IO ()
 doListPermissions manager opts = do
@@ -376,5 +376,5 @@ doAddPermission manager opts = do
   let name = grantUserName opts
       url = baseUrl </> "user" </> name </> "permissions"
       perm = Database.UserPermission name (permission opts) (queueName opts) (typeName opts)
-  doPut manager creds url perm
+  doPost manager creds url perm
 
