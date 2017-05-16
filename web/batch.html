@@ -17,7 +17,7 @@
 
     <div class="content">
       <label for="queuelist">Queue:</label>
-      <select id="queuelist">
+      <select id="queuelist" onchange='fillJobTypes()'>
       </select>
       <label for='selectstatus'>Status:</label>
       <select id='selectstatus'>
@@ -35,25 +35,65 @@
             <td>ID</td><td>#</td><td>Type</td><td>Status</td><td>Create time</td><td>Finish time</td>
         </tr></thead>
       </table>
+
+      <div id='addjob'>
+        <label for='selecttype'>Job type:</label>
+        <select id='selecttype' onchange='fillEnqueueForm()'></select>
+        <div id='jobparams'>
+        </div>
+        <input type='button' onclick='enqueueJob()' value='Enqueue'/>
+      </div>
     </div>
 
     <script>
-    var client = new $.RestClient('/');
-    
-    client.add('queue');
+$.batchd = new $.RestClient('/');
 
-    client.queue.read().done(function(data) {
-      $.each(data, function(k,v) {
-        $('#queuelist').append(
-            $('<option>').val(v.name).text(v.name)
-          );
-      });
+$.batchd.add('queue', {'stringifyData': true});
+$.batchd.queue.add('types');
+$.batchd.add('type');
+
+function fillQueues() {
+  $.batchd.queue.read().done(function(data) {
+    $.each(data, function(k,v) {
+      if (! k) {
+        $.default_queue = v.name;
+      }
+      $('#queuelist').append(
+          $('<option>').val(v.name).text(v.name)
+        );
     });
+    fillJobTypes();
+  });
+};
+
+function fillJobTypes() {
+  var qname = $('#queuelist').val();
+  // qname = 'default';
+  if (! qname) {
+    qname = $.default_queue;
+  }
+  $.batchd.queue.types.read(qname).done(function(data) {
+    $('#selecttype>option').remove();
+    $.each(data, function(k,v) {
+      if (! k) {
+        $.default_job_type = v.name;
+      }
+      $('#selecttype').append(
+          $('<option>').val(v.name).text(v.name)
+        );
+    });
+    fillEnqueueForm();
+  });
+};
+
+$(document).ready(function() {
+  fillQueues();
+});
 
 function getJobs() {
   var qname = $('#queuelist').val();
   var status = $('#selectstatus').val();
-  client.queue.read(qname, {'status': status}).done(function(data) {
+  $.batchd.queue.read(qname, {'status': status}).done(function(data) {
     $('#jobslist>tr').remove();
     $.each(data, function(k,v) {
       $('#jobslist').append(
@@ -67,7 +107,38 @@ function getJobs() {
     });
   });
 };
-      
+
+function fillEnqueueForm() {
+  var type = $('#selecttype').val();
+  if (! type) {
+    type = $.default_job_type;
+  }
+  $.batchd.type.read(type).done(function(data) {
+    $('#jobparams').empty();
+    $.each(data.params, function(k,v) {
+      //var id = 'param_' + v.name;
+      $('#jobparams').append(
+          $('<p>').append("<label>" + v.title + "</label><input name='" + v.name + "'/>")
+        );
+    });
+  });
+};
+
+function enqueueJob() {
+  var type = $('#selecttype').val();
+  var qname = $('#queuelist').val();
+  var params = {};
+  $('#jobparams>p>input').each(function(k, input) {
+    params[input.name] = input.value;
+  });
+  var job = {
+    'queue': qname,
+    'type': type,
+    'params': params
+  };
+  //alert(job);
+  $.batchd.queue.update(qname, job);
+};
     </script>
   </body>
 </html>

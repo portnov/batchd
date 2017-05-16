@@ -143,7 +143,12 @@ getQueuesA = do
   checkPermissionToList "view list of queues" ViewQueues
   user <- getAuthUser
   let name = userName user
-  qes <- runDBA $ getAllowedQueues name ViewQueues
+  cfg <- lift $ asks ciGlobalConfig
+  qes <- runDBA $ do
+           super <- isSuperUser name
+           if super || dbcDisableAuth cfg
+             then getAllQueues'
+             else getAllowedQueues name ViewQueues
   -- let qnames = map (queueName . entityVal) qes
   Scotty.json qes
 
