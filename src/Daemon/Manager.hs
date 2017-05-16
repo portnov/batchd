@@ -129,7 +129,7 @@ raiseError JobNotExists   = raise404 "job" Nothing
 raiseError (FileNotExists name)  = raise404 "file" (Just name)
 raiseError QueueNotEmpty  = Scotty.status status403
 raiseError (InsufficientRights msg) = do
-  Scotty.status status401
+  Scotty.status status403
   Scotty.text $ TL.pack msg
 raiseError e = do
   Scotty.status status500
