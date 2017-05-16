@@ -15,6 +15,7 @@ class JobView(QtGui.QDialog):
         self.id_editor = self._line_editor('id', "ID:")
         self.seq_editor = self._line_editor('seq', "Seq:")
         self.type_editor = self._line_editor('type', "Type:")
+        self.host_editor = self._line_editor('host_name', "Host:")
         self.status_editor = self._line_editor('status', "Status:")
 
         job_params = job['params']
