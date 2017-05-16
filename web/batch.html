@@ -32,7 +32,7 @@
       <input type='button' onclick='getJobs()' value='List jobs'/>
       <table id='jobslist'>
         <thead><tr>
-            <td>ID</td><td>#</td><td>Type</td><td>Status</td><td>Create time</td><td>Finish time</td><td>User</td>
+            <td>ID</td><td>#</td><td>Type</td><td>Host</td><td>Status</td><td>Create time</td><td>Finish time</td><td>User</td>
         </tr></thead>
       </table>
 
@@ -105,9 +105,14 @@ function getJobs() {
   $.batchd.queue.read(qname, {'status': status}).done(function(data) {
     $('#jobslist>tr').remove();
     $.each(data, function(k,v) {
+      var host = v.host_name;
+      if (! host) {
+        host = 'local';
+      }
       var html = '<td>' + v.id + '</td><td>'
                              + v.seq + '</td><td>'
                              + v.type + '</td><td>'
+                             + host + '</td><td>'
                              + v.status + '</td><td>'
                              + v.create_time + '</td><td>'
                              + v.result_time + '</td><td>'
