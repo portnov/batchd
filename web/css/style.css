@@ -30,6 +30,9 @@ table thead {
 table tr.Done {
   background-color: #84b561;
 }
+table tr.Failed {
+  background-color: #e47a7a;
+}
 
 div#viewjob {
   display: none;
