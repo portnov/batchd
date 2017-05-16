@@ -36,6 +36,12 @@
         </tr></thead>
       </table>
 
+      <div id='viewjob'>
+        <div id='viewparams'>
+        </div>
+        <input type='button' value='Close' onclick='hideJob()'/>
+      </div>
+
       <div id='addjob'>
         <label for='selecttype'>Job type:</label>
         <select id='selecttype' onchange='fillEnqueueForm()'></select>
@@ -68,7 +74,6 @@ function fillQueues() {
 
 function fillJobTypes() {
   var qname = $('#queuelist').val();
-  // qname = 'default';
   if (! qname) {
     qname = $.default_queue;
   }
@@ -96,16 +101,34 @@ function getJobs() {
   $.batchd.queue.read(qname, {'status': status}).done(function(data) {
     $('#jobslist>tr').remove();
     $.each(data, function(k,v) {
+      var html = '<td>' + v.id + '</td><td>'
+                             + v.seq + '</td><td>'
+                             + v.type + '</td><td>'
+                             + v.status + '</td><td>'
+                             + v.create_time + '</td><td>'
+                             + v.result_time + '</td>';
       $('#jobslist').append(
-          $('<tr>').addClass(v.status).append('<td>' + v.id + '</td><td>'
-                                 + v.seq + '</td><td>'
-                                 + v.type + '</td><td>'
-                                 + v.status + '</td><td>'
-                                 + v.create_time + '</td><td>'
-                                 + v.result_time + '</td>')
+          $('<tr>').addClass(v.status).append(html).click(showJob(v))
         );
     });
   });
+};
+
+function showJob(job) {
+  return function(data) {
+    $('#viewjob').show();
+    $('#viewparams').empty();
+    for (var name in job.params) {
+      var value = job.params[name];
+      $('#viewparams').append(
+          $('<p>').text(name + ': ' + value)
+      );
+    }
+  };
+};
+
+function hideJob() {
+  $('#viewjob').hide();
 };
 
 function fillEnqueueForm() {
