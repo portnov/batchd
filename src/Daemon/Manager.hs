@@ -140,7 +140,6 @@ done = Scotty.json ("done" :: String)
 
 getQueuesA :: Action ()
 getQueuesA = do
-  checkPermissionToList "view list of queues" ViewQueues
   user <- getAuthUser
   let name = userName user
   cfg <- lift $ asks ciGlobalConfig
