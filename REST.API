@@ -1,7 +1,7 @@
 batchd manager REST API documentation
 =====================================
 
-The API tries to follow REST practices. It uses PUT to add things,   POST to
+The API tries to follow REST practices. It uses POST to add things,   PUT to
 update them,   DELETE to delete things and GET to obtain information. In some
 cases,   additional URL parameters (?name=value) are used.
 For dangerous requests,   API may return 403 response code if it is not sure that
@@ -44,7 +44,7 @@ fields:
 * host_name
 
 URL: /queue
-Method: PUT
+Method: POST
 
 Create new job queue. In request body,   one must provide a dictionary describing
 new queue.
@@ -75,7 +75,7 @@ following keys:
 * params - a dictionary with job parameters values
 
 URL: /queue/:name
-Method: PUT
+Method: POST
 
 Put a new job into named queue. In request body,   one must provide a dictionary
 describing new job. The dictionary must have at least the following keys:
@@ -86,9 +86,15 @@ describing new job. The dictionary must have at least the following keys:
 `id',   `queue' and 'seq' keys are ignored even if provided.
 
 URL: /queue/:name
-Method: POST
+Method: PUT
 
 Modify named job queue. Request body is similar to "add new queue" call.
+
+URL: /queue/:name/types
+Method: GET
+
+Obtain list of job types which can be created in specified queue by currently
+authenticated user. All details of job types are returned.
 
 URL: /queue/:name
 Method: DELETE
@@ -121,6 +127,16 @@ dictionary with the following fields:
 
 Returns 404 if job was not executed yet.
 
+URL: /job/:id/results
+Method: GET
+
+Return information about all executions of speciifed job.
+
+URL: /job/:id/results/last
+Method: GET
+
+Return information about last execution of specified job.
+
 URL: /job/:id
 Method: DELETE
 
@@ -144,7 +160,7 @@ Example response:
     "Tuesday",  "Wednesday",  "Thursday",  "Friday"],  "name": "working.hours"}]
 
 URL: /schedule
-Method: PUT
+Method: POST
 
 Create a new schedule. In request body,  one should provide a dictionary
 describing the new schedule. Dictionary format is the same as for GET call.
@@ -172,4 +188,64 @@ URL: /type/:name
 Method: GET
 
 Similar to /type, but returns only information about named job type.
+
+User permissions
+----------------
+
+URL: /user
+Method: GET
+Permissions required: SuperUser
+
+Obtain list of all user names.
+
+URL: /user
+Method: POST
+Permissions required: SuperUser
+
+Create new user. Accepted is dictionary with following keys:
+
+* name
+* password
+
+Please note that password is transferred in clear text. So this is secure only
+if connection is secured with HTTPS.
+
+URL: /user/:name
+Method: PUT
+Permissions required: :name == current user, or SuperUser
+
+Change user password. Accepted is a dictionary with following keys:
+
+* name - not used
+* password - new password
+
+Please note that password is transferred in clear text. So this is secure only
+if connection is secured with HTTPS.
+
+URL: /user/:name/permissions
+Method: GET
+Permissions required: SuperUser
+
+Obtain list of permissions for specified user. Returned is a list of dictionaries with following keys:
+
+* user_name
+* permission. Possible values are:
+  * SuperUser
+  * CreateJobs
+  * ViewJobs
+  * ManageJobs
+  * ViewQueues
+  * ManageQueues
+  * ViewSchedules
+  * ManageSchedules
+* queue_name - name of queue to which this permission applies. null means any
+  queue.
+* type_name - name of job type to which this permission applies. null means any
+  job type.
+
+URL: /user/:name/permissions
+Method: POST
+Permissions required: SuperUser
+
+Grant new permission to the user. Accepted is a dictionary of format specified above. user_name field is not used.
 
