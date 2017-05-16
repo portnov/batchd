@@ -128,9 +128,10 @@ options of how to specify periods:
 
 Installation
 ------------
-$ sudo apt-get install haskell-platform
-$ cd batchd/
-$ cabal update
-$ cabal sandbox init
-$ cabal install
+
+    $ sudo apt-get install haskell-platform
+    $ cd batchd/
+    $ cabal update
+    $ cabal sandbox init
+    $ cabal install
 
