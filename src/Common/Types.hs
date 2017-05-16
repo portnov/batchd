@@ -314,6 +314,7 @@ data GlobalConfig = GlobalConfig {
     dbcEnableBasicAuth :: Bool,
     dbcEnableHeaderAuth :: Bool,
     dbcDisableAuth :: Bool,
+    dbcWebClientPath :: Maybe String,
     dbcAllowedOrigin :: Maybe String,
     dbcStoreDone :: Int
   }
@@ -339,6 +340,7 @@ instance FromJSON GlobalConfig where
       <*> v .:? "enable_basic_auth" .!= True
       <*> v .:? "enable_header_auth" .!= False
       <*> v .:? "disable_auth" .!= False
+      <*> v .:? "web_client_path"
       <*> v .:? "allowed_origin"
       <*> v .:? "store_done" .!= 2
   parseJSON invalid = typeMismatch "global configuration" invalid

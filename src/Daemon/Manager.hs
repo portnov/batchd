@@ -42,9 +42,10 @@ corsPolicy cfg =
 
 routes :: GlobalConfig -> ScottyT Error ConnectionM ()
 routes cfg = do
+  Scotty.defaultHandler raiseError
+
   Scotty.middleware $ cors $ const $ Just $ corsPolicy cfg
-  Scotty.middleware $ staticPolicy (addBase "web/")
-  -- Scotty.middleware (authentication cfg)
+  
   when (dbcEnableHeaderAuth cfg) $
     Scotty.middleware (headerAuth cfg)
   when (dbcEnableBasicAuth cfg) $
@@ -52,7 +53,11 @@ routes cfg = do
   when (dbcDisableAuth cfg) $
     Scotty.middleware noAuth
     
-  Scotty.defaultHandler raiseError
+  case dbcWebClientPath cfg of
+    Just path -> do
+        Scotty.middleware $ staticPolicy (addBase path)
+        Scotty.get "/" $ file $ path </> "batch.html"
+    Nothing -> return ()
 
   Scotty.get "/stats" getStatsA
   Scotty.get "/stats/:name" getQueueStatsA

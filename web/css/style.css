@@ -1,0 +1,32 @@
+
+body {
+  font-family: Verdana, Ubuntu, Arial, sans-serif;
+  background-color: #4d4d4d;
+  color: white;
+}
+
+div#content {
+  width: 100%;
+}
+
+table#jobslist {
+  border: 1px black solid;
+  width: 100%;
+}
+
+table td {
+  text-align: center;
+}
+
+table tr td {
+  border-right: 1px gray solid;
+  border-bottom: 1px gray solid;
+}
+
+table thead {
+  font-weight: bold;
+}
+
+table tr.Done {
+  background-color: #84b561;
+}

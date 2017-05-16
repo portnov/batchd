@@ -7,28 +7,38 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
 
     <!-- jQuery rest -->
-    <script src="http://jpillora.com/jquery.rest/dist/1/jquery.rest.min.js"></script>
-    <!-- WARNING: I advise not using this link, instead download and host this library on your own server as GitHub has download limits -->
+    <script src="/js/jquery.rest.min.js"></script>
+
+    <link rel='stylesheet' type='text/css' href='/css/style.css'/>
 
   </head>
   <body>
-    <h1>batchd web client</title>
+    <h1>batchd web client</h1>
 
     <div class="content">
       <label for="queuelist">Queue:</label>
       <select id="queuelist">
       </select>
+      <label for='selectstatus'>Status:</label>
+      <select id='selectstatus'>
+        <option value='all' selected>All</option>
+        <option value='new'>New</option>
+        <option value='waiting'>Waiting</option>
+        <option value='processing'>Processing</option>
+        <option value='done'>Done</option>
+        <option value='failed'>Failed</option>
+        <option value='postponed'>Postponed</option>
+      </select>
       <input type='button' onclick='getJobs()' value='List jobs'/>
-      <ol id='jobslist'>
-      </ol>
+      <table id='jobslist'>
+        <thead><tr>
+            <td>ID</td><td>#</td><td>Type</td><td>Status</td><td>Create time</td><td>Finish time</td>
+        </tr></thead>
+      </table>
     </div>
 
     <script>
-    var client = new $.RestClient('http://localhost:9681/', {
-      username: 'root',
-      password: '123456'
-    });
-    //alert('hello');
+    var client = new $.RestClient('/');
     
     client.add('queue');
 
@@ -42,10 +52,17 @@
 
 function getJobs() {
   var qname = $('#queuelist').val();
-  client.queue.read(qname, {'status': 'all'}).done(function(data) {
+  var status = $('#selectstatus').val();
+  client.queue.read(qname, {'status': status}).done(function(data) {
+    $('#jobslist>tr').remove();
     $.each(data, function(k,v) {
       $('#jobslist').append(
-          $('<li>').text(v.type + ": " + v.status)
+          $('<tr>').addClass(v.status).append('<td>' + v.id + '</td><td>'
+                                 + v.seq + '</td><td>'
+                                 + v.type + '</td><td>'
+                                 + v.status + '</td><td>'
+                                 + v.create_time + '</td><td>'
+                                 + v.result_time + '</td>')
         );
     });
   });
