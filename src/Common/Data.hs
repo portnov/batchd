@@ -41,11 +41,13 @@ Job
   typeName String
   queueName String
   seq Int
+  userName String default='root'
   createTime UTCTime default=CURRENT_TIMESTAMP
   status JobStatus default='New'
   tryCount Int default=0
   hostName String Maybe
   UniqJobSeq queueName seq
+  Foreign User user userName
 
 JobResult
   jobId JobId

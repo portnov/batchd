@@ -198,6 +198,7 @@ data JobInfo = JobInfo {
     jiQueue :: String,
     jiType :: String,
     jiSeq :: Int,
+    jiUserName :: String,
     jiCreateTime :: UTCTime,
     jiStatus :: JobStatus,
     jiTryCount :: Int,
@@ -223,6 +224,7 @@ instance FromJSON JobInfo where
       <*> v .:? "queue" .!= ""
       <*> v .: "type"
       <*> v .:? "seq" .!= 0
+      <*> v .:? "user_name" .!= "<unknown>"
       <*> v .:? "time" .!= zeroUtcTime
       <*> v .:? "status" .!= New
       <*> v .:? "try_count" .!= 0

@@ -180,8 +180,9 @@ enqueueA :: Action ()
 enqueueA = do
   jinfo <- jsonData
   qname <- Scotty.param "name"
+  user <- getAuthUser
   checkCanCreateJobs qname (jiType jinfo)
-  r <- runDBA $ enqueue qname jinfo
+  r <- runDBA $ enqueue (userName user) qname jinfo
   Scotty.json r
 
 removeJobA :: Action ()

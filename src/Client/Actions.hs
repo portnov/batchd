@@ -56,6 +56,7 @@ doEnqueue manager opts = do
           jiQueue = qname,
           jiType = t,
           jiSeq = 0,
+          jiUserName = fst creds,
           jiCreateTime = zeroUtcTime,
           jiStatus = New,
           jiTryCount = 0,
@@ -160,8 +161,8 @@ viewJob manager opts = do
     printJob :: JobInfo -> IO ()
     printJob job = do
       let host = fromMaybe "*" $ jiHostName job
-      printf "Order:\t%d\nType:\t%s\nQueue:\t%s\nHost:\t%s\nCreated:\t%s\nStatus:\t%s\nTry count:\t%d\n"
-        (jiSeq job) (jiType job) (jiQueue job) host (show $ jiCreateTime job)
+      printf "Order:\t%d\nType:\t%s\nQueue:\t%s\nHost:\t%s\nUser:\t%s\nCreated:\t%s\nStatus:\t%s\nTry count:\t%d\n"
+        (jiSeq job) (jiType job) (jiQueue job) host (jiUserName job) (show $ jiCreateTime job)
         (show $ jiStatus job) (jiTryCount job)
       forM_ (M.assocs $ jiParams job) $ \(name, value) -> do
           printf "%s:\t%s\n" name value

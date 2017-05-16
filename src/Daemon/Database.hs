@@ -51,6 +51,7 @@ buildJobInfo jid j mbr params =
       jiType = jobTypeName j,
       jiCreateTime = jobCreateTime j,
       jiSeq = jobSeq j,
+      jiUserName = jobUserName j,
       jiStatus = jobStatus j,
       jiTryCount = jobTryCount j,
       jiHostName = jobHostName j,
@@ -296,8 +297,8 @@ getStats = do
             return (queueName q, st)
   return $ M.fromList rs
 
-enqueue :: String -> JobInfo -> DB (Key Job)
-enqueue qname jinfo = do
+enqueue :: String -> String -> JobInfo -> DB (Key Job)
+enqueue username qname jinfo = do
   mbQueue <- getQueue qname
   lockQueue qname
   case mbQueue of
@@ -305,7 +306,7 @@ enqueue qname jinfo = do
     Just qe -> do
       seq <- getLastJobSeq qname
       now <- liftIO getCurrentTime
-      let job = Job (jiType jinfo) qname (seq+1) now (jiStatus jinfo) (jiTryCount jinfo) (jiHostName jinfo)
+      let job = Job (jiType jinfo) qname (seq+1) username now (jiStatus jinfo) (jiTryCount jinfo) (jiHostName jinfo)
       jid <- insert job
       forM_ (M.assocs $ jiParams jinfo) $ \(name,value) -> do
         let param = JobParam jid name value

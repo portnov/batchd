@@ -32,7 +32,7 @@
       <input type='button' onclick='getJobs()' value='List jobs'/>
       <table id='jobslist'>
         <thead><tr>
-            <td>ID</td><td>#</td><td>Type</td><td>Status</td><td>Create time</td><td>Finish time</td>
+            <td>ID</td><td>#</td><td>Type</td><td>Status</td><td>Create time</td><td>Finish time</td><td>User</td>
         </tr></thead>
       </table>
 
@@ -106,7 +106,8 @@ function getJobs() {
                              + v.type + '</td><td>'
                              + v.status + '</td><td>'
                              + v.create_time + '</td><td>'
-                             + v.result_time + '</td>';
+                             + v.result_time + '</td><td>'
+                             + v.user_name + '</td>';
       $('#jobslist').append(
           $('<tr>').addClass(v.status).append(html).click(showJob(v))
         );
