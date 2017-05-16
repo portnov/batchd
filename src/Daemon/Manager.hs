@@ -64,9 +64,9 @@ routes cfg = do
 
   Scotty.get "/queue" getQueuesA
   Scotty.get "/queue/:name" getQueueA
+  Scotty.get "/queue/:name/types" $ getAllowedJobTypesA
   Scotty.post "/queue/:name" updateQueueA
   Scotty.put "/queue" addQueueA
-
   Scotty.put "/queue/:name" enqueueA
   Scotty.delete "/queue/:name/:seq" removeJobA
   Scotty.delete "/queue/:name" removeQueueA
@@ -82,7 +82,7 @@ routes cfg = do
   Scotty.put "/schedule" addScheduleA
   Scotty.delete "/schedule/:name" removeScheduleA
 
-  Scotty.get "/type" getJobTypesA
+  Scotty.get "/type" $ getJobTypesA
   Scotty.get "/type/:name" getJobTypeA
 
   Scotty.put "/user" createUserA
@@ -305,17 +305,34 @@ deleteJobsA = do
 
 getJobTypesA :: Action ()
 getJobTypesA = do
-  dirs <- liftIO $ getConfigDirs "jobtypes"
-  files <- forM dirs $ \dir -> liftIO $ glob (dir </> "*.yaml")
+  cfg <- lift $ asks ciGlobalConfig
+  types <- liftIO $ listJobTypes cfg
+  Scotty.json types
+
+getAllowedJobTypesA :: Action ()
+getAllowedJobTypesA = do
+  user <- getAuthUser
+  qname <- Scotty.param "name"
+  let name = userName user
+  cfg <- lift $ asks ciGlobalConfig
+  types <- liftIO $ listJobTypes cfg
+  allowedTypes <- flip filterM types $ \jt -> do
+                      runDBA $ hasCreatePermission name qname (jtName jt)
+  Scotty.json allowedTypes
+
+listJobTypes :: GlobalConfig -> IO [JobType]
+listJobTypes cfg = do
+  dirs <- getConfigDirs "jobtypes"
+  files <- forM dirs $ \dir -> glob (dir </> "*.yaml")
   ts <- forM (concat files) $ \path -> do
-             r <- liftIO $ decodeFileEither path
+             r <- decodeFileEither path
              case r of
                Left err -> do
-                  lift $ $reportError $ show err
+                  reportErrorIO cfg $ show err
                   return []
                Right jt -> return [jt]
   let types = concat ts :: [JobType]
-  Scotty.json types
+  return types
 
 getJobTypeA :: Action ()
 getJobTypeA = do
