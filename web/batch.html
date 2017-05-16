@@ -137,7 +137,7 @@ function enqueueJob() {
     'params': params
   };
   //alert(job);
-  $.batchd.queue.update(qname, job);
+  $.batchd.queue.create(qname, job);
 };
     </script>
   </body>
