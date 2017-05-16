@@ -161,6 +161,17 @@ getEnabledQueues = selectList [QueueEnabled ==. True] []
 getAllQueues' :: DB [Queue]
 getAllQueues' = map entityVal `fmap` selectList [] []
 
+getAllowedQueues :: String -> Permission -> DB [Queue]
+getAllowedQueues name perm = do
+  lst <- E.select $ E.distinct $
+         E.from $ \(queue `E.InnerJoin` uperm) -> do
+           E.on $ (uperm ^. UserPermissionUserName `equals` E.val name)
+                      `eand` (uperm ^. UserPermissionPermission `equals` E.val perm)
+                      `eand` ((uperm ^. UserPermissionQueueName `equals` E.just (queue ^. QueueName))
+                              `eor` (E.isNothing $ uperm ^. UserPermissionQueueName))
+           return queue
+  return $ map entityVal lst
+
 getAllJobs :: String -> DB [Entity Job]
 getAllJobs qid = selectList [JobQueueName ==. qid] [Asc JobSeq]
 
@@ -209,6 +220,9 @@ infix 4 `equals`
 
 eand = (E.&&.)
 infixr 3 `eand`
+
+eor = (E.||.)
+infixr 3 `eor`
 
 getLastJobSeq :: String -> DB Int
 getLastJobSeq qid = do

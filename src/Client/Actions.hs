@@ -364,8 +364,9 @@ doListPermissions manager opts = do
   response <- doGet manager creds url
   forM_ (response :: [Database.UserPermission]) $ \perm -> do
       let qname = fromMaybe "*" $ Database.userPermissionQueueName perm
-      printf "Permission:\t%s\nQueue:\t%s\n\n"
-        (show $ Database.userPermissionPermission perm) qname
+          tname = fromMaybe "*" $ Database.userPermissionTypeName perm
+      printf "Permission:\t%s\nQueue:\t%s\nJob type:\t%s\n\n"
+        (show $ Database.userPermissionPermission perm) qname tname
 
 doAddPermission :: Manager -> Batch -> IO ()
 doAddPermission manager opts = do
@@ -374,6 +375,6 @@ doAddPermission manager opts = do
   creds <- getCredentials opts
   let name = grantUserName opts
       url = baseUrl </> "user" </> name </> "permissions"
-      perm = Database.UserPermission name (permission opts) (queueName opts)
+      perm = Database.UserPermission name (permission opts) (queueName opts) (typeName opts)
   doPut manager creds url perm
 

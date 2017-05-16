@@ -78,6 +78,7 @@ data Batch =
       grantUserName :: String,
       permission :: Permission,
       queueName :: Maybe String,
+      typeName :: Maybe String,
       username :: Maybe String,
       password :: Maybe String
     }
@@ -206,6 +207,7 @@ grant = Grant {
     grantUserName = def &= typ "NAME" &= argPos 0,
     permission = CreateJobs &= typ "PERMISSION" &= help "specify permission, for example ViewJobs",
     queueName = Nothing &= typ "QUEUE" &= help "queue to grant permission to, by default - any",
+    typeName = Nothing &= typ "TYPE" &= help "job type to grant permission to, usable for CreateJobs permission",
     username = usernameAnn,
     password = passwordAnn
   } &= help "create, update or delete user permissions"

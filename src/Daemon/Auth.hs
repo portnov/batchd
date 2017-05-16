@@ -39,7 +39,7 @@ createUserDb name password staticSalt = do
 createSuperUserDb :: String -> String -> String -> DB (Key User)
 createSuperUserDb name password staticSalt = do
   userKey <- createUserDb name password staticSalt
-  let perm = UserPermission name SuperUser Nothing
+  let perm = UserPermission name SuperUser Nothing Nothing
   insert perm
   return userKey
 
@@ -232,6 +232,16 @@ hasPermission name perm qname = do
           any <- selectList [UserPermissionUserName ==. name, UserPermissionPermission ==. perm, UserPermissionQueueName ==. Nothing] []
           return $ not $ null any
 
+hasCreatePermission :: String -> String -> String -> DB Bool
+hasCreatePermission name qname typename = do
+  super <- isSuperUser name
+  if super
+    then return True
+    else do
+      let filtr = [UserPermissionUserName ==. name, UserPermissionPermission ==. CreateJobs] ++ ([UserPermissionQueueName ==. Nothing] ||. [UserPermissionQueueName ==. Just qname]) ++ ([UserPermissionTypeName ==. Nothing] ||. [UserPermissionTypeName ==. Just typename])
+      res <- selectList filtr []
+      return $ not $ null res
+
 hasPermissionToList :: String -> Permission -> DB Bool
 hasPermissionToList name perm = do
   super <- isSuperUser name
@@ -249,6 +259,15 @@ checkPermission message perm qname = do
       ok <- runDBA $ hasPermission (userName user) perm qname
       when (not ok) $ do
         throw $ InsufficientRights message
+
+checkCanCreateJobs :: String -> String -> Action ()
+checkCanCreateJobs qname typename = do
+  cfg <- lift $ asks ciGlobalConfig
+  when (not $ dbcDisableAuth cfg) $ do
+      user <- getAuthUser
+      ok <- runDBA $ hasCreatePermission (userName user) qname typename
+      when (not ok) $ do
+        throw $ InsufficientRights "create jobs"
 
 checkPermissionToList :: String -> Permission -> Action ()
 checkPermissionToList message perm = do

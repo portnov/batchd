@@ -141,7 +141,9 @@ done = Scotty.json ("done" :: String)
 getQueuesA :: Action ()
 getQueuesA = do
   checkPermissionToList "view list of queues" ViewQueues
-  qes <- runDBA getAllQueues'
+  user <- getAuthUser
+  let name = userName user
+  qes <- runDBA $ getAllowedQueues name ViewQueues
   -- let qnames = map (queueName . entityVal) qes
   Scotty.json qes
 
@@ -174,7 +176,7 @@ enqueueA :: Action ()
 enqueueA = do
   jinfo <- jsonData
   qname <- Scotty.param "name"
-  checkPermission "add jobs into queue" CreateJobs qname
+  checkCanCreateJobs qname (jiType jinfo)
   r <- runDBA $ enqueue qname jinfo
   Scotty.json r
 

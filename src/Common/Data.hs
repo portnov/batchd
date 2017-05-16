@@ -89,6 +89,7 @@ UserPermission
   userName String
   permission Permission
   queueName String Maybe
+  typeName String Maybe
   Foreign User user userName
   Foreign Queue queue queueName
 |]
