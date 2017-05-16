@@ -39,6 +39,10 @@
       <div id='viewjob'>
         <div id='viewparams'>
         </div>
+        <p>Output:</p>
+        <div id='stdout'></div>
+        <p>Errors:</p>
+        <div id='stderr'></div>
         <input type='button' value='Close' onclick='hideJob()'/>
       </div>
 
@@ -107,7 +111,7 @@ function getJobs() {
                              + v.status + '</td><td>'
                              + v.create_time + '</td><td>'
                              + v.result_time + '</td><td>'
-                             + v.user_name + '</td>';
+                             + v.user_name + '</td>'
       $('#jobslist').append(
           $('<tr>').addClass(v.status).append(html).click(showJob(v))
         );
@@ -125,6 +129,8 @@ function showJob(job) {
           $('<p>').text(name + ': ' + value)
       );
     }
+    $('#stdout').text(job.stdout);
+    $('#stderr').text(job.stderr);
   };
 };
 
