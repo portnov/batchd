@@ -96,7 +96,7 @@ doList manager opts = do
                           Just st -> case status opts of
                                        Nothing -> ""
                                        _ -> "?status=" ++ map toLower (show st)
-        let url = baseUrl </> "queue" </> qname ++ statusStr
+        let url = baseUrl </> "queue" </> qname </> "jobs" ++ statusStr
         response <- doGet manager creds url
         forM_ (response :: [JobInfo]) $ \job -> do
           printf "#%d: [%d]\t%s\t%s\n" (jiId job) (jiSeq job) (jiType job) (show $ jiStatus job)

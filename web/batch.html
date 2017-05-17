@@ -16,20 +16,23 @@
     <h1>batchd web client</h1>
 
     <div class="content">
-      <label for="queuelist">Queue:</label>
-      <select id="queuelist" onchange='fillJobTypes()'>
-      </select>
-      <label for='selectstatus'>Status:</label>
-      <select id='selectstatus'>
-        <option value='all' selected>All</option>
-        <option value='new'>New</option>
-        <option value='waiting'>Waiting</option>
-        <option value='processing'>Processing</option>
-        <option value='done'>Done</option>
-        <option value='failed'>Failed</option>
-        <option value='postponed'>Postponed</option>
-      </select>
-      <input type='button' onclick='getJobs()' value='List jobs'/>
+      <p>
+        <label for="queuelist">Queue:</label>
+        <select id="queuelist" onchange='onQueueSelected()'>
+        </select>
+        <label for='selectstatus'>Status:</label>
+        <select id='selectstatus'>
+          <option value='all' selected>All</option>
+          <option value='new'>New</option>
+          <option value='waiting'>Waiting</option>
+          <option value='processing'>Processing</option>
+          <option value='done'>Done</option>
+          <option value='failed'>Failed</option>
+          <option value='postponed'>Postponed</option>
+        </select>
+        <input type='button' onclick='getJobs()' value='List jobs'/>
+      </p>
+      <p>Schedule: <span id='schedule_name'></span></p>
       <table id='jobslist'>
         <thead><tr>
             <td>ID</td><td>#</td><td>Type</td><td>Host</td><td>Status</td><td>Create time</td><td>Finish time</td><td>User</td>
@@ -59,6 +62,7 @@
 $.batchd = new $.RestClient('/');
 
 $.batchd.add('queue', {'stringifyData': true});
+$.batchd.queue.add('jobs');
 $.batchd.queue.add('types');
 $.batchd.add('type');
 
@@ -74,15 +78,18 @@ function fillQueues() {
           $('<option>').val(v.name).text(text)
         );
     });
-    fillJobTypes();
+    onQueueSelected();
   });
 };
 
-function fillJobTypes() {
+function onQueueSelected() {
   var qname = $('#queuelist').val();
   if (! qname) {
     qname = $.default_queue;
   }
+  $.batchd.queue.read(qname).done(function(queue) {
+    $('#schedule_name').text(queue.schedule_name);
+  });
   $.batchd.queue.types.read(qname).done(function(data) {
     $('#selecttype>option').remove();
     $.each(data, function(k,v) {
@@ -104,7 +111,7 @@ $(document).ready(function() {
 function getJobs() {
   var qname = $('#queuelist').val();
   var status = $('#selectstatus').val();
-  $.batchd.queue.read(qname, {'status': status}).done(function(data) {
+  $.batchd.queue.jobs.read(qname, {'status': status}).done(function(data) {
     $('#jobslist>tr').remove();
     $.each(data, function(k,v) {
       var host = v.host_name;

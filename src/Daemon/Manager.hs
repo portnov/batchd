@@ -64,6 +64,7 @@ routes cfg = do
 
   Scotty.get "/queue" getQueuesA
   Scotty.get "/queue/:name" getQueueA
+  Scotty.get "/queue/:name/jobs" getQueueJobsA
   Scotty.get "/queue/:name/types" $ getAllowedJobTypesA
   Scotty.put "/queue/:name" updateQueueA
   Scotty.post "/queue" addQueueA
@@ -151,11 +152,20 @@ getQueuesA = do
   -- let qnames = map (queueName . entityVal) qes
   Scotty.json qes
 
+getQueueA :: Action ()
+getQueueA = do
+  qname <- Scotty.param "name"
+  checkPermission "view queue" ViewQueues qname
+  mbQueue <- runDBA $ getQueue qname
+  case mbQueue of
+    Nothing -> raise (QueueNotExists qname)
+    Just queue -> Scotty.json queue
+
 parseStatus' :: Maybe JobStatus -> Maybe B.ByteString -> Action (Maybe JobStatus)
 parseStatus' dflt str = parseStatus dflt (raise (InvalidJobStatus str)) str
 
-getQueueA :: Action ()
-getQueueA = do
+getQueueJobsA :: Action ()
+getQueueJobsA = do
   qname <- Scotty.param "name"
   checkPermission "view queue jobs" ViewJobs qname
   st <- getUrlParam "status"

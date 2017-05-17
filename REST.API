@@ -55,6 +55,11 @@ Example request:
 URL: /queue/:name
 Method: GET
 
+Get information about specified queue. Returns one dictionary.
+
+URL: /queue/:name/jobs
+Method: GET
+
 Obtain a list of jobs in named queue. By default,   only jobs in status "new" are
 listed. One may change this by providing ?status=x URL parameter. ?status=all
 is also supported. Each record of returned list is a dictionary with the
