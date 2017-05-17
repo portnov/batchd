@@ -69,7 +69,7 @@ function fillQueues() {
         $.default_queue = v.name;
       }
       $('#queuelist').append(
-          $('<option>').val(v.name).text(v.name)
+          $('<option>').val(v.name).text(v.title)
         );
     });
     fillJobTypes();
