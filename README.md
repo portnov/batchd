@@ -1,7 +1,7 @@
 batchd README
 =============
 
-The batchd is a toolset for batch processing. It enables one to:
+The batchd is a toolset for batch processing for Linux/Unix. It enables one to:
 
 * Create and manage queues of tasks (batch jobs);
 * Specify time periods (schedules) when jobs from each queue can be executed;
@@ -32,8 +32,12 @@ Architecture
 The batchd suite consists of the following components:
 
 * Client utilities. These allow you to create queues, put jobs into queues and
-  so on. For now, there are only command-line utilities; it is planned to
-  develop more or less advanced GUI client.
+  so on. The following clients are available for now:
+  * Command-line utility, `batch`. This is for now the most complete client.
+  * Python+Qt4 GUI client. This allows to view and edit queues, view, create
+    and edit jobs.
+  * Web client. This allows to view queues, create and view jobs. It is mainly
+    intended for job creation and monitoring.
 * Batchd manager. It is a daemon process which provides REST API for clients
   for jobs and queues management.
 * Batchd dispatcher. It is a daemon process which takes jobs from queues,
