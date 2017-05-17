@@ -55,6 +55,44 @@ The batchd suite consists of the following components:
   database, then there will be no persistency: for example, if you reboot your
   computer, or your scheduled jobs will be forgot.
 
+There is also a command-line utility called batchd-admin, for administrative needs.
+For now it allows to create superuser (root), since it is not possible to create
+first user via REST API.
+
+See also REST API description in the REST.API file.
+
+Access control
+--------------
+batchd uses relatively simple access control model, based on users and permissions.
+Each user can have one of predefined permissions with relation to specific queue 
+and job type. It is also possible to assign a permission to all queues or job types.
+The following permissions are supported:
+
+  * SuperUser - user that have this permission is superuser, it can do anything.
+  * CreateJobs - a permission to create jobs. Can be granted with relation to
+    queue and job type.
+  * ViewJobs - a permission to view job details and results.
+  * ManageJobs - a permission to edit and delete jobs.
+  * ViewQueues - a permission to view queue details.
+  * ManageQueues - a permission to create, edit and delete queues.
+  * ViewSchedules - a permission to view schedules. This cannot be granted with
+    relation to queue or job type.
+  * ManageSchedules - a permission to create, edit or delete schedules. This
+    cannot be granted with relation to queue or job type.
+
+Only superuser can manage users and their permissions.
+
+The following options are available for user authentication for access to REST API:
+
+* Basic HTTP authentication. In this case password are sent in clear text, so
+  this is secure only if channel is secured with HTTPS. This can be implemented
+  with external tool, for example nginx.
+* Unconditional authentication of user specified in X-Auth-User: HTTP header.
+  This is intended for cases when authentication is done by external system.
+  For example, this is usable when nginx checks client HTTPS certificates.
+* Disable authentication. In this mode all users are treated as superusers.
+  This can be usable when running on localhost.
+
 Configuration
 -------------
 All configuration files are in YAML format and stored under /etc/batchd/ or
@@ -78,6 +116,8 @@ variables:
 * BATCH_QUEUE
 * BATCH_TYPE
 * BATCH_HOST
+* BATCH_USERNAME
+* BATCH_PASSWORD
 
 The priority for these options is as follows:
 * Options specified explicitly in command line have the highest priority.
@@ -89,7 +129,6 @@ The priority for these options is as follows:
   * Default queue is "default".
   * Default job type is "command".
   * Default host name is "undefined", which means use local host.
-
 
 Job types
 ---------
