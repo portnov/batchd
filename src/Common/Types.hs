@@ -45,6 +45,7 @@ data ParamDesc = ParamDesc {
 
 data JobType = JobType {
     jtName :: String,
+    jtTitle :: Maybe String,
     jtTemplate :: String,
     jtOnFail :: OnFailAction,
     jtHostName :: Maybe String,

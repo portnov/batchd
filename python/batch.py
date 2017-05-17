@@ -183,7 +183,12 @@ class GUI(QtGui.QMainWindow):
         self.type_by_name = {}
         for t in types:
             name = t['name']
-            self.type_popup.addItem(name)
+            title = t.get('title', name)
+            if not title:
+                title = name
+            item = QtGui.QStandardItem(name)
+            item.setData(title, QtCore.Qt.DisplayRole)
+            self.type_popup.model().appendRow(item)
             self.type_by_name[name] = t
         self.type_popup.currentIndexChanged.connect(self._on_select_type)
         self.layout.addWidget(wrapper)
@@ -286,8 +291,9 @@ class GUI(QtGui.QMainWindow):
     def _on_ok(self):
         queue_idx = self.queue_popup.currentIndex()
         queue_name = self.queues[queue_idx]['name']
-        typename = unicode( self.type_popup.currentText() )
+        #typename = unicode( self.type_popup.currentText() )
         jobtype = self.types[self.type_popup.currentIndex()]
+        typename = jobtype['name']
         params = {}
         for name, widget in self.param_widgets.iteritems():
             params[name] = unicode(widget.text())

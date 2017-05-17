@@ -310,7 +310,9 @@ doType manager opts = do
                 else \jt -> jtName jt `elem` types opts
   forM_ (response :: [JobType]) $ \jt -> do
     when (check jt) $ do
+      let title = fromMaybe (jtName jt) (jtTitle jt)
       putStrLn $ jtName jt ++ ":"
+      putStrLn $ "\tTitle:\t" ++ title
       putStrLn $ "\tTemplate:\t" ++ jtTemplate jt
       putStrLn $ "\tOn fail:\t" ++ show (jtOnFail jt)
       putStrLn $ "\tHost:\t" ++ fromMaybe "*" (jtHostName jt)
