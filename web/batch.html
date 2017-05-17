@@ -152,6 +152,8 @@ function getJobs() {
   });
 };
 
+setInterval(getJobs, 5*1000);
+
 function showJob(job) {
   return function(data) {
     $('#viewjob').show();

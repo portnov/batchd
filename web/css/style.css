@@ -66,6 +66,13 @@ div#addjob {
   padding: 1ex;
 }
 
+table#jobparams {
+  width: 100%;
+}
+table#jobparams input {
+  width: 100%;
+}
+
 div#stderr, div#stdout {
   font-family: Monospace, Courier, fixed;
   white-space: pre;
