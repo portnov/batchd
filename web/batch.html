@@ -106,8 +106,12 @@ function onQueueSelected() {
       if (! k) {
         $.default_job_type = v.name;
       }
+      var title = v.title;
+      if (! title) {
+        title = v.name;
+      }
       $('#selecttype').append(
-          $('<option>').val(v.name).text(v.name)
+          $('<option>').val(v.name).text(title)
         );
     });
     fillEnqueueForm();
