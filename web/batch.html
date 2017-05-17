@@ -16,7 +16,7 @@
     <h1>batchd web client</h1>
 
     <div class="content">
-      <p>
+      <div id='queue_filter'>
         <label for="queuelist">Queue:</label>
         <select id="queuelist" onchange='onQueueSelected()'>
         </select>
@@ -31,13 +31,19 @@
           <option value='postponed'>Postponed</option>
         </select>
         <input type='button' onclick='getJobs()' value='Refresh'/>
-      </p>
-      <p>Schedule: <span id='schedule_name'></span></p>
+      </div>
+      <div id='queue_info'>
+        Schedule: <span id='schedule_name'></span>
+        Host: <span id='host_name'></span>
+      </div>
       <table id='jobslist'>
         <thead><tr>
             <td>ID</td><td>#</td><td>Type</td><td>Host</td><td>Status</td><td>Create time</td><td>Finish time</td><td>User</td>
         </tr></thead>
       </table>
+      <div>
+        Statistics: <span id='queue_stats'></span>
+      </div>
 
       <div id='viewjob'>
         <div id='viewparams'>
@@ -65,6 +71,7 @@ $.batchd.add('queue', {'stringifyData': true});
 $.batchd.queue.add('jobs');
 $.batchd.queue.add('types');
 $.batchd.add('type');
+$.batchd.add('stats');
 
 function fillQueues() {
   $.batchd.queue.read().done(function(data) {
@@ -89,6 +96,8 @@ function onQueueSelected() {
   }
   $.batchd.queue.read(qname).done(function(queue) {
     $('#schedule_name').text(queue.schedule_name);
+    var host = queue.host_name ? queue.host_name : "local";
+    $('#host_name').text(host);
   });
   getJobs();
   $.batchd.queue.types.read(qname).done(function(data) {
@@ -131,6 +140,15 @@ function getJobs() {
           $('<tr>').addClass(v.status).append(html).click(showJob(v))
         );
     });
+  });
+  $.batchd.stats.read(qname).done(function(stats) {
+    var n_new = stats['new'] || 0;
+    var n_processing = stats['processing'] || 0;
+    var n_done = stats['done'] || 0;
+    var n_failed = stats['failed'] || 0;
+    var text = 'New: ' + n_new + ', Processing: ' + n_processing + ', Done: ' + n_done + ', Failed: ' + n_failed;
+    $('#queue_stats').text(text);
+
   });
 };
 

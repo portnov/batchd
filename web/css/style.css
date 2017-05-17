@@ -10,6 +10,18 @@ div#content {
   padding: 1em;
 }
 
+div#queue_filter {
+  float: left;
+  clear: right;
+}
+
+div#queue_info {
+  padding: 1ex;
+  font-size: small;
+  float: right;
+  clear: right;
+}
+
 table#jobslist {
   border: 1px black solid;
   width: 100%;
