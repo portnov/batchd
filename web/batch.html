@@ -68,8 +68,10 @@ function fillQueues() {
       if (! k) {
         $.default_queue = v.name;
       }
+      var on = v.enabled ? "[*]" : "[ ]";
+      var text = on + " " + v.title;
       $('#queuelist').append(
-          $('<option>').val(v.name).text(v.title)
+          $('<option>').val(v.name).text(text)
         );
     });
     fillJobTypes();
