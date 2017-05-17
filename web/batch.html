@@ -21,7 +21,7 @@
         <select id="queuelist" onchange='onQueueSelected()'>
         </select>
         <label for='selectstatus'>Status:</label>
-        <select id='selectstatus'>
+        <select id='selectstatus' onchange='getJobs()'>
           <option value='all' selected>All</option>
           <option value='new'>New</option>
           <option value='waiting'>Waiting</option>
@@ -30,7 +30,7 @@
           <option value='failed'>Failed</option>
           <option value='postponed'>Postponed</option>
         </select>
-        <input type='button' onclick='getJobs()' value='List jobs'/>
+        <input type='button' onclick='getJobs()' value='Refresh'/>
       </p>
       <p>Schedule: <span id='schedule_name'></span></p>
       <table id='jobslist'>
@@ -90,6 +90,7 @@ function onQueueSelected() {
   $.batchd.queue.read(qname).done(function(queue) {
     $('#schedule_name').text(queue.schedule_name);
   });
+  getJobs();
   $.batchd.queue.types.read(qname).done(function(data) {
     $('#selecttype>option').remove();
     $.each(data, function(k,v) {
