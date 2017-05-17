@@ -28,15 +28,15 @@ handleStatus rs =
     then return $ responseBody rs
     else throw $ ClientException $ map (chr . fromIntegral) $ L.unpack $ responseBody rs
 
-allowAny :: Status -> ResponseHeaders -> CookieJar -> Maybe SomeException
-allowAny _ _ _ = Nothing
+allowAny :: Request -> Response BodyReader -> IO ()
+allowAny _ _ = return ()
 
 doPut :: ToJSON a => Manager -> Credentials -> String -> a -> IO ()
 doPut manager creds urlStr object = do
   url <- parseUrl urlStr
   let request = applyAuth creds $ url {
                   method="PUT",
-                  checkStatus = allowAny,
+                  checkResponse = allowAny,
                   requestBody = RequestBodyLBS $ Aeson.encode object
                 }
   handleStatus =<< httpLbs request manager
@@ -47,7 +47,7 @@ doPost manager creds urlStr object = do
   url <- parseUrl urlStr
   let request = applyAuth creds $ url {
                   method="POST",
-                  checkStatus = allowAny,
+                  checkResponse = allowAny,
                   requestBody = RequestBodyLBS $ Aeson.encode object
                 }
   handleStatus =<< httpLbs request manager
@@ -57,7 +57,7 @@ doDelete :: Manager -> Credentials -> String -> IO ()
 doDelete manager creds urlStr = do
   url <- parseUrl urlStr
   let request = applyAuth creds $ url { method="DELETE",
-                      checkStatus = allowAny
+                      checkResponse = allowAny
                     }
   handleStatus =<< httpLbs request manager
   return ()
@@ -65,7 +65,7 @@ doDelete manager creds urlStr = do
 doGet :: FromJSON a => Manager -> Credentials -> String -> IO a
 doGet manager creds urlStr = do
   url <- parseUrl urlStr
-  let request = applyAuth creds $ url {checkStatus = allowAny}
+  let request = applyAuth creds $ url {checkResponse = allowAny}
   -- print request
   responseLbs <- handleStatus =<< httpLbs request manager
   case Aeson.eitherDecode responseLbs of
