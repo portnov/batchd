@@ -60,6 +60,8 @@ def get_queue_stats(url, creds, qname):
 
 def get_jobs(url, creds, qname):
     rs = requests.get(url + "/queue/" + qname + "?status=all", auth=creds)
+    if rs.status_code in (401, 403):
+        raise InsufficientRightsException(rs.text)
     return json.loads(rs.text)
 
 def delete_job(url, creds, jobid):
