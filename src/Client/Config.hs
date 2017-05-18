@@ -24,13 +24,29 @@ data ClientConfig = ClientConfig {
     ccType :: Maybe String,
     ccHost :: Maybe String,
     ccDisableAuth :: Bool,
+    ccCertificate :: Maybe FilePath,
+    ccKey :: Maybe FilePath,
+    ccCaCertificate :: Maybe FilePath,
+    ccDisableServerCertificateCheck :: Bool,
     ccUsername :: Maybe String,
     ccPassword :: Maybe String
   }
   deriving (Show, Data, Typeable, Generic)
 
 defaultConfig :: ClientConfig
-defaultConfig = ClientConfig Nothing Nothing Nothing Nothing False Nothing Nothing
+defaultConfig = ClientConfig {
+    ccManagerUrl = Nothing,
+    ccQueue = Nothing,
+    ccType = Nothing,
+    ccHost = Nothing,
+    ccDisableAuth = False,
+    ccCertificate = Nothing,
+    ccKey = Nothing,
+    ccCaCertificate = Nothing,
+    ccDisableServerCertificateCheck = False,
+    ccUsername = Nothing,
+    ccPassword = Nothing
+  }
 
 instance FromJSON ClientConfig where
   parseJSON (Object v) =
@@ -40,6 +56,10 @@ instance FromJSON ClientConfig where
       <*> v .:? "type"
       <*> v .:? "host"
       <*> v .:? "disable_auth" .!= False
+      <*> v .:? "certificate"
+      <*> v .:? "key"
+      <*> v .:? "ca_certificate"
+      <*> v .:? "disable_server_certificate_check" .!= False
       <*> v .:? "username"
       <*> v .:? "password"
 

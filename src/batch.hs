@@ -10,6 +10,7 @@ import Data.Maybe
 import Client.Types
 import Client.Actions
 import Client.CmdLine
+import Client.Http
 
 main :: IO ()
 main = realMain `catch` errorHandler
@@ -22,7 +23,7 @@ realMain = do
   let mode = cmdArgsMode $ modes [enqueue, list &= name "ls", job, queue, schedule, typesList, stats, user, grant]
   opts <- cmdArgsRun mode
 
-  manager <- newManager defaultManagerSettings
+  manager <- makeClientManager opts
 
   case opts of
     Enqueue {} -> doEnqueue manager opts
