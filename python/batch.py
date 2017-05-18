@@ -39,33 +39,41 @@ def get_manager_url():
         return url
     return 'http://localhost:9681'
 
-def get_job_types(url, creds):
-    rs = requests.get(url + "/type", auth=creds)
-    return json.loads(rs.text)
-
-def get_queues(url, creds):
-    rs = requests.get(url + "/queue", auth=creds)
+def handle_status(rs):
     if rs.status_code in (401, 403):
         raise InsufficientRightsException(rs.text)
+    if rs.status_code != 200:
+        raise Exception(rs.text)
+
+def get_job_types(url, settings):
+    rs = requests.get(url + "/type", auth=settings.credentials, verify=settings.verify, cert=settings.client_certificate)
+    handle_status(rs)
     return json.loads(rs.text)
 
-def do_enqueue(url, creds, qname, typename, params):
+def get_queues(url, settings):
+    rs = requests.get(url + "/queue", auth=settings.credentials, verify=settings.verify, cert=settings.client_certificate)
+    handle_status(rs)
+    return json.loads(rs.text)
+
+def do_enqueue(url, settings, qname, typename, params):
     rq = dict(queue = qname, type=typename, params=params)
-    rs = requests.post(url+ "/queue/" + qname, data=json.dumps(rq), auth=creds)
+    rs = requests.post(url+ "/queue/" + qname, data=json.dumps(rq), auth=settings.credentials, verify=settings.verify, cert=settings.client_certificate)
+    handle_status(rs)
     print(rs.text)
 
-def get_queue_stats(url, creds, qname):
-    rs = requests.get(url + "/stats/" + qname, auth=creds)
+def get_queue_stats(url, settings, qname):
+    rs = requests.get(url + "/stats/" + qname, auth=settings.credentials, verify=settings.verify, cert=settings.client_certificate)
+    handle_status(rs)
     return json.loads(rs.text)
 
-def get_jobs(url, creds, qname):
-    rs = requests.get(url + "/queue/" + qname + "/jobs?status=all", auth=creds)
-    if rs.status_code in (401, 403):
-        raise InsufficientRightsException(rs.text)
+def get_jobs(url, settings, qname):
+    rs = requests.get(url + "/queue/" + qname + "/jobs?status=all", auth=settings.credentials, verify=settings.verify, cert=settings.client_certificate)
+    handle_status(rs)
     return json.loads(rs.text)
 
-def delete_job(url, creds, jobid):
-    rs = requests.delete(url + "/job/" + str(jobid), auth=creds)
+def delete_job(url, settings, jobid):
+    rs = requests.delete(url + "/job/" + str(jobid), auth=settings.credentials, verify=settings.verify, cert=settings.client_certificate)
+    handle_status(rs)
     print rs
 
 def labelled(label, constructor, parent=None):
@@ -85,14 +93,40 @@ def get_icon(name):
 class InsufficientRightsException(Exception):
     pass
 
+class ConnectSettings(object):
+    def __init__(self, username, password):
+        self.username = username
+        self.password = password
+        self.key = None
+        self.certificate = None
+        self.ca_certificate = None
+
+    @property
+    def credentials(self):
+        return (self.username, self.password)
+
+    @property
+    def client_certificate(self):
+        if self.key and self.certificate:
+            return (self.certificate, self.key)
+        else:
+            return None
+
+    @property
+    def verify(self):
+        if self.ca_certificate:
+            return self.ca_certificate
+        else:
+            return False
+    
 class LoginBox(QtGui.QDialog):
     def __init__(self, url, parent=None):
         QtGui.QDialog.__init__(self, parent)
 
         self.url = url
-        self.creds = None
+        self.settings = None
 
-        cfg = load_config()
+        self.config = cfg = load_config()
 
         form = QtGui.QFormLayout()
         vbox = QtGui.QVBoxLayout()
@@ -122,23 +156,26 @@ class LoginBox(QtGui.QDialog):
 
     def on_ok(self):
         try:
-            creds = (self.login.text(), self.password.text())
-            get_queues(self.url, creds)
-            self.creds = creds
+            settings = ConnectSettings(self.login.text(), self.password.text())
+            settings.certificate = self.config.get('certificate', None)
+            settings.key = self.config.get('key', None)
+            settings.ca_certificate = self.config.get('ca_certificate', None)
+            get_queues(self.url, settings)
+            self.settings = settings
             self.accept()
         except InsufficientRightsException as e:
             print e
 
     def on_cancel(self):
-        self.creds = None
+        self.settings = None
         self.reject()
 
 class GUI(QtGui.QMainWindow):
-    def __init__(self, url, creds):
+    def __init__(self, url, settings):
         QtGui.QMainWindow.__init__(self)
 
         self.url = url
-        self.creds = creds
+        self.settings = settings
 
         central_widget = QtGui.QWidget(self)
 
@@ -179,7 +216,7 @@ class GUI(QtGui.QMainWindow):
         self.layout.addWidget(self.qtable)
 
         wrapper, self.type_popup = labelled("Job type:", QtGui.QComboBox, self)
-        self.types = types = get_job_types(self.url, self.creds)
+        self.types = types = get_job_types(self.url, self.settings)
         self.type_by_name = {}
         for t in types:
             name = t['name']
@@ -209,7 +246,7 @@ class GUI(QtGui.QMainWindow):
 
     def _fill_queues(self):
         self.queue_popup.clear()
-        self.queues = queues = get_queues(self.url, self.creds)
+        self.queues = queues = get_queues(self.url, self.settings)
         for q in queues:
             enabled = "*" if q['enabled'] else " "
             title = "[{0}] {1}".format(enabled, q['title'])
@@ -234,7 +271,7 @@ class GUI(QtGui.QMainWindow):
                                         buttons)
         if ok == QtGui.QMessageBox.Yes:
             print "Deleting!"
-            delete_job(self.url, self.creds, job_id)
+            delete_job(self.url, self.settings, job_id)
             self._refresh_queue()
         else:
             print "do not delete"
@@ -276,7 +313,7 @@ class GUI(QtGui.QMainWindow):
         host = queue['host_name']
         if not host:
             host = "*"
-        stats = get_queue_stats(self.url, self.creds, queue['name'])
+        stats = get_queue_stats(self.url, self.settings, queue['name'])
         new = stats.get('new', 0)
         processing = stats.get('processing', 0)
         done = stats.get('done', 0)
@@ -285,7 +322,7 @@ class GUI(QtGui.QMainWindow):
         self.queue_info.setText(info)
         self.enable_queue.setChecked(queue['enabled'])
 
-        jobs = get_jobs(self.url, self.creds, queue['name'])
+        jobs = get_jobs(self.url, self.settings, queue['name'])
         self.qtable.setJobs(jobs)
 
     def _on_ok(self):
@@ -297,15 +334,17 @@ class GUI(QtGui.QMainWindow):
         params = {}
         for name, widget in self.param_widgets.iteritems():
             params[name] = unicode(widget.text())
-        do_enqueue(self.url, self.creds, queue_name, typename, params)
+        do_enqueue(self.url, self.settings, queue_name, typename, params)
         self._refresh_queue()
 
     def get_schedules(self):
-        rs = requests.get(self.url + "/schedule", auth=self.creds)
+        rs = requests.get(self.url + "/schedule", auth=self.settings.credentials, verify=settings.verify, cert=settings.client_certificate)
+        handle_status(rs)
         return json.loads(rs.text)
 
     def new_queue(self, queue):
-        rs = requests.post(self.url + "/queue", data=json.dumps(queue), auth=self.creds)
+        rs = requests.post(self.url + "/queue", data=json.dumps(queue), auth=self.settings.credentials, verify=settings.verify, cert=settings.client_certificate)
+        handle_status(rs)
         print(rs.text)
 
 
@@ -314,8 +353,8 @@ if __name__ == "__main__":
     URL = get_manager_url()
     login_box = LoginBox(URL)
     if login_box.exec_():
-        creds = login_box.creds
-        gui = GUI(URL, creds)
+        settings = login_box.settings
+        gui = GUI(URL, settings)
         gui.show()
         sys.exit(app.exec_())
 
