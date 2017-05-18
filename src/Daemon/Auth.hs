@@ -22,6 +22,7 @@ import Common.Data
 import Daemon.Types
 import Daemon.Crypto
 import Daemon.Database
+import Daemon.Logging
 
 usernameKey :: V.Key String
 usernameKey = unsafePerformIO V.newKey
@@ -144,7 +145,9 @@ basicAuth gcfg app req sendResponse =
       username = extractBasicUser req
       req' = req {vault = V.insert usernameKey username $ vault req}
   in  case getAuthUserRq req of
-        Nothing -> HA.basicAuth (checkUser gcfg) settings app req' sendResponse
+        Nothing -> do
+            liftIO $ infoIO gcfg $ "Will try to authenticate user with basic auth: " ++ username
+            HA.basicAuth (checkUser gcfg) settings app req' sendResponse
         Just _ -> app req sendResponse
 
 headerAuth :: GlobalConfig -> Middleware
@@ -152,6 +155,7 @@ headerAuth gcfg app req sendResponse = do
   -- liftIO $ putStrLn $ "X-Auth-User: " ++ show req
   case lookup "X-Auth-User" (requestHeaders req) of
     Nothing -> do
+        liftIO $ infoIO gcfg $ "No X-Auth-User header"
         app req sendResponse
 --       case getAuthUserRq req of
 --         Nothing -> sendResponse $ responseLBS status401 [] "User name not provided"
@@ -160,16 +164,18 @@ headerAuth gcfg app req sendResponse = do
       let username = bstrToString name
           req' = req {vault = V.insert usernameKey username $ vault req}
       ok <- liftIO $ checkUserExists gcfg name
+      liftIO $ infoIO gcfg $ "User from X-AUth-User header authenticated, treated as superuser: " ++ username
       if ok
         then app req' sendResponse
         else sendResponse $ responseLBS status401 [] "Specified user does not exist"
 
-noAuth :: Middleware
-noAuth app req sendResponse = do
+noAuth :: GlobalConfig -> Middleware
+noAuth gcfg app req sendResponse = do
   let username = case lookup "X-Auth-User" (requestHeaders req) of
                    Just n -> bstrToString n
                    Nothing -> extractBasicUser req
       req' = req {vault = V.insert usernameKey username $ vault req}
+  liftIO $ infoIO gcfg $ "Authentication is disabled. User treated as superuser: " ++ username
   app req' sendResponse
 
 -- authentication :: GlobalConfig -> Middleware

@@ -51,7 +51,7 @@ routes cfg = do
   when (dbcEnableBasicAuth cfg) $
     Scotty.middleware (basicAuth cfg)
   when (dbcDisableAuth cfg) $
-    Scotty.middleware noAuth
+    Scotty.middleware (noAuth cfg)
     
   case dbcWebClientPath cfg of
     Just path -> do
