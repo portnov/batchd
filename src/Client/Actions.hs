@@ -29,13 +29,15 @@ import Client.Http
 getCredentials :: Batch -> IO Credentials
 getCredentials opts = do
   cfg <- loadClientConfig
+  let needPassword = isNothing (ccKey cfg) || isNothing (ccCertificate cfg)
   name <- getUserName (username opts) cfg
-  mbPassword <- getConfigParam' (password opts) "BATCH_PASSWORD" (ccPassword cfg)
-  pass <- if ccDisableAuth cfg
+  pass <- if ccDisableAuth cfg || not needPassword
             then return ""
-            else case mbPassword of
-                  Just p -> return p
-                  Nothing -> getPassword $ name ++ " password: "
+            else do
+                 mbPassword <- getConfigParam' (password opts) "BATCH_PASSWORD" (ccPassword cfg)
+                 case mbPassword of
+                   Just p -> return p
+                   Nothing -> getPassword $ name ++ " password: "
   return (name, pass)
 
 doEnqueue :: Manager -> Batch -> IO ()
