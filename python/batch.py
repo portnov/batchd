@@ -94,12 +94,27 @@ class InsufficientRightsException(Exception):
     pass
 
 class ConnectSettings(object):
-    def __init__(self, username, password):
+    def __init__(self, username=None, password=None):
         self.username = username
         self.password = password
         self.key = None
         self.certificate = None
         self.ca_certificate = None
+
+    @classmethod
+    def from_config(cls, config):
+        settings = ConnectSettings()
+        settings.certificate = config.get('certificate', None)
+        settings.key = config.get('key', None)
+        settings.ca_certificate = config.get('ca_certificate', None)
+        return settings
+
+    @property
+    def need_password(self):
+        if self.key and self.certificate:
+            return False
+        else:
+            return True
 
     @property
     def credentials(self):
@@ -120,13 +135,13 @@ class ConnectSettings(object):
             return False
     
 class LoginBox(QtGui.QDialog):
-    def __init__(self, url, parent=None):
+    def __init__(self, url, cfg, parent=None):
         QtGui.QDialog.__init__(self, parent)
 
         self.url = url
         self.settings = None
 
-        self.config = cfg = load_config()
+        self.config = cfg
 
         form = QtGui.QFormLayout()
         vbox = QtGui.QVBoxLayout()
@@ -156,10 +171,9 @@ class LoginBox(QtGui.QDialog):
 
     def on_ok(self):
         try:
-            settings = ConnectSettings(self.login.text(), self.password.text())
-            settings.certificate = self.config.get('certificate', None)
-            settings.key = self.config.get('key', None)
-            settings.ca_certificate = self.config.get('ca_certificate', None)
+            settings = ConnectSettings.from_config(self.config)
+            settings.username = self.login.text()
+            settings.password = self.password.text()
             get_queues(self.url, settings)
             self.settings = settings
             self.accept()
@@ -351,9 +365,19 @@ class GUI(QtGui.QMainWindow):
 if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)
     URL = get_manager_url()
-    login_box = LoginBox(URL)
-    if login_box.exec_():
-        settings = login_box.settings
+    cfg = load_config()
+    settings = ConnectSettings.from_config(cfg)
+
+    auth_ok = False
+    if settings.need_password:
+        login_box = LoginBox(URL, cfg)
+        if login_box.exec_():
+            settings = login_box.settings
+            auth_ok = True
+    else:
+        auth_ok = True
+
+    if auth_ok:
         gui = GUI(URL, settings)
         gui.show()
         sys.exit(app.exec_())
