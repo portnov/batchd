@@ -13,6 +13,7 @@ Statistic information
 
 URL: /stats
 Method: GET
+Permissions required: ManageJobs without restriction by queue
 
 Returns a dictionary. Each entry has form "queue name": status_info.
 status_info is a dictionary,   where keys are possible statuses of jobs (new,  
@@ -27,6 +28,7 @@ jobs and 3 "failed".
 
 URL: /stats/:name
 Method: GET
+Permissions required: ManageJobs for specified queue or without restriction by queue
 
 Similar to /stats,   but returns only information about named queue.
 
@@ -35,6 +37,8 @@ Queues
 
 URL: /queue
 Method: GET
+Permissions required: ViewQueues for at least some queues. Only queues to which user
+has access will be returned.
 
 Returns list of defined queues. Each record is a dictionary with the following
 fields:
@@ -45,6 +49,7 @@ fields:
 
 URL: /queue
 Method: POST
+Permissions required: ManageQueues
 
 Create new job queue. In request body,   one must provide a dictionary describing
 new queue.
@@ -54,11 +59,13 @@ Example request:
 
 URL: /queue/:name
 Method: GET
+Permissions required: ViewQueues
 
 Get information about specified queue. Returns one dictionary.
 
 URL: /queue/:name/jobs
 Method: GET
+Permissions required: ViewJobs
 
 Obtain a list of jobs in named queue. By default,   only jobs in status "new" are
 listed. One may change this by providing ?status=x URL parameter. ?status=all
@@ -81,6 +88,7 @@ following keys:
 
 URL: /queue/:name
 Method: POST
+Permissions required: CreateJobs for this queue and job type or without restriction
 
 Put a new job into named queue. In request body,   one must provide a dictionary
 describing new job. The dictionary must have at least the following keys:
@@ -92,17 +100,20 @@ describing new job. The dictionary must have at least the following keys:
 
 URL: /queue/:name
 Method: PUT
+Permissions required: ManageJobs
 
 Modify named job queue. Request body is similar to "add new queue" call.
 
 URL: /queue/:name/types
 Method: GET
+Permissions required: CreateJobs for at least some job types
 
 Obtain list of job types which can be created in specified queue by currently
 authenticated user. All details of job types are returned.
 
 URL: /queue/:name
 Method: DELETE
+Permissions required: ManageQueues
 
 Delete named job queue. Returns 403 if the queue is not empty and there is no
 ?forced=true parameter. With ?forced=true,   will delete queue with all contained
@@ -113,6 +124,7 @@ Jobs
 
 URL: /jobs
 Method: GET
+Permissions required: ViewJobs without restriction by queue
 
 Return a list of all jobs in all queues. By default,   only jobs in status "new"
 are returned. One may change it with ?status=x URL parameter. ?status=all is
@@ -120,6 +132,7 @@ also supported.
 
 URL: /job/:id
 Method: GET
+Permissions required: ViewJobs for queue to which this job belongs
 
 Return information about specified job execution results. Returned is a
 dictionary with the following fields:
@@ -134,16 +147,19 @@ Returns 404 if job was not executed yet.
 
 URL: /job/:id/results
 Method: GET
+Permissions required: ViewJobs for queue to which this job belongs
 
 Return information about all executions of speciifed job.
 
 URL: /job/:id/results/last
 Method: GET
+Permissions required: ViewJobs for queue to which this job belongs
 
 Return information about last execution of specified job.
 
 URL: /job/:id
 Method: DELETE
+Permissions required: ManageJobs
 
 Delete specified job. This does not ask for any confirmation.
 
@@ -152,6 +168,7 @@ Schedules
 
 URL: /schedule
 Method: GET
+Permissions required: ViewSchedules
 
 Return a list of defined schedules. Each record is a dictionary with the following keys:
 
@@ -166,12 +183,14 @@ Example response:
 
 URL: /schedule
 Method: POST
+Permissions required: ManageSchedules
 
 Create a new schedule. In request body,  one should provide a dictionary
 describing the new schedule. Dictionary format is the same as for GET call.
 
 URL: /schedule/:name
 Method: DELETE
+Permissions required: ManageSchedules
 
 Delete existing schedule. Returns 403 if named schedule is used by queues and
 there is no ?forced=true parameter. With ?forced=true,  this will delete the
@@ -182,6 +201,7 @@ Job types
 
 URL: /type
 Method: GET
+Permissions required: none
 
 Return list of all defined job types. Example response:
 
@@ -191,6 +211,7 @@ Return list of all defined job types. Example response:
 
 URL: /type/:name
 Method: GET
+Permissions required: none
 
 Similar to /type, but returns only information about named job type.
 
