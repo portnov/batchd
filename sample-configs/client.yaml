@@ -1,4 +1,38 @@
+# batchd manager URL
+# manager_url: https://manager.batchd.internal
 manager_url: http://localhost:9681
+
+# Name of queue to which put jobs by default
 queue: test
+
+# Name of host where to run created jobs by default. Host addresses and
+# access credentials are specified in hosts/*.yaml files.
 # host: neural.aws
+
+# Name of job type to use for new jobs by default
 # type: blender
+
+# Disable authentication. If this is set to true, client utility will not ask
+# for password. Obviously, this should correlate with server-side setting,
+# otherwise all requests will be just rejected.
+# disable_auth: true
+
+# Use specified files as TLS client certificate and key.
+# This is usable when manager API is accessible by HTTPS.
+# certificate: /home/user/.config/batchd/client.pem
+# key: /home/user/.config/batchd/client.key
+
+# Disable server certificate check. Generally this should not be enabled,
+# but one has to enable this if self-signed certificate is used on server side.
+# disable_server_certificate_check: true
+
+# Check that server certificate is signed by specified CA certificate.
+# If not provided, any server certificate will be accepted.
+# ca_certificate: /home/user/.config/batchd/ca.pem
+
+# User name and password to be used by client utility by default.
+# It is generally not safe to store password in config file, since it has to be
+# stored in plain text. But in some setups this can be useful.
+# username: user
+# password: "pwd&1245"
+
