@@ -235,6 +235,11 @@ checkSuperUser = do
       when (not ok) $ do
         Scotty.raise $ InsufficientRights "user has to be superuser"
 
+checkUserAuthenticated :: Action ()
+checkUserAuthenticated = do
+  _ <- getAuthUser
+  return ()
+
 hasPermission :: String -> Permission -> String -> DB Bool
 hasPermission name perm qname = do
   super <- isSuperUser name

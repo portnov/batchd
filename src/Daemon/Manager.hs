@@ -88,6 +88,8 @@ routes cfg = do
   Scotty.get "/type" $ getJobTypesA
   Scotty.get "/type/:name" getJobTypeA
 
+  Scotty.get "/host" $ getHostsA
+
   Scotty.post "/user" createUserA
   Scotty.get "/user" getUsersA
   Scotty.put "/user/:name" changePasswordA
@@ -363,6 +365,20 @@ getJobTypeA = do
   case r of
     Left err -> raise err
     Right jt -> Scotty.json jt
+
+getHostsA :: Action ()
+getHostsA = do
+  dirs <- liftIO $ getConfigDirs "hosts"
+  files <- liftIO $ forM dirs $ \dir -> glob (dir </> "*.yaml")
+  hs <- forM (concat files) $ \path -> do
+             r <- liftIO $ decodeFileEither path
+             case r of
+               Left err -> do
+                  lift $ $reportError $ show err
+                  return []
+               Right host -> return [host]
+  let hosts = concat hs :: [Host]
+  Scotty.json $ map hName hosts
 
 getUsersA :: Action ()
 getUsersA = do
