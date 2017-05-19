@@ -8,6 +8,24 @@ For dangerous requests,   API may return 403 response code if it is not sure tha
 you really meant this action. To make it sure,   one should provide ?forced=true
 URL parameter.
 
+Authentication
+--------------
+
+URL: /
+Method: OPTIONS
+Permissions required: none
+
+Returns a list of supported authentication methods. Possible values are "basic"
+(for basic HTTP authentication) and "header" (authentication via X-Auth-User:
+HTTP header). Empty list means no authentication is required.
+
+Example response:
+
+    ["basic"]
+
+This method itself is always available without authentication. So it can be
+used as preflight check, to know which authentication method to use.
+
 Statistic information
 ---------------------
 
