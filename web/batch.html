@@ -56,8 +56,12 @@
       </div>
 
       <div id='addjob'>
-        <label for='selecttype'>Job type:</label>
-        <select id='selecttype' onchange='fillEnqueueForm()'></select>
+        <p>
+          <label for='selecttype'>Job type:</label>
+          <select id='selecttype' onchange='fillEnqueueForm()'></select>
+          <label for='selecthost'>Host:</label>
+          <select id='selecthost'></select>
+        </p>
         <table id='jobparams'>
         </table>
         <input type='button' onclick='enqueueJob()' value='Enqueue'/>
@@ -72,6 +76,7 @@ $.batchd.queue.add('jobs');
 $.batchd.queue.add('types');
 $.batchd.add('type');
 $.batchd.add('stats');
+$.batchd.add('host');
 
 function fillQueues() {
   $.batchd.queue.read().done(function(data) {
@@ -86,6 +91,20 @@ function fillQueues() {
         );
     });
     onQueueSelected();
+  });
+};
+
+function fillHosts() {
+  $.batchd.host.read().done(function(data) {
+    $('#selecthost').empty();
+    $('#selecthost').append(
+        $('<option>').val("*").text("<Use default for this queue>")
+      );
+    $.each(data, function(k,v) {
+      $('#selecthost').append(
+          $('<option>').val(v).text(v)
+        );
+    });
   });
 };
 
@@ -120,6 +139,7 @@ function onQueueSelected() {
 
 $(document).ready(function() {
   fillQueues();
+  fillHosts();
 });
 
 function getJobs() {
@@ -202,6 +222,7 @@ function fillEnqueueForm() {
 function enqueueJob() {
   var type = $('#selecttype').val();
   var qname = $('#queuelist').val();
+  var host = $('#selecthost').val();
   var params = {};
   $('#jobparams>tr>td>input').each(function(k, input) {
     params[input.name] = input.value;
@@ -211,6 +232,9 @@ function enqueueJob() {
     'type': type,
     'params': params
   };
+  if (host != '*') {
+    job['host_name'] = host;
+  }
   //alert(job);
   $.batchd.queue.create(qname, job);
   getJobs();
