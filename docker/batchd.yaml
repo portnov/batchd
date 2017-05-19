@@ -1,0 +1,12 @@
+driver: Sqlite
+connection_string: "/srv/batchd.sqlite" 
+
+log_level: info
+
+auth:
+    basic: true
+    header: false
+    static_salt: "siht987ih565?*.JHKJ"
+
+web_client_path: /usr/src/batchd-master/web/
+allowed_origin: http://localhost:9681/
