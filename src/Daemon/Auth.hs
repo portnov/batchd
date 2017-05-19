@@ -3,7 +3,6 @@ module Daemon.Auth where
 
 import Control.Monad
 import Control.Monad.Reader
-import Control.Exception
 import Data.Maybe
 import Data.Int
 import qualified Data.Vault.Lazy as V

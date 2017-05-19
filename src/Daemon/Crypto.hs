@@ -2,10 +2,6 @@
 module Daemon.Crypto where
 
 import Data.Monoid
-import Data.Char
-import qualified Data.Text as T
-import qualified Data.ByteString as B
-import qualified Data.Text.Encoding as TE
 
 import Crypto.Hash
 import Crypto.Random

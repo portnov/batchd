@@ -4,14 +4,11 @@
 
 module Client.Monad where
 
-import Control.Monad
 import Control.Monad.State
 import Control.Exception
-import Data.Maybe
 import Network.HTTP.Client
 
 import Common.Types
-import Common.Config (getPassword)
 import Client.Config
 import Client.Types
 import Client.CmdLine

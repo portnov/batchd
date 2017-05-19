@@ -7,13 +7,11 @@ module Client.Config where
 import GHC.Generics
 import Control.Exception
 import Data.Yaml
-import Data.Aeson as Aeson
 import Data.Generics hiding (Generic)
 import Data.Maybe
 import System.Environment
 import System.Posix.User (getLoginName)
 
-import Common.Types
 import Common.Config
 import Client.Types
 import Client.CmdLine

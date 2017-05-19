@@ -2,7 +2,6 @@
 
 module Daemon.Types where
 
-import Control.Applicative
 import Control.Monad.Reader
 import Control.Monad.Except
 import Control.Monad.Logger

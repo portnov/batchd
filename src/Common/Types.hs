@@ -3,7 +3,6 @@
 module Common.Types where
 
 import GHC.Generics
-import Control.Applicative
 import Control.Exception
 import Control.Monad
 import Control.Monad.Logger

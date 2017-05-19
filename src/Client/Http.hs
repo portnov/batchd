@@ -10,11 +10,9 @@ import qualified Data.ByteString.Lazy as L
 import Data.Char
 import Data.Default
 import Data.List
-import Data.Maybe
 import Data.Aeson as Aeson
 import Data.X509.CertificateStore
 import Network.HTTP.Client
-import Network.HTTP.Types.Header (ResponseHeaders)
 import Network.HTTP.Types.Status
 import Network.HTTP.Client.TLS
 import Network.TLS as TLS

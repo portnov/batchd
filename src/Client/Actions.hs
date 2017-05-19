@@ -5,7 +5,6 @@
 
 module Client.Actions where
 
-import Control.Exception
 import Control.Monad
 import Control.Monad.State
 import Data.Maybe
@@ -14,7 +13,6 @@ import qualified Data.Text as T
 import Data.Char
 import Data.List (intercalate)
 import Data.Aeson
-import Network.HTTP.Client
 import System.FilePath
 import Text.Printf
 
@@ -22,7 +20,6 @@ import Common.Types
 import qualified Common.Data as Database
 import Common.Schedule
 import Common.Config
-import Client.Types
 import Client.CmdLine
 import Client.Config
 import Client.Http

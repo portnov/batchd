@@ -2,7 +2,6 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-import Network.HTTP.Client
 import System.Console.CmdArgs
 import Control.Exception
 import Data.Maybe

@@ -23,7 +23,6 @@ import Data.Maybe
 import Data.Int
 import qualified Data.Map as M
 import qualified Data.Text.Encoding as TE
-import qualified Data.Text as T
 
 import           Database.Persist.Sql as Sql
 import           Database.Persist.Sqlite as Sqlite
