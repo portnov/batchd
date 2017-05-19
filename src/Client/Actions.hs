@@ -100,7 +100,7 @@ doStats = do
         response <- doGet url
         liftIO $ forM_ (M.assocs response) $ \rec -> do
                   let qname = fst rec :: String
-                      stat = snd rec :: M.Map JobStatus Int
+                      stat = snd rec :: ByStatus Int
                   liftIO $ putStrLn $ qname ++ ":"
                   liftIO $ printStats stat
       qnames -> do
@@ -110,8 +110,8 @@ doStats = do
           response <- doGet url
           liftIO $ printStats response
   where
-    printStats :: M.Map JobStatus Int -> IO ()
-    printStats stat =
+    printStats :: ByStatus Int -> IO ()
+    printStats (ByStatus stat) =
       forM_ (M.assocs stat) $ \(st, cnt) ->
           printf "\t%s:\t%d\n" (show st) cnt
 

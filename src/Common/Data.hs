@@ -107,26 +107,28 @@ instance ToJSON Queue where
 instance FromJSON Queue where
   parseJSON = genericParseJSON (jsonOptions "queue")
 
-instance FromJSON [Update ScheduleTime] where
+newtype UpdateList a = UpdateList [Update a]
+
+instance FromJSON (UpdateList ScheduleTime) where
   parseJSON o = do
     uBegin <- parseUpdate ScheduleTimeBegin "begin" o
     uEnd   <- parseUpdate ScheduleTimeEnd   "end"   o
-    return $ catMaybes [uBegin, uEnd]
+    return $ UpdateList $ catMaybes [uBegin, uEnd]
 
-instance FromJSON [Update Queue] where
+instance FromJSON (UpdateList Queue) where
   parseJSON o = do
     uSchedule <- parseUpdate QueueScheduleName "schedule_name" o
     uTitle    <- parseUpdate QueueTitle "title" o
     uEnable   <- parseUpdate QueueEnabled "enabled" o
     uHostName <- parseUpdate' QueueHostName "host_name" o
-    return $ catMaybes [uEnable, uTitle, uSchedule, uHostName]
+    return $ UpdateList $ catMaybes [uEnable, uTitle, uSchedule, uHostName]
 
-instance FromJSON [Update Job] where
+instance FromJSON (UpdateList Job) where
   parseJSON o = do
     uQueue <- parseUpdate JobQueueName "queue_name" o
     uStatus <- parseUpdate JobStatus "status" o
     uHost   <- parseUpdate' JobHostName "host_name" o
-    return $ catMaybes [uQueue, uStatus, uHost]
+    return $ UpdateList $ catMaybes [uQueue, uStatus, uHost]
 
 deriving instance Generic JobResult
 deriving instance Generic UserPermission

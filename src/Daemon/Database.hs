@@ -117,8 +117,8 @@ loadJobSeq qname seq = do
       let params = M.fromList [(jobParamName p, jobParamValue p) | p <- map entityVal ps]
       return $ buildJobInfo jid j (fmap entityVal mbr) params
 
-updateJob :: Int64 -> [Update Job] -> DB ()
-updateJob jid updates = do
+updateJob :: Int64 -> UpdateList Job -> DB ()
+updateJob jid (UpdateList updates) = do
   let jkey = JobKey (SqlBackendKey jid)
   update jkey updates
 
@@ -278,17 +278,17 @@ addQueue' name scheduleId = do
 getQueue :: String -> DB (Maybe Queue)
 getQueue name = get (QueueKey name)
 
-updateQueue :: String -> [Update Queue] -> DB ()
-updateQueue qname updates = do
+updateQueue :: String -> (UpdateList Queue) -> DB ()
+updateQueue qname (UpdateList updates) = do
   update (QueueKey qname) updates
 
-getQueueStats :: String -> DB (M.Map JobStatus Int)
+getQueueStats :: String -> DB (ByStatus Int)
 getQueueStats qname = do
   let sql = "select status, count(1) from job where queue_name = ? group by status"
   pvs <- Sql.rawSql sql [toPersistValue qname]
-  return $ M.fromList [(unSingle st, unSingle cnt) | (st,cnt) <- pvs]
+  return $ ByStatus $ M.fromList [(unSingle st, unSingle cnt) | (st,cnt) <- pvs]
 
-getStats :: DB (M.Map String (M.Map JobStatus Int))
+getStats :: DB (M.Map String (ByStatus Int))
 getStats = do
   queues <- getAllQueues'
   rs <- forM queues $ \q -> do

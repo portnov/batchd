@@ -137,15 +137,18 @@ data JobStatus =
 instance ToJSON JobStatus
 instance FromJSON JobStatus
 
-instance ToJSON a => ToJSON (M.Map JobStatus a) where
-  toJSON m = object $ map go $ M.assocs m
+newtype ByStatus a = ByStatus (M.Map JobStatus a)
+  deriving (Eq, Show, Data, Typeable, Generic)
+
+instance ToJSON a => ToJSON (ByStatus a) where
+  toJSON (ByStatus m) = object $ map go $ M.assocs m
     where
       go (st,x) = (T.pack $ map toLower $ show st) .= toJSON x
 
-instance FromJSON a => FromJSON (M.Map JobStatus a) where
+instance FromJSON a => FromJSON (ByStatus a) where
   parseJSON (Object v) = do
       pairs <- forM (H.toList v) go
-      return $ M.fromList pairs
+      return $ ByStatus $ M.fromList pairs
     where
       go (key,val) = do
         Just st <- parseStatus Nothing (fail "invalid status") (Just key) 
