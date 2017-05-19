@@ -7,6 +7,7 @@ module Client.Actions where
 
 import Control.Exception
 import Control.Monad
+import Control.Monad.State
 import Data.Maybe
 import qualified Data.Map as M
 import qualified Data.Text as T
@@ -25,33 +26,21 @@ import Client.Types
 import Client.CmdLine
 import Client.Config
 import Client.Http
+import Client.Monad
 
-getCredentials :: Batch -> IO Credentials
-getCredentials opts = do
-  cfg <- loadClientConfig
-  let needPassword = isNothing (ccKey cfg) || isNothing (ccCertificate cfg)
-  name <- getUserName (username opts) cfg
-  pass <- if ccDisableAuth cfg || not needPassword
-            then return ""
-            else do
-                 mbPassword <- getConfigParam' (password opts) "BATCH_PASSWORD" (ccPassword cfg)
-                 case mbPassword of
-                   Just p -> return p
-                   Nothing -> getPassword $ name ++ " password: "
-  return (name, pass)
-
-doEnqueue :: Manager -> Batch -> IO ()
-doEnqueue manager opts = do
-  cfg <- loadClientConfig
-  baseUrl <- getManagerUrl (managerUrl opts) cfg
-  creds <- getCredentials opts
-  t <- getTypeName (typeName opts) cfg
-  jtr <- loadTemplate t
+doEnqueue :: Client ()
+doEnqueue = do
+  cfg <- gets csConfig
+  baseUrl <- getBaseUrl
+  creds <- getCredentials
+  opts <- gets csCmdline
+  t <- liftIO $ getTypeName (typeName opts) cfg
+  jtr <- liftIO $ loadTemplate t
   case jtr of
-    Left err -> throw $ ClientException $ show err
+    Left err -> throwC $ show err
     Right jtype -> do
-      qname <- getQueueName (queueName opts) cfg
-      host <- getHostName (hostName opts) cfg
+      qname <- liftIO $ getQueueName (queueName opts) cfg
+      host <- liftIO $ getHostName (hostName opts) cfg
 
       let job = JobInfo {
           jiId = 0,
@@ -71,71 +60,68 @@ doEnqueue manager opts = do
         }
 
       let url = baseUrl </> "queue" </> qname
-      doPost manager creds url job
+      doPost url job
 
-doList :: Manager -> Batch -> IO ()
-doList manager opts = do
-  cfg <- loadClientConfig
-  baseUrl <- getManagerUrl (managerUrl opts) cfg
-  creds <- getCredentials opts
+doList :: Client ()
+doList = do
+  baseUrl <- getBaseUrl
+  opts <- gets csCmdline
   case queueToList opts of
     [] -> do
       let url = baseUrl </> "queue"
-      response <- doGet manager creds url
+      response <- doGet url
       forM_ (response :: [Database.Queue]) $ \queue -> do
-        printf "[%s]\t%s:\t%s\t%s\t%s\n"
-               ((if Database.queueEnabled queue then "*" else " ") :: String)
-               (Database.queueName queue)
-               (Database.queueTitle queue)
-               (Database.queueScheduleName queue)
-               (fromMaybe "*" $ Database.queueHostName queue)
+        liftIO $ printf "[%s]\t%s:\t%s\t%s\t%s\n"
+                   ((if Database.queueEnabled queue then "*" else " ") :: String)
+                   (Database.queueName queue)
+                   (Database.queueTitle queue)
+                   (Database.queueScheduleName queue)
+                   (fromMaybe "*" $ Database.queueHostName queue)
 
     qnames ->
       forM_ qnames $ \qname -> do
-        statusOpt <- parseStatus (Just New) (throw $ ClientException "Invalid status") (status opts)
+        statusOpt <- parseStatus (Just New) (throwC "Invalid status") (status opts)
         let statusStr = case statusOpt of
                           Nothing -> "?status=all"
                           Just st -> case status opts of
                                        Nothing -> ""
                                        _ -> "?status=" ++ map toLower (show st)
         let url = baseUrl </> "queue" </> qname </> "jobs" ++ statusStr
-        response <- doGet manager creds url
-        forM_ (response :: [JobInfo]) $ \job -> do
-          printf "#%d: [%d]\t%s\t%s\n" (jiId job) (jiSeq job) (jiType job) (show $ jiStatus job)
-          forM_ (M.assocs $ jiParams job) $ \(name, value) -> do
-            printf "\t%s:\t%s\n" name value
+        response <- doGet url
+        liftIO $ forM_ (response :: [JobInfo]) $ \job -> do
+                  printf "#%d: [%d]\t%s\t%s\n" (jiId job) (jiSeq job) (jiType job) (show $ jiStatus job)
+                  forM_ (M.assocs $ jiParams job) $ \(name, value) -> do
+                    printf "\t%s:\t%s\n" name value
 
-doStats :: Manager -> Batch -> IO ()
-doStats manager opts = do
-    cfg <- loadClientConfig
-    baseUrl <- getManagerUrl (managerUrl opts) cfg
-    creds <- getCredentials opts
+doStats :: Client ()
+doStats = do
+    baseUrl <- getBaseUrl
+    opts <- gets csCmdline
     case queueToStat opts of
       [] -> do
         let url = baseUrl </> "stats"
-        response <- doGet manager creds url
-        forM_ (M.assocs response) $ \rec -> do
-          let qname = fst rec :: String
-              stat = snd rec :: M.Map JobStatus Int
-          putStrLn $ qname ++ ":"
-          printStats stat
+        response <- doGet url
+        liftIO $ forM_ (M.assocs response) $ \rec -> do
+                  let qname = fst rec :: String
+                      stat = snd rec :: M.Map JobStatus Int
+                  liftIO $ putStrLn $ qname ++ ":"
+                  liftIO $ printStats stat
       qnames -> do
         forM_ qnames $ \qname -> do
-          putStrLn $ qname ++ ":"
+          liftIO $ putStrLn $ qname ++ ":"
           let url = baseUrl </> "stats" </> qname
-          response <- doGet manager creds url
-          printStats response
+          response <- doGet url
+          liftIO $ printStats response
   where
     printStats :: M.Map JobStatus Int -> IO ()
     printStats stat =
       forM_ (M.assocs stat) $ \(st, cnt) ->
           printf "\t%s:\t%d\n" (show st) cnt
 
-viewJob :: Manager -> Batch -> IO ()
-viewJob manager opts = do
-    cfg <- loadClientConfig
-    baseUrl <- getManagerUrl (managerUrl opts) cfg
-    creds <- getCredentials opts
+viewJob :: Client ()
+viewJob = do
+    baseUrl <- getBaseUrl
+    opts <- gets csCmdline
     let showDescription = if viewDescription opts
                             then True
                             else if not (viewResult opts) && not (viewAll opts)
@@ -144,21 +130,21 @@ viewJob manager opts = do
     if (showDescription || viewResult opts) && not (viewAll opts)
       then do
            let url = baseUrl </> "job" </> show (jobId opts)
-           response <- doGet manager creds url
+           response <- doGet url
            when (showDescription) $
-               printJob response
+               liftIO $ printJob response
            when (viewResult opts) $
-               printLastResult response
+               liftIO $ printLastResult response
       else do
            when (showDescription) $ do
                let url = baseUrl </> "job" </> show (jobId opts)
-               response <- doGet manager creds url
-               printJob response
+               response <- doGet url
+               liftIO $ printJob response
            when (viewAll opts) $ do
                let url = baseUrl </> "job" </> show (jobId opts) </> "results"
-               response <- doGet manager creds url
-               forM_ (response :: [Database.JobResult]) $ \result ->
-                   printResult result
+               response <- doGet url
+               forM_ (response :: [Database.JobResult]) $ \result -> do
+                   liftIO $ printResult result
   where
     printJob :: JobInfo -> IO ()
     printJob job = do
@@ -187,31 +173,28 @@ viewJob manager opts = do
       printf "Exit code:\t%s\nTime:\t%s\n\n" code time
       putStrLn $ T.unpack $ Database.jobResultStdout r
 
-updateJob :: Manager -> Batch -> IO ()
-updateJob manager opts = do
-  cfg <- loadClientConfig
-  baseUrl <- getManagerUrl (managerUrl opts) cfg
-  creds <- getCredentials opts
+updateJob :: Client ()
+updateJob = do
+  baseUrl <- getBaseUrl
+  opts <- gets csCmdline
   let job = object $
               toList "queue_name" (queueName opts) ++
               toList "status" (status opts) ++
               toList "host_name" (hostName opts)
   let url = baseUrl </> "job" </> show (jobId opts)
-  doPut manager creds url job
+  doPut url job
 
-deleteJob :: Manager -> Batch -> IO ()
-deleteJob manager opts = do
-  cfg <- loadClientConfig
-  baseUrl <- getManagerUrl (managerUrl opts) cfg
-  creds <- getCredentials opts
+deleteJob :: Client ()
+deleteJob = do
+  baseUrl <- getBaseUrl
+  opts <- gets csCmdline
   let url = baseUrl </> "job" </> show (jobId opts)
-  doDelete manager creds url
+  doDelete url
 
-addQueue :: Manager -> Batch -> IO ()
-addQueue manager opts = do
-  cfg <- loadClientConfig
-  baseUrl <- getManagerUrl (managerUrl opts) cfg
-  creds <- getCredentials opts
+addQueue :: Client ()
+addQueue = do
+  baseUrl <- getBaseUrl
+  opts <- gets csCmdline
   let queue = Database.Queue {
                 Database.queueName = queueObject opts,
                 Database.queueTitle = fromMaybe (queueObject opts) (title opts),
@@ -220,13 +203,12 @@ addQueue manager opts = do
                 Database.queueHostName = hostName opts
               }
   let url = baseUrl </> "queue"
-  doPost manager creds url queue
+  doPost url queue
 
-updateQueue :: Manager -> Batch -> IO ()
-updateQueue manager opts = do
-    cfg <- loadClientConfig
-    baseUrl <- getManagerUrl (managerUrl opts) cfg
-    creds <- getCredentials opts
+updateQueue :: Client ()
+updateQueue = do
+    baseUrl <- getBaseUrl
+    opts <- gets csCmdline
     let queue = object $
                   toList "enabled" (enabled opts) ++
                   toList "title" (title opts) ++
@@ -234,51 +216,48 @@ updateQueue manager opts = do
                   toList "host_name" (hostName opts)
     -- print queue
     let url = baseUrl </> "queue" </> queueObject opts
-    doPut manager creds url queue
+    doPut url queue
 
 toList _ Nothing = []
 toList name (Just str) = [name .= str]
 
-deleteQueue :: Manager -> Batch -> IO ()
-deleteQueue manager opts = do
-  cfg <- loadClientConfig
-  baseUrl <- getManagerUrl (managerUrl opts) cfg
-  creds <- getCredentials opts
+deleteQueue :: Client ()
+deleteQueue = do
+  baseUrl <- getBaseUrl
+  opts <- gets csCmdline
   let forceStr = if force opts then "?forced=true" else ""
   let url = baseUrl </> "queue" </> queueObject opts ++ forceStr
-  doDelete manager creds url
+  doDelete url
 
-doListSchedules :: Manager -> Batch -> IO ()
-doListSchedules manager opts = do
-  cfg <- loadClientConfig
-  baseUrl <- getManagerUrl (managerUrl opts) cfg
-  creds <- getCredentials opts
+doListSchedules :: Client ()
+doListSchedules = do
+  baseUrl <- getBaseUrl
+  opts <- gets csCmdline
   let url = baseUrl </> "schedule"
-  response <- doGet manager creds url
+  response <- doGet url
   let check = if null (scheduleNames opts)
                 then const True
                 else \si -> sName si `elem` scheduleNames opts
-  forM_ (response :: [ScheduleInfo]) $ \si -> do
-    when (check si) $ do
-      putStrLn $ sName si ++ ":"
-      case sWeekdays si of
-        Nothing -> putStrLn "\tany weekday"
-        Just lst -> putStrLn $ "\t" ++ intercalate ", " (map show lst)
-      case sTime si of
-        Nothing -> putStrLn "\tany time of day"
-        Just lst -> putStrLn $ "\t" ++ intercalate ", " (map show lst)
+  liftIO $ forM_ (response :: [ScheduleInfo]) $ \si -> do
+            when (check si) $ do
+              putStrLn $ sName si ++ ":"
+              case sWeekdays si of
+                Nothing -> putStrLn "\tany weekday"
+                Just lst -> putStrLn $ "\t" ++ intercalate ", " (map show lst)
+              case sTime si of
+                Nothing -> putStrLn "\tany time of day"
+                Just lst -> putStrLn $ "\t" ++ intercalate ", " (map show lst)
 
-doAddSchedule :: Manager -> Batch -> IO ()
-doAddSchedule manager opts = do
-  cfg <- loadClientConfig
-  baseUrl <- getManagerUrl (managerUrl opts) cfg
-  creds <- getCredentials opts
+doAddSchedule :: Client ()
+doAddSchedule = do
+  baseUrl <- getBaseUrl
+  opts <- gets csCmdline
   when (length (scheduleNames opts) /= 1) $
-    throw $ ClientException $ "Exactly one schedule name must be specified when creating a schedule"
+    throwC $ "Exactly one schedule name must be specified when creating a schedule"
   let ts = forM (periods opts) $ \str -> do
              parsePeriod str
   case ts of
-    Left err -> throw $ ClientException $ "Can't parse period description: " ++ show err
+    Left err -> throwC $ "Can't parse period description: " ++ show err
     Right times -> do
       let url = baseUrl </> "schedule"
       let schedule = ScheduleInfo {
@@ -286,100 +265,94 @@ doAddSchedule manager opts = do
                        sWeekdays = if null (weekdays opts) then Nothing else Just (weekdays opts),
                        sTime = if null times then Nothing else Just times
                      }
-      doPost manager creds url schedule
+      doPost url schedule
 
-doDeleteSchedule :: Manager -> Batch -> IO ()
-doDeleteSchedule manager opts = do
-  cfg <- loadClientConfig
-  baseUrl <- getManagerUrl (managerUrl opts) cfg
-  creds <- getCredentials opts
+doDeleteSchedule :: Client ()
+doDeleteSchedule = do
+  baseUrl <- getBaseUrl
+  opts <- gets csCmdline
   when (length (scheduleNames opts) /= 1) $
-    throw $ ClientException $ "Exactly one schedule name must be specified when deleting a schedule"
+    throwC $ "Exactly one schedule name must be specified when deleting a schedule"
   let sname = head (scheduleNames opts)
   let forceStr = if force opts then "?forced=true" else ""
   let url = baseUrl </> "schedule" </> sname ++ forceStr
-  doDelete manager creds url
+  doDelete url
 
-doType :: Manager -> Batch -> IO ()
-doType manager opts = do
-  cfg <- loadClientConfig
-  baseUrl <- getManagerUrl (managerUrl opts) cfg
-  creds <- getCredentials opts
+doType :: Client ()
+doType = do
+  baseUrl <- getBaseUrl
+  opts <- gets csCmdline
   let url = baseUrl </> "type"
-  response <- doGet manager creds url
+  response <- doGet url
   let check = if null (types opts)
                 then const True
                 else \jt -> jtName jt `elem` types opts
-  forM_ (response :: [JobType]) $ \jt -> do
-    when (check jt) $ do
-      let title = fromMaybe (jtName jt) (jtTitle jt)
-      putStrLn $ jtName jt ++ ":"
-      putStrLn $ "\tTitle:\t" ++ title
-      putStrLn $ "\tTemplate:\t" ++ jtTemplate jt
-      putStrLn $ "\tOn fail:\t" ++ show (jtOnFail jt)
-      putStrLn $ "\tHost:\t" ++ fromMaybe "*" (jtHostName jt)
-      putStrLn $ "\tParameters:"
-      forM_ (jtParams jt) $ \desc -> do
-        putStrLn $ "\t* Name:\t" ++ piName desc
-        putStrLn $ "\t  Type:\t" ++ show (piType desc)
-        putStrLn $ "\t  Title:\t" ++ piTitle desc
-        putStrLn $ "\t  Default:\t" ++ piDefault desc
+  liftIO $ forM_ (response :: [JobType]) $ \jt -> do
+            when (check jt) $ do
+              let title = fromMaybe (jtName jt) (jtTitle jt)
+              putStrLn $ jtName jt ++ ":"
+              putStrLn $ "\tTitle:\t" ++ title
+              putStrLn $ "\tTemplate:\t" ++ jtTemplate jt
+              putStrLn $ "\tOn fail:\t" ++ show (jtOnFail jt)
+              putStrLn $ "\tHost:\t" ++ fromMaybe "*" (jtHostName jt)
+              putStrLn $ "\tParameters:"
+              forM_ (jtParams jt) $ \desc -> do
+                putStrLn $ "\t* Name:\t" ++ piName desc
+                putStrLn $ "\t  Type:\t" ++ show (piType desc)
+                putStrLn $ "\t  Title:\t" ++ piTitle desc
+                putStrLn $ "\t  Default:\t" ++ piDefault desc
 
-doListUsers :: Manager -> Batch -> IO ()
-doListUsers manager opts = do
-  cfg <- loadClientConfig
-  baseUrl <- getManagerUrl (managerUrl opts) cfg
-  creds <- getCredentials opts
+doListUsers :: Client ()
+doListUsers = do
+  baseUrl <- getBaseUrl
+  opts <- gets csCmdline
   let url = baseUrl </> "user"
-  response <- doGet manager creds url
-  forM_ (response :: [String]) $ \name -> putStrLn name
+  response <- doGet url
+  liftIO $ forM_ (response :: [String]) $ \name -> putStrLn name
 
-doAddUser :: Manager -> Batch -> IO ()
-doAddUser manager opts = do
-  cfg <- loadClientConfig
-  baseUrl <- getManagerUrl (managerUrl opts) cfg
-  creds <- getCredentials opts
+doAddUser :: Client ()
+doAddUser = do
+  baseUrl <- getBaseUrl
+  opts <- gets csCmdline
   let url = baseUrl </> "user"
-  pwd <- getPassword2
+  pwd <- liftIO $ getPassword2
   name <- case objectUserName opts of
             [n] -> return n
             _ -> fail "user name must be provided"
   let user = UserInfo name pwd
-  doPost manager creds url user
+  doPost url user
 
-doChangePassword :: Manager -> Batch -> IO ()
-doChangePassword manager opts = do
-  cfg <- loadClientConfig
-  baseUrl <- getManagerUrl (managerUrl opts) cfg
-  creds <- getCredentials opts
+doChangePassword :: Client ()
+doChangePassword = do
+  baseUrl <- getBaseUrl
+  opts <- gets csCmdline
+  creds <- getCredentials
   name <- case objectUserName opts of
             [n] -> return n
             _ -> return $ fst creds
   let url = baseUrl </> "user" </> name
-  pwd <- getPassword2
+  pwd <- liftIO $ getPassword2
   let user = UserInfo name pwd
-  doPut manager creds url user
+  doPut url user
 
-doListPermissions :: Manager -> Batch -> IO ()
-doListPermissions manager opts = do
-  cfg <- loadClientConfig
-  baseUrl <- getManagerUrl (managerUrl opts) cfg
-  creds <- getCredentials opts
+doListPermissions :: Client ()
+doListPermissions = do
+  baseUrl <- getBaseUrl
+  opts <- gets csCmdline
   let url = baseUrl </> "user" </> grantUserName opts </> "permissions"
-  response <- doGet manager creds url
-  forM_ (response :: [Database.UserPermission]) $ \perm -> do
-      let qname = fromMaybe "*" $ Database.userPermissionQueueName perm
-          tname = fromMaybe "*" $ Database.userPermissionTypeName perm
-      printf "Permission:\t%s\nQueue:\t%s\nJob type:\t%s\n\n"
-        (show $ Database.userPermissionPermission perm) qname tname
+  response <- doGet url
+  liftIO $ forM_ (response :: [Database.UserPermission]) $ \perm -> do
+              let qname = fromMaybe "*" $ Database.userPermissionQueueName perm
+                  tname = fromMaybe "*" $ Database.userPermissionTypeName perm
+              printf "Permission:\t%s\nQueue:\t%s\nJob type:\t%s\n\n"
+                (show $ Database.userPermissionPermission perm) qname tname
 
-doAddPermission :: Manager -> Batch -> IO ()
-doAddPermission manager opts = do
-  cfg <- loadClientConfig
-  baseUrl <- getManagerUrl (managerUrl opts) cfg
-  creds <- getCredentials opts
+doAddPermission :: Client ()
+doAddPermission = do
+  baseUrl <- getBaseUrl
+  opts <- gets csCmdline
   let name = grantUserName opts
       url = baseUrl </> "user" </> name </> "permissions"
       perm = Database.UserPermission name (permission opts) (queueName opts) (typeName opts)
-  doPost manager creds url perm
+  doPost url perm
 

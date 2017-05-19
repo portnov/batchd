@@ -47,7 +47,7 @@ createSuperUserDb name password staticSalt = do
 createUser :: GlobalConfig -> String -> String -> IO Bool
 createUser gcfg name password = do
   pool <- getPool gcfg
-  let staticSalt = dbcStaticSalt gcfg
+  let staticSalt = authStaticSalt $ dbcAuth gcfg
   res <- runDBIO gcfg pool (createUserDb name password staticSalt)
   case res of
     Left _ -> return False
@@ -56,7 +56,7 @@ createUser gcfg name password = do
 createSuperUser :: GlobalConfig -> String -> String -> IO Bool
 createSuperUser gcfg name password = do
   pool <- getPool gcfg
-  let staticSalt = dbcStaticSalt gcfg
+  let staticSalt = authStaticSalt $ dbcAuth gcfg
   res <- runDBIO gcfg pool (createSuperUserDb name password staticSalt)
   case res of
     Left _ -> return False
@@ -116,7 +116,7 @@ checkUser gcfg nameBstr passwordBstr = do
   pool <- getPool gcfg
   let name = bstrToString nameBstr
       password = bstrToString passwordBstr
-      salt = dbcStaticSalt gcfg
+      salt = authStaticSalt $ dbcAuth gcfg
   res <- runDBIO gcfg pool (checkUserDb name password salt)
   case res of
     Left _ -> return False
@@ -139,35 +139,42 @@ extractBasicUser req =
     Nothing -> "anonymous"
     Just (name,_) -> bstrToString name
 
+isRootOptions :: Request -> Bool
+isRootOptions rq = requestMethod rq == "OPTIONS" && pathInfo rq == []
+
 basicAuth :: GlobalConfig -> Middleware
 basicAuth gcfg app req sendResponse =
   let settings = "batchd" :: HA.AuthSettings
       username = extractBasicUser req
       req' = req {vault = V.insert usernameKey username $ vault req}
-  in  case getAuthUserRq req of
-        Nothing -> do
-            liftIO $ infoIO gcfg $ "Will try to authenticate user with basic auth: " ++ username
-            HA.basicAuth (checkUser gcfg) settings app req' sendResponse
-        Just _ -> app req sendResponse
+  in  if isRootOptions req
+        then app req sendResponse
+        else case getAuthUserRq req of
+                 Nothing -> do
+                     liftIO $ infoIO gcfg $ "Will try to authenticate user with basic auth: " ++ username
+                     HA.basicAuth (checkUser gcfg) settings app req' sendResponse
+                 Just _ -> app req sendResponse
 
 headerAuth :: GlobalConfig -> Middleware
 headerAuth gcfg app req sendResponse = do
   -- liftIO $ putStrLn $ "X-Auth-User: " ++ show req
-  case lookup "X-Auth-User" (requestHeaders req) of
-    Nothing -> do
-        liftIO $ infoIO gcfg $ "No X-Auth-User header"
-        app req sendResponse
---       case getAuthUserRq req of
---         Nothing -> sendResponse $ responseLBS status401 [] "User name not provided"
---         Just _ -> app req sendResponse
-    Just name -> do
-      let username = bstrToString name
-          req' = req {vault = V.insert usernameKey username $ vault req}
-      ok <- liftIO $ checkUserExists gcfg name
-      liftIO $ infoIO gcfg $ "User from X-AUth-User header authenticated, treated as superuser: " ++ username
-      if ok
-        then app req' sendResponse
-        else sendResponse $ responseLBS status401 [] "Specified user does not exist"
+  if isRootOptions req
+    then app req sendResponse
+    else case lookup "X-Auth-User" (requestHeaders req) of
+            Nothing -> do
+                liftIO $ infoIO gcfg $ "No X-Auth-User header"
+                app req sendResponse
+        --       case getAuthUserRq req of
+        --         Nothing -> sendResponse $ responseLBS status401 [] "User name not provided"
+        --         Just _ -> app req sendResponse
+            Just name -> do
+              let username = bstrToString name
+                  req' = req {vault = V.insert usernameKey username $ vault req}
+              ok <- liftIO $ checkUserExists gcfg name
+              liftIO $ infoIO gcfg $ "User from X-AUth-User header authenticated, treated as superuser: " ++ username
+              if ok
+                then app req' sendResponse
+                else sendResponse $ responseLBS status401 [] "Specified user does not exist"
 
 noAuth :: GlobalConfig -> Middleware
 noAuth gcfg app req sendResponse = do
@@ -209,6 +216,10 @@ getAuthUser = do
           Nothing -> Scotty.raise $ UnknownError "user does not exist"
           Just user -> return user
 
+isAuthDisabled :: AuthMode -> Bool
+isAuthDisabled AuthDisabled = True
+isAuthDisabled _ = False
+
 ----------- Check user rights ---------------
 
 isSuperUser :: String -> DB Bool
@@ -219,7 +230,7 @@ isSuperUser name = do
 checkSuperUser :: Action ()
 checkSuperUser = do
   cfg <- lift $ asks ciGlobalConfig
-  when (not $ dbcDisableAuth cfg) $ do
+  when (not $ isAuthDisabled $ dbcAuth cfg) $ do
       user <- getAuthUser
       ok <- runDBA $ isSuperUser (userName user)
       when (not ok) $ do
@@ -260,7 +271,7 @@ hasPermissionToList name perm = do
 checkPermission :: String -> Permission -> String -> Action ()
 checkPermission message perm qname = do
   cfg <- lift $ asks ciGlobalConfig
-  when (not $ dbcDisableAuth cfg) $ do
+  when (not $ isAuthDisabled $ dbcAuth cfg) $ do
       user <- getAuthUser
       ok <- runDBA $ hasPermission (userName user) perm qname
       when (not ok) $ do
@@ -269,7 +280,7 @@ checkPermission message perm qname = do
 checkCanCreateJobs :: String -> String -> Action ()
 checkCanCreateJobs qname typename = do
   cfg <- lift $ asks ciGlobalConfig
-  when (not $ dbcDisableAuth cfg) $ do
+  when (not $ isAuthDisabled $ dbcAuth cfg) $ do
       user <- getAuthUser
       ok <- runDBA $ hasCreatePermission (userName user) qname typename
       when (not ok) $ do
@@ -278,7 +289,7 @@ checkCanCreateJobs qname typename = do
 checkPermissionToList :: String -> Permission -> Action ()
 checkPermissionToList message perm = do
   cfg <- lift $ asks ciGlobalConfig
-  when (not $ dbcDisableAuth cfg) $ do
+  when (not $ isAuthDisabled $ dbcAuth cfg) $ do
       user <- getAuthUser
       ok <- runDBA $ hasPermissionToList (userName user) perm
       when (not ok) $ do

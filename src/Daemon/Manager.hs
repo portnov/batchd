@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Daemon.Manager where
 
@@ -34,7 +35,7 @@ corsPolicy :: GlobalConfig -> CorsResourcePolicy
 corsPolicy cfg =
   let origins = case dbcAllowedOrigin cfg of
                   Nothing -> Nothing
-                  Just url -> Just ([stringToBstr url], not (dbcDisableAuth cfg))
+                  Just url -> Just ([stringToBstr url], not (isAuthDisabled $ dbcAuth cfg))
   in simpleCorsResourcePolicy {
     corsOrigins = origins,
     corsMethods = ["GET", "POST", "PUT", "DELETE"]
@@ -46,12 +47,13 @@ routes cfg = do
 
   Scotty.middleware $ cors $ const $ Just $ corsPolicy cfg
   
-  when (dbcEnableHeaderAuth cfg) $
-    Scotty.middleware (headerAuth cfg)
-  when (dbcEnableBasicAuth cfg) $
-    Scotty.middleware (basicAuth cfg)
-  when (dbcDisableAuth cfg) $
-    Scotty.middleware (noAuth cfg)
+  case dbcAuth cfg of
+    AuthDisabled -> Scotty.middleware (noAuth cfg)
+    AuthConfig {..} -> do
+      when authHeaderEnabled $
+        Scotty.middleware (headerAuth cfg)
+      when authBasicEnabled $
+        Scotty.middleware (basicAuth cfg)
     
   case dbcWebClientPath cfg of
     Just path -> do
@@ -93,6 +95,7 @@ routes cfg = do
   Scotty.post "/user/:name/permissions" createPermissionA
   Scotty.delete "/user/:name/permissions/:id" deletePermissionA
 
+  Scotty.options "/" $ getAuthOptionsA
   Scotty.options (Scotty.regex "/.*") $ done
 
 runManager :: GlobalConfig -> Sql.ConnectionPool -> IO ()
@@ -109,6 +112,10 @@ maintainer = forever $ do
   cfg <- asks ciGlobalConfig
   runDB $ cleanupJobResults (dbcStoreDone cfg)
   liftIO $ threadDelay $ 60 * 1000*1000
+
+getGlobalConfig :: Action GlobalConfig
+getGlobalConfig = do
+  lift $ asks ciGlobalConfig
 
 -- | Get URL parameter in form ?name=value
 getUrlParam :: B.ByteString -> Action (Maybe B.ByteString)
@@ -143,10 +150,10 @@ getQueuesA :: Action ()
 getQueuesA = do
   user <- getAuthUser
   let name = userName user
-  cfg <- lift $ asks ciGlobalConfig
+  cfg <- getGlobalConfig
   qes <- runDBA $ do
            super <- isSuperUser name
-           if super || dbcDisableAuth cfg
+           if super || isAuthDisabled (dbcAuth cfg)
              then getAllQueues'
              else getAllowedQueues name ViewQueues
   -- let qnames = map (queueName . entityVal) qes
@@ -320,7 +327,7 @@ deleteJobsA = do
 
 getJobTypesA :: Action ()
 getJobTypesA = do
-  cfg <- lift $ asks ciGlobalConfig
+  cfg <- getGlobalConfig
   types <- liftIO $ listJobTypes cfg
   Scotty.json types
 
@@ -329,7 +336,7 @@ getAllowedJobTypesA = do
   user <- getAuthUser
   qname <- Scotty.param "name"
   let name = userName user
-  cfg <- lift $ asks ciGlobalConfig
+  cfg <- getGlobalConfig
   types <- liftIO $ listJobTypes cfg
   allowedTypes <- flip filterM types $ \jt -> do
                       runDBA $ hasCreatePermission name qname (jtName jt)
@@ -367,8 +374,8 @@ createUserA :: Action ()
 createUserA = do
   checkSuperUser
   user <- jsonData
-  cfg <- lift $ asks ciGlobalConfig
-  let staticSalt = dbcStaticSalt cfg
+  cfg <- getGlobalConfig
+  let staticSalt = authStaticSalt $ dbcAuth cfg
   name <- runDBA $ createUserDb (uiName user) (uiPassword user) staticSalt
   Scotty.json name
 
@@ -379,8 +386,8 @@ changePasswordA = do
   when (userName curUser /= name) $
       checkSuperUser
   user <- jsonData
-  cfg <- lift $ asks ciGlobalConfig
-  let staticSalt = dbcStaticSalt cfg
+  cfg <- getGlobalConfig
+  let staticSalt = authStaticSalt $ dbcAuth cfg
   runDBA $ changePassword name (uiPassword user) staticSalt
   done
 
@@ -406,4 +413,10 @@ deletePermissionA = do
   id <- Scotty.param "id"
   runDBA $ deletePermission id name
   done
+
+getAuthOptionsA :: Action ()
+getAuthOptionsA = do
+  cfg <- getGlobalConfig
+  let methods = authMethods $ dbcAuth cfg
+  Scotty.json methods
 

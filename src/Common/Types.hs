@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, ScopedTypeVariables, TemplateHaskell, GeneralizedNewtypeDeriving, DeriveGeneric, StandaloneDeriving, OverloadedStrings, FlexibleInstances #-}
+{-# LANGUAGE DeriveDataTypeable, ScopedTypeVariables, TemplateHaskell, GeneralizedNewtypeDeriving, DeriveGeneric, StandaloneDeriving, OverloadedStrings, FlexibleInstances, RecordWildCards #-}
 
 module Common.Types where
 
@@ -305,6 +305,48 @@ data DaemonMode =
 instance ToJSON DaemonMode
 instance FromJSON DaemonMode
 
+data AuthMode =
+    AuthDisabled
+  | AuthConfig {
+    authBasicEnabled :: Bool,
+    authHeaderEnabled :: Bool,
+    authStaticSalt :: String
+  }
+  deriving (Data, Typeable, Show, Eq, Generic)
+
+instance ToJSON AuthMode where
+  toJSON AuthDisabled = Aeson.String "disable"
+  toJSON (AuthConfig {..}) = object ["basic" .= authBasicEnabled, "header" .= authHeaderEnabled, "staticSalt" .= authStaticSalt]
+
+instance FromJSON AuthMode where
+  parseJSON (Aeson.String "disable") = return AuthDisabled
+  parseJSON (Object v) =
+    AuthConfig
+      <$> v .:? "basic" .!= True
+      <*> v .:? "header" .!= False
+      <*> v .:? "static_salt" .!= defaultStaticSalt
+
+defaultAuthMode :: AuthMode
+defaultAuthMode = AuthConfig True False defaultStaticSalt
+
+data AuthMethod = BasicAuth | HeaderAuth
+  deriving (Data, Typeable, Show, Read, Eq, Generic)
+
+instance ToJSON AuthMethod where
+  toJSON BasicAuth = Aeson.String "basic"
+  toJSON HeaderAuth = Aeson.String "header"
+
+instance FromJSON AuthMethod where
+  parseJSON (Aeson.String "basic") = return BasicAuth
+  parseJSON (Aeson.String "header") = return HeaderAuth
+  parseJSON x = typeMismatch "auth method" x
+
+authMethods :: AuthMode -> [AuthMethod]
+authMethods AuthDisabled = []
+authMethods (AuthConfig {..}) =
+  (if authBasicEnabled then [BasicAuth] else []) ++
+  (if authHeaderEnabled then [HeaderAuth] else [])
+
 data GlobalConfig = GlobalConfig {
     dbcDaemonMode :: DaemonMode,
     dbcManagerPort :: Int,
@@ -313,10 +355,7 @@ data GlobalConfig = GlobalConfig {
     dbcWorkers :: Int,
     dbcPollTimeout :: Int,
     dbcLogLevel :: LogLevel,
-    dbcStaticSalt :: String,
-    dbcEnableBasicAuth :: Bool,
-    dbcEnableHeaderAuth :: Bool,
-    dbcDisableAuth :: Bool,
+    dbcAuth :: AuthMode,
     dbcWebClientPath :: Maybe String,
     dbcAllowedOrigin :: Maybe String,
     dbcStoreDone :: Int
@@ -339,10 +378,7 @@ instance FromJSON GlobalConfig where
       <*> v .:? "workers" .!= 1
       <*> v .:? "poll_timeout" .!= 10
       <*> v .:? "log_level" .!= LevelInfo
-      <*> v .:? "static_salt" .!= defaultStaticSalt
-      <*> v .:? "enable_basic_auth" .!= True
-      <*> v .:? "enable_header_auth" .!= False
-      <*> v .:? "disable_auth" .!= False
+      <*> v .:? "auth" .!= defaultAuthMode
       <*> v .:? "web_client_path"
       <*> v .:? "allowed_origin"
       <*> v .:? "store_done" .!= 2

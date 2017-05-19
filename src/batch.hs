@@ -10,6 +10,8 @@ import Data.Maybe
 import Client.Types
 import Client.Actions
 import Client.CmdLine
+import Client.Config
+import Client.Monad
 import Client.Http
 
 main :: IO ()
@@ -24,39 +26,42 @@ realMain = do
   opts <- cmdArgsRun mode
 
   manager <- makeClientManager opts
+  cfg <- loadClientConfig
+  let state = ClientState opts cfg Nothing Nothing manager
 
-  case opts of
-    Enqueue {} -> doEnqueue manager opts
-    List {} -> doList manager opts
-    Stats {} -> doStats manager opts
-    Type {} -> doType manager opts
-    Job {} -> do
-      let mode = if jobMode opts == Delete
-                    then Delete
-                    else if jobMode opts == Update || isJust (status opts) || isJust (hostName opts) || isJust (queueName opts)
-                          then Update
-                          else View
-      case mode of
-        View -> viewJob manager opts
-        Update -> updateJob manager opts
-        Delete -> deleteJob manager opts
-    Queue {} ->
-      case queueMode opts of
-        Add -> addQueue manager opts
-        Update -> updateQueue manager opts
-        Delete -> deleteQueue manager opts
-    Schedule {} -> 
-      case scheduleMode opts of
-        View -> doListSchedules manager opts
-        Add -> doAddSchedule manager opts
-        Delete -> doDeleteSchedule manager opts
-    User {} ->
-      case userMode opts of
-        View -> doListUsers manager opts
-        Add -> doAddUser manager opts
-        Update -> doChangePassword manager opts
-    Grant {} ->
-      case grantMode opts of
-        View -> doListPermissions manager opts
-        Add -> doAddPermission manager opts
+  runClient state $
+      case opts of
+        Enqueue {} -> doEnqueue
+        List {} -> doList
+        Stats {} -> doStats
+        Type {} -> doType
+        Job {} -> do
+          let mode = if jobMode opts == Delete
+                        then Delete
+                        else if jobMode opts == Update || isJust (status opts) || isJust (hostName opts) || isJust (queueName opts)
+                              then Update
+                              else View
+          case mode of
+            View -> viewJob
+            Update -> updateJob
+            Delete -> deleteJob
+        Queue {} ->
+          case queueMode opts of
+            Add -> addQueue
+            Update -> updateQueue
+            Delete -> deleteQueue
+        Schedule {} -> 
+          case scheduleMode opts of
+            View -> doListSchedules
+            Add -> doAddSchedule
+            Delete -> doDeleteSchedule
+        User {} ->
+          case userMode opts of
+            View -> doListUsers
+            Add -> doAddUser
+            Update -> doChangePassword
+        Grant {} ->
+          case grantMode opts of
+            View -> doListPermissions
+            Add -> doAddPermission
 

@@ -5,10 +5,12 @@
 module Client.Http where
 
 import Control.Exception
+import Control.Monad.State
 import qualified Data.ByteString.Lazy as L
 import Data.Char
 import Data.Default
 import Data.List
+import Data.Maybe
 import Data.Aeson as Aeson
 import Data.X509.CertificateStore
 import Network.HTTP.Client
@@ -19,10 +21,12 @@ import Network.TLS as TLS
 import Network.TLS.Extra.Cipher
 import Network.Connection
 
+import Common.Types
+import Common.Config (getPassword)
 import Client.Types as C
 import Client.Config
 import Client.CmdLine (Batch (..))
-import Common.Types
+import Client.Monad
 
 makeClientManager :: Batch -> IO Manager
 makeClientManager opts = do
@@ -76,12 +80,55 @@ makeClientManager opts = do
 
      newManager $ mkManagerSettings tlsSettings Nothing
 
-applyAuth :: C.Credentials -> Request -> Request
-applyAuth (name,password) rq =
-  applyBasicAuth (stringToBstr name) (stringToBstr password) rq
---   if not (secure rq) && host rq == "localhost"
---     then rq {requestHeaders = ("X-Auth-User", stringToBstr name) : requestHeaders rq}
---     else applyBasicAuth (stringToBstr name) (stringToBstr password) rq
+getAuthMethods :: Client [AuthMethod]
+getAuthMethods = do
+  mbMethods <- gets csAuthMethods
+  case mbMethods of
+    Just methods -> return methods
+    Nothing -> do
+      baseUrl <- getBaseUrl
+      methods <- doOptions baseUrl
+      modify $ \st -> st {csAuthMethods = Just methods}
+      return methods
+
+obtainCredentials :: Client C.Credentials
+obtainCredentials = do
+  cfg <- gets csConfig
+  opts <- gets csCmdline
+  methods <- getAuthMethods
+  let needPassword = BasicAuth `elem` methods
+  name <- liftIO $ getUserName (username opts) cfg
+  pass <- if ccDisableAuth cfg || not needPassword
+            then return ""
+            else do
+                 mbPassword <- liftIO $ getConfigParam' (password opts) "BATCH_PASSWORD" (ccPassword cfg)
+                 case mbPassword of
+                   Just p -> return p
+                   Nothing -> liftIO $ getPassword $ name ++ " password: "
+  let creds = (name, pass)
+  modify $ \st -> st {csCredentials = Just creds}
+  return creds
+
+getCredentials :: Client C.Credentials
+getCredentials = do
+  mbCreds <- gets csCredentials
+  case mbCreds of
+    Just creds -> return creds
+    Nothing -> obtainCredentials
+
+applyAuth :: Request -> Client Request
+applyAuth rq = do
+  methods <- getAuthMethods
+  -- liftIO $ print methods
+  if BasicAuth `elem` methods
+    then do
+         (name, password) <- getCredentials
+         return $ applyBasicAuth (stringToBstr name) (stringToBstr password) rq
+    else if HeaderAuth `elem` methods
+           then do
+                (name, _) <- getCredentials
+                return $ rq {requestHeaders = ("X-Auth-User", stringToBstr name) : requestHeaders rq}
+           else return rq
 
 handleStatus :: Response L.ByteString -> IO L.ByteString
 handleStatus rs =
@@ -92,44 +139,63 @@ handleStatus rs =
 allowAny :: Request -> Response BodyReader -> IO ()
 allowAny _ _ = return ()
 
-doPut :: ToJSON a => Manager -> C.Credentials -> String -> a -> IO ()
-doPut manager creds urlStr object = do
-  url <- parseUrl urlStr
-  let request = applyAuth creds $ url {
+doHttp :: Request -> Manager -> Client L.ByteString
+doHttp request manager = do
+  -- liftIO $ print request
+  liftIO $ handleStatus =<< httpLbs request manager
+
+doPut :: ToJSON a => String -> a -> Client ()
+doPut urlStr object = do
+  manager <- gets csManager
+  url <- liftIO $ parseUrl urlStr
+  request <- applyAuth $ url {
                   method="PUT",
                   checkResponse = allowAny,
                   requestBody = RequestBodyLBS $ Aeson.encode object
                 }
-  handleStatus =<< httpLbs request manager
+  doHttp request manager
   return ()
 
-doPost :: ToJSON a => Manager -> C.Credentials -> String -> a -> IO ()
-doPost manager creds urlStr object = do
-  url <- parseUrl urlStr
-  let request = applyAuth creds $ url {
+doPost :: ToJSON a => String -> a -> Client ()
+doPost urlStr object = do
+  manager <- gets csManager
+  url <- liftIO $ parseUrl urlStr
+  request <- applyAuth $ url {
                   method="POST",
                   checkResponse = allowAny,
                   requestBody = RequestBodyLBS $ Aeson.encode object
                 }
-  handleStatus =<< httpLbs request manager
+  doHttp request manager
   return ()
 
-doDelete :: Manager -> C.Credentials -> String -> IO ()
-doDelete manager creds urlStr = do
-  url <- parseUrl urlStr
-  let request = applyAuth creds $ url { method="DELETE",
+doDelete :: String -> Client ()
+doDelete urlStr = do
+  manager <- gets csManager
+  url <- liftIO $ parseUrl urlStr
+  request <- applyAuth $ url { method="DELETE",
                       checkResponse = allowAny
                     }
-  handleStatus =<< httpLbs request manager
+  doHttp request manager
   return ()
 
-doGet :: FromJSON a => Manager -> C.Credentials -> String -> IO a
-doGet manager creds urlStr = do
-  url <- parseUrl urlStr
-  let request = applyAuth creds $ url {checkResponse = allowAny}
+doGet :: FromJSON a => String -> Client a
+doGet urlStr = do
+  manager <- gets csManager
+  url <- liftIO $  parseUrl urlStr
+  request <- applyAuth $ url {checkResponse = allowAny}
   -- print request
-  responseLbs <- handleStatus =<< httpLbs request manager
+  responseLbs <- doHttp request manager
   case Aeson.eitherDecode responseLbs of
-    Left err -> throw $ ClientException err
+    Left err -> throwC err
+    Right res -> return res
+
+doOptions :: FromJSON a => String -> Client a
+doOptions urlStr = do
+  manager <- gets csManager
+  url <- liftIO $ parseUrl urlStr
+  let request = url {checkResponse = allowAny, method = "OPTIONS"}
+  responseLbs <- doHttp request manager
+  case Aeson.eitherDecode responseLbs of
+    Left err -> throwC $ "Cant do OPTIONS: " ++ err
     Right res -> return res
 

@@ -15,6 +15,7 @@ deriveLift ''DaemonMode
 
 deriveLift ''DbDriver
 
+deriveLift ''AuthMode
 deriveLift ''GlobalConfig
 
 logConnectionM :: LogLevel -> Q Exp
