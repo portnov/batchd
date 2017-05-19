@@ -14,27 +14,30 @@ log_level: info
 
 # How often to poll queues for new jobs, in seconds
 # poll_timeout: 10
-# Static salt parameter for password hashes.
-# NB: this parameter is supposed to be set once, before first users are created.
-# For security reasons it is better to specify unique value for each installation.
-# If you change this parameter, all existing user passwords will become invalid!
-static_salt: "sdjf@OIH&OIHjihhih8YY"
 
-# enable HTTP basic auth (by username and password)
-# NB: in this mode, passwords are sent in clear text.
-# So this is secure only if channel is secured with HTTPS.
-enable_basic_auth: true
-
-# enable unconditional authentication by X-Auth-User: HTTP header.
-# Specified user will be treated as authenticated without any password or whatever.
-# This mode is to be used when authentication is done by external system.
-# For example, this is useful when HTTP client certificates are checked by nginx.
-enable_header_auth: false
-
-# You can also disable authentication at all.
+# Authentication setup
+# You can disable authentication at all.
 # In this mode, all users are unconditionally authenticated, and treated as superusers.
 # This can be useful when running on localhost.
-# disable_auth: true
+# auth: disable
+
+auth:
+    # enable HTTP basic auth (by username and password)
+    # NB: in this mode, passwords are sent in clear text.
+    # So this is secure only if channel is secured with HTTPS.
+    basic: true
+
+    # enable unconditional authentication by X-Auth-User: HTTP header.
+    # Specified user will be treated as authenticated without any password or whatever.
+    # This mode is to be used when authentication is done by external system.
+    # For example, this is useful when HTTP client certificates are checked by nginx.
+    header: false
+
+    # Static salt parameter for password hashes.
+    # NB: this parameter is supposed to be set once, before first users are created.
+    # For security reasons it is better to specify unique value for each installation.
+    # If you change this parameter, all existing user passwords will become invalid!
+    static_salt: "sdjf@OIH&OIHjihhih8YY"
 
 # Path to web client files (batch.html and companion js and css files).
 # If not specified, web client will not be available.
