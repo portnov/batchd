@@ -206,12 +206,19 @@ function fillEnqueueForm() {
     $('#jobparams').empty();
     $.each(data.params, function(k,v) {
       //var id = 'param_' + v.name;
+      var input = $('<input>').attr('name', v.name);
+      /*if (v.type == 'InputFile' || v.type == 'OutputFile') {
+        input.attr('type', 'file');
+      }*/
+      if (v.default) {
+        input.val(v.default);
+      }
       $('#jobparams').append(
           $('<tr>').append(
             $('<td>').text(v.title)
           ).append(
             $('<td>').append(
-              $('<input>').attr('name', v.name)
+              input
             )
           )
       );
