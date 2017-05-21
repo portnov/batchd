@@ -164,7 +164,7 @@ crudMode modes@((dflt,_):_) = foldr1 (<|>) $ map go modes
 queue :: Parser Command
 queue = Queue
   <$> crudMode [(Update, "modify queue"), (Add, "create new queue"), (Delete, "delete queue")]
-  <*> strArgument (metavar "HELP" <> help "queue to operate on")
+  <*> strArgument (metavar "QUEUE" <> help "queue to operate on")
   <*> optionalString "schedule" 's' "SCHEDULE" "queue schedule name"
   <*> optionalString "host" 'h' "HOST" "default host name for queue"
   <*> optionalString "name" 'n' "TITLE" "set queue title"
