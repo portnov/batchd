@@ -2,8 +2,8 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 
-import System.Console.CmdArgs
-import Data.Generics hiding (Generic)
+import Data.Semigroup ((<>))
+import Options.Applicative
 
 import Common.Types
 import Common.Config
@@ -12,17 +12,25 @@ import Daemon.Auth
 
 data Admin =
   CreateSuperuser {userName :: String}
-  deriving (Show, Data, Typeable)
+  deriving (Show)
 
-createSuperuser :: Admin
-createSuperuser = CreateSuperuser {
-    userName = "root" &= typ "NAME" &= argPos 0
-  } &= help "create superuser"
+createSuperuser :: Parser Admin
+createSuperuser = CreateSuperuser
+  <$> strArgument (metavar "NAME" <> help "name of user to create" <> value "root" <> showDefault)
+
+parser :: Parser Admin
+parser =
+  hsubparser
+    (command "create-superuser" (info createSuperuser (progDesc "create super user")))
+
+parserInfo :: ParserInfo Admin
+parserInfo = info (parser <**> helper)
+               (fullDesc
+               <> header "batchd-admin - the batchd toolset administrative utility")
 
 main :: IO ()
 main = do
-  let mode = cmdArgsMode $ modes [createSuperuser] &= program "batchd-admin"
-  cmd <- cmdArgsRun mode
+  cmd <- execParser parserInfo
   cfgR <- loadGlobalConfig
   case cfgR of
     Left err -> fail $ show err
