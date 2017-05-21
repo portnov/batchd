@@ -64,8 +64,12 @@ See also REST API description in the REST.API file.
 Access control
 --------------
 batchd uses relatively simple access control model, based on users and permissions.
-Each user can have one of predefined permissions with relation to specific queue 
-and job type. It is also possible to assign a permission to all queues or job types.
+Each user can have one of predefined permissions. Permissions can be assigned with relation to:
+
+  * Specific queue or any queue
+  * Specific job type or any type (only for creating jobs)
+  * Specific host or any host (only for creating jobs)
+
 The following permissions are supported:
 
   * SuperUser - user that have this permission is superuser, it can do anything.
@@ -129,6 +133,7 @@ The priority for these options is as follows:
   * Default queue is "default".
   * Default job type is "command".
   * Default host name is "undefined", which means use local host.
+  * CLI and Python clients use current OS user name as batchd user name by default.
 
 Job types
 ---------
