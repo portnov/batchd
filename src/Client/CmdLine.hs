@@ -7,43 +7,47 @@ module Client.CmdLine where
 import Data.Generics hiding (Generic)
 import qualified Data.Map as M
 import Data.Dates
-import System.Console.CmdArgs
+import Data.Semigroup ((<>))
+import Options.Applicative
 
 import Common.Types
 import Client.Types
 
-data Batch =
-    Enqueue {
+data CmdLine = CmdLine {
+    cmdCommon :: CommonOpts,
+    cmdCommand :: Command
+  } deriving (Eq, Show)
+
+data CommonOpts = CommonOpts {
       managerUrl :: Maybe String,
+      username :: Maybe String,
+      password :: Maybe String
+    }
+  deriving (Eq, Show)
+    
+
+data Command =
+    Enqueue {
       queueName :: Maybe String,
       typeName :: Maybe String,
       hostName :: Maybe String,
-      command :: [String],
-      parameters :: [String],
-      username :: Maybe String,
-      password :: Maybe String
+      jobCommand :: [String],
+      parameters :: [String]
     }
   | List {
-      managerUrl :: Maybe String,
       status :: Maybe String,
-      queueToList :: [String],
-      username :: Maybe String,
-      password :: Maybe String
+      queueToList :: [String]
     }
   | Queue {
-      managerUrl :: Maybe String,
       queueMode :: CrudMode,
       queueObject :: String,
       scheduleName :: Maybe String,
       hostName :: Maybe String,
       title :: Maybe String,
       enabled :: Maybe Bool,
-      force :: Bool,
-      username :: Maybe String,
-      password :: Maybe String
+      force :: Bool
     }
   | Job {
-      managerUrl :: Maybe String,
       jobId :: Int,
       queueName :: Maybe String,
       status :: Maybe String,
@@ -51,50 +55,34 @@ data Batch =
       viewDescription :: Bool,
       viewResult :: Bool,
       viewAll :: Bool,
-      jobMode :: CrudMode,
-      username :: Maybe String,
-      password :: Maybe String
+      jobMode :: CrudMode
     }
   | Schedule {
-      managerUrl :: Maybe String,
       scheduleMode :: CrudMode,
       scheduleNames :: [String],
       periods :: [String],
       weekdays :: [WeekDay],
-      force :: Bool,
-      username :: Maybe String,
-      password :: Maybe String
+      force :: Bool
     }
   | User {
-      managerUrl :: Maybe String,
       userMode :: CrudMode,
-      objectUserName :: [String],
-      username :: Maybe String,
-      password :: Maybe String
+      objectUserName :: [String]
     }
   | Grant {
-      managerUrl :: Maybe String,
       grantMode :: CrudMode,
       grantUserName :: String,
       permission :: Permission,
       queueName :: Maybe String,
-      typeName :: Maybe String,
-      username :: Maybe String,
-      password :: Maybe String
+      typeName :: Maybe String
     }
   | Type {
-      managerUrl :: Maybe String,
-      types :: [String],
-      username :: Maybe String,
-      password :: Maybe String
+      types :: [String]
     }
   | Stats {
-      managerUrl :: Maybe String,
-      queueToStat :: [String],
-      username :: Maybe String,
-      password :: Maybe String
+      queueToStat :: [String]
     }
-  deriving (Show, Data, Typeable)
+  | Shell
+  deriving (Eq, Show, Data, Typeable)
 
 defaultUrl :: String
 defaultUrl = "http://localhost:" ++ show defaultManagerPort
@@ -105,134 +93,131 @@ defaultQueue = "default"
 defaultType :: String
 defaultType = "command"
 
-managerUrlAnn = Nothing &= name "url" &= typ defaultUrl &= help "batchd manager API URL"
+-- managerUrlAnn = Nothing &= name "url" &= typ defaultUrl &= help "batchd manager API URL"
 
-usernameAnn = Nothing &= name "user" &= typ "USER" &= help "batchd user name"
+-- usernameAnn = Nothing &= name "user" &= typ "USER" &= help "batchd user name"
 
-passwordAnn = Nothing &= name "password" &= typ "PASSWORD" &= help "batchd user password"
+-- passwordAnn = Nothing &= name "password" &= typ "PASSWORD" &= help "batchd user password"
 
-enqueue :: Batch
-enqueue = Enqueue {
-    managerUrl = managerUrlAnn,
-    queueName = def &= name "queue" &= typ "QUEUE" &= help "queue name",
-    typeName = def &= name "type" &= typ "TYPE" &= help "job type name",
-    hostName = def &= name "host" &= typ "HOST" &= help "worker host name",
-    command = def &= typ "COMMAND PARAMETERS" &= args,
-    parameters = def &= typ "NAME=VALUE" &= help "job parameters specified by name",
-    username = usernameAnn,
-    password = passwordAnn
-  } &= help "put a new job into queue"
+parser :: Parser CmdLine
+parser = CmdLine <$> commonOpts <*> commands
 
-list :: Batch
-list = List {
-    managerUrl = managerUrlAnn,
-    status = def &= typ "STATUS" &= help "list only jobs of specified status",
-    queueToList = def &= args &= typ "QUEUE",
-    username = usernameAnn,
-    password = passwordAnn
-  } &= help "list queues or jobs"
+commonOpts :: Parser CommonOpts
+commonOpts = CommonOpts
+    <$> optional (strOption
+        ( long "manager-url"
+        <> short 'M'
+        <> metavar "URL"
+        <> help "batchd manager API URL"))
+    <*> optional (strOption
+        ( long "username"
+        <> short 'U'
+        <> metavar "NAME"
+        <> help "batchd user name"))
+    <*> optional (strOption
+        ( long "password"
+        <> short 'P'
+        <> metavar "PASSWORD"
+        <> help "batchd user password"))
 
-queue :: Batch
-queue = Queue {
-    managerUrl = managerUrlAnn,
-    queueMode = enum [
-                  Update &= help "modify queue",
-                  Add &= help "create new queue",
-                  Delete &= help "delete queue"],
-    queueObject = defaultQueue &= argPos 0 &= typ "QUEUE",
-    scheduleName = def &= typ "SCHEDULE" &= help "queue schedule name",
-    hostName = Nothing &= name "host" &= typ "HOST" &= help "default host name for queue",
-    title = Nothing &= name "name" &= typ "TITLE" &= help "set queue title",
-    enabled = Nothing &= name "active" &= typ "TRUE" &= help "enable/disable queue",
-    force = False &= help "force non-empty queue deletion",
-    username = usernameAnn,
-    password = passwordAnn
-  } &= help "create, update or delete queues"
 
-job :: Batch
-job = Job {
-    managerUrl = managerUrlAnn,
-    jobId = def &= typ "ID" &= argPos 0,
-    status = def &= typ "STATUS" &= help "set job status",
-    hostName = Nothing &= name "host" &= typ "HOST" &= help "set job host",
-    queueName = def &= name "queue" &= typ "QUEUE" &= help "set job queue",
-    viewDescription = False &= name "description" &= help "view job description",
-    viewResult = False &= name "result" &= help "view job result",
-    viewAll = False &= name "all" &= help "view all job results",
-    jobMode = enum [
-                View &= help "view job description or result",
-                Update &= help "modify job",
-                Delete &= help "delete job"
-              ],
-    username = usernameAnn,
-    password = passwordAnn
-  } &= help "update or delete jobs"
+required :: Read a => String -> Char -> String -> String -> Parser a
+required longName shortName meta helpText =
+  option auto (long longName <> short shortName <> metavar meta <> help helpText)
+
+requiredString :: String -> Char -> String -> String -> Parser String
+requiredString longName shortName meta helpText =
+  strOption (long longName <> short shortName <> metavar meta <> help helpText)
+
+optionalString :: String -> Char -> String -> String -> Parser (Maybe String)
+optionalString longName shortName meta helpText =
+  optional $ requiredString longName shortName meta helpText
+
+enqueue :: Parser Command
+enqueue = Enqueue
+  <$> optionalString "queue" 'q' "QUEUE" "queue name"
+  <*> optionalString "type"  't' "TYPE"  "job type name"
+  <*> optionalString "host"  'h' "HOST"  "worker host name"
+  <*> many (strArgument  (metavar "COMMAND"))
+  <*> many (requiredString "parameter" 'p' "NAME=VALUE" "job parameters specified by name")
+
+list :: Parser Command
+list = List
+  <$> optionalString "status" 's' "STATUS" "list only jobs of specified status"
+  <*> many (strArgument (metavar "QUEUE" <> help "queue to list"))
+
+crudMode :: [(CrudMode, String)] -> Parser CrudMode
+crudMode [] = error "crudMode called with empty list"
+crudMode modes@((dflt,_):_) = foldr1 (<|>) $ map go modes
+  where
+    go (mode, helpText) =
+      let (longName, shortName) = case mode of
+                                    View -> ("view", 'v')
+                                    Add -> ("add", 'a')
+                                    Update -> ("update", 'u')
+                                    Delete -> ("delete", 'd')
+      in flag dflt mode
+          ( long longName 
+          <> short shortName
+          <> help helpText )
+
+queue :: Parser Command
+queue = Queue
+  <$> crudMode [(Update, "modify queue"), (Add, "create new queue"), (Delete, "delete queue")]
+  <*> strArgument (metavar "HELP" <> help "queue to operate on")
+  <*> optionalString "schedule" 's' "SCHEDULE" "queue schedule name"
+  <*> optionalString "host" 'h' "HOST" "default host name for queue"
+  <*> optionalString "name" 'n' "TITLE" "set queue title"
+  <*> optional (switch (long "enable" <> short 'e' <> help "enable/disable queue"))
+  <*> switch (long "force" <> short 'f' <> help "force non-empty queue deletion")
+
+job :: Parser Command
+job = Job
+  <$> argument auto (metavar "ID" <> help "job ID")
+  <*> optionalString "queue" 'q' "QUEUE" "set job queue"
+  <*> optionalString "status" 's' "STATUS" "set job status"
+  <*> optionalString "host" 'h' "HOST" "set job host"
+  <*> switch (long "description" <> help "view job description")
+  <*> switch (long "result" <> short 'r' <> help "view job result")
+  <*> switch (long "all" <> short 'a' <> help "view all job results")
+  <*> crudMode [(View, "view job description or result"), (Update, "modify job"), (Delete, "delete job")]
     
-schedule :: Batch
-schedule = Schedule {
-    managerUrl = managerUrlAnn,
-    scheduleMode =  enum [
-                      View &= name "ls" &= help "list available schedules",
-                      Add &= help "create new schedule",
-                      Update &= help "modify schedule",
-                      Delete &= help "delete (unused) schedule"],
-    scheduleNames = def &= typ "SCHEDULE" &= args,
-    periods = [] &= typ "HH:MM:SS HH:MM:SS" &= help "time of day period(s)",
-    weekdays = [] &= typ "WEEKDAY" &= help "week day(s)",
-    force = False &= help "delete also all queues which use this schedule and their jobs",
-    username = usernameAnn,
-    password = passwordAnn
-  } &= help "create, update or delete schedules"
+schedule :: Parser Command
+schedule = Schedule
+  <$> crudMode [(View, "list available schedules"), (Add, "create new schedule"), (Update, "modify schedule"), (Delete, "delete (unused) schedule")]
+  <*> many (strArgument (metavar "SCHEDULE" <> help "schedules to operate on"))
+  <*> many (requiredString "period" 'p' "HH:MM:SS HH:MM:SS" "time of day period(s)")
+  <*> many (required "weekday" 'w' "WEEKDAY" "week day(s)")
+  <*> switch (long "force" <> short 'f' <> help "delete also all queues which use this schedule and their jobs")
 
-user :: Batch
-user = User {
-    managerUrl = managerUrlAnn,
-    userMode = enum [
-                 View &= name "ls" &= help "list existing users",
-                 Add &= help "create new user",
-                 Update &= name "passwd" &= help "change user password"
-               ],
-    objectUserName = def &= typ "NAME" &= args,
-    username = usernameAnn,
-    password = passwordAnn
-  } &= help "create, update or delete users"
+user :: Parser Command
+user = User
+  <$> crudMode [(View, "list existing users"), (Add, "create new user"), (Update, "change user password")]
+  <*> many (strArgument (metavar "NAME" <> help "name of user to operate on"))
 
-grant :: Batch
-grant = Grant {
-    managerUrl = managerUrlAnn,
-    grantMode = enum [
-                  View &= name "ls" &= help "view permissions of user",
-                  Add &= help "add permissions to user"
-                ],
-    grantUserName = def &= typ "NAME" &= argPos 0,
-    permission = CreateJobs &= typ "PERMISSION" &= help "specify permission, for example ViewJobs",
-    queueName = Nothing &= typ "QUEUE" &= help "queue to grant permission to, by default - any",
-    typeName = Nothing &= typ "TYPE" &= help "job type to grant permission to, usable for CreateJobs permission",
-    username = usernameAnn,
-    password = passwordAnn
-  } &= help "create, update or delete user permissions"
+grant :: Parser Command
+grant = Grant
+  <$> crudMode [(View, "view permissions of user"), (Add, "add permissions to user")]
+  <*> strArgument (metavar "NAME" <> help "name of user to operate on")
+  <*> required "permission" 'p' "PERMISSION" "specify permission, for example ViewJobs"
+  <*> optionalString "queue" 'q' "QUEUE" "queue to grant permission to, by default - any"
+  <*> optionalString "type" 't' "TYPE" "job type to grant permission to, usable for CreateJobs permission"
 
-typesList :: Batch
-typesList = Type {
-    managerUrl = managerUrlAnn,
-    types = [] &= typ "TYPE" &= args,
-    username = usernameAnn,
-    password = passwordAnn
-  } &= name "type"
-    &= help "show defined job types"
+typesList :: Parser Command
+typesList = Type
+  <$> many (strArgument (metavar "TYPE"))
 
-stats :: Batch
-stats = Stats {
-    managerUrl = managerUrlAnn,
-    queueToStat = [] &= typ "QUEUE" &= args,
-    username = usernameAnn,
-    password = passwordAnn
-  } &= help "print statistics on queue or on all jobs"
+stats :: Parser Command
+stats = Stats
+  <$> many (strArgument (metavar "QUEUE"))
 
-parseParams :: [ParamDesc] -> Batch -> JobParamInfo
+shell :: Parser Command
+shell = pure Shell
+
+parseParams :: [ParamDesc] -> Command -> JobParamInfo
 parseParams desc e = 
     let posNames = map piName desc
-        ordered = M.fromList $ zip posNames (command e)
+        ordered = M.fromList $ zip posNames (jobCommand e)
         byName = M.fromList $ map parseOne (parameters e)
     in  M.union byName ordered
   where
@@ -241,3 +226,26 @@ parseParams desc e =
                    (key, (_:value)) -> (key, value)
                    (key, []) -> (key, "")
 
+commands :: Parser Command
+commands = hsubparser 
+    (  cmd "enqueue" enqueue "put a new job into queue"
+    <> cmd "ls" list "list queues or jobs"
+    <> cmd "job" job "update or delete jobs"
+    <> cmd "queue" queue "create, update or delete queues"
+    <> cmd "schedule" schedule "create, update or delete schedules"
+    <> cmd "type" typesList "view job types"
+    <> cmd "stats" stats "print statistics on queue or on all jobs"
+    <> cmd "user" user "create, update or delete users"
+    <> cmd "grant" grant "create, update or delete user permissions"
+    <> cmd "shell" shell "run interactive shell" )
+  where
+    cmd name func helpText = command name (info func (progDesc helpText))
+
+parserInfo :: ParserInfo CmdLine
+parserInfo = info (parser <**> helper)
+               (fullDesc
+               <> header "batch - the batchd toolset command-line client program"
+               <> progDesc "operate on batch jobs, queues, schedules etc.")
+
+getCmdArgs :: IO CmdLine
+getCmdArgs = execParser parserInfo

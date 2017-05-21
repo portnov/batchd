@@ -92,24 +92,24 @@ loadClientConfig = do
         Left err -> throw $ ClientException $ "Can't parse client config:\n" ++ show err
         Right cfg -> return cfg
     
-getManagerUrl :: Maybe String -> ClientConfig -> IO String
-getManagerUrl cmdline cfg =
-  getConfigParam cmdline "BATCH_MANAGER_URL" (ccManagerUrl cfg) defaultUrl
+getManagerUrl :: CmdLine -> ClientConfig -> IO String
+getManagerUrl (CmdLine o _) cfg =
+  getConfigParam (managerUrl o) "BATCH_MANAGER_URL" (ccManagerUrl cfg) defaultUrl
 
-getHostName :: Maybe String -> ClientConfig -> IO (Maybe String)
-getHostName cmdline cfg =
-  getConfigParam' cmdline "BATCH_HOST" (ccHost cfg)
+getHostName :: CmdLine -> ClientConfig -> IO (Maybe String)
+getHostName (CmdLine _ c) cfg =
+  getConfigParam' (hostName c) "BATCH_HOST" (ccHost cfg)
 
-getTypeName :: Maybe String -> ClientConfig -> IO String
-getTypeName cmdline cfg =
-  getConfigParam cmdline "BATCH_TYPE" (ccType cfg) defaultType
+getTypeName :: CmdLine -> ClientConfig -> IO String
+getTypeName (CmdLine _ c) cfg =
+  getConfigParam (typeName c) "BATCH_TYPE" (ccType cfg) defaultType
 
-getQueueName :: Maybe String -> ClientConfig -> IO String
-getQueueName cmdline cfg =
-  getConfigParam cmdline "BATCH_QUEUE" (ccQueue cfg) defaultQueue
+getQueueName :: CmdLine -> ClientConfig -> IO String
+getQueueName (CmdLine _ c) cfg =
+  getConfigParam (queueName c) "BATCH_QUEUE" (ccQueue cfg) defaultQueue
 
-getUserName :: Maybe String -> ClientConfig -> IO String
-getUserName cmdline cfg = do
+getUserName :: CmdLine -> ClientConfig -> IO String
+getUserName (CmdLine o _) cfg = do
   osuser <- getLoginName
-  getConfigParam cmdline "BATCH_USERNAME" (ccUsername cfg) osuser
+  getConfigParam (username o) "BATCH_USERNAME" (ccUsername cfg) osuser
 

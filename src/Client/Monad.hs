@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Client.Monad where
 
@@ -14,7 +15,7 @@ import Client.Types
 import Client.CmdLine
 
 data ClientState = ClientState {
-    csCmdline :: Batch,
+    csCmdline :: CmdLine,
     csConfig :: ClientConfig,
     csCredentials :: Maybe Credentials,
     csAuthMethods :: Maybe [AuthMethod],
@@ -30,8 +31,16 @@ getBaseUrl :: Client String
 getBaseUrl = do
   cfg <- gets csConfig
   opts <- gets csCmdline
-  liftIO $ getManagerUrl (managerUrl opts) cfg
+  liftIO $ getManagerUrl opts cfg
 
 throwC :: String -> Client a
 throwC msg = lift $ throw $ ClientException msg
+
+wrapClient :: (forall a. IO a -> IO a) -> Client b -> Client b
+wrapClient wrapper actions = do
+  state <- get
+  (result, state') <- liftIO $ wrapper $ do
+                        runStateT actions state
+  put state'
+  return result
 

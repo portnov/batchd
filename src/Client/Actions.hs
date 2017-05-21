@@ -31,13 +31,13 @@ doEnqueue = do
   baseUrl <- getBaseUrl
   creds <- getCredentials
   opts <- gets csCmdline
-  t <- liftIO $ getTypeName (typeName opts) cfg
+  t <- liftIO $ getTypeName opts cfg
   jtr <- liftIO $ loadTemplate t
   case jtr of
     Left err -> throwC $ show err
     Right jtype -> do
-      qname <- liftIO $ getQueueName (queueName opts) cfg
-      host <- liftIO $ getHostName (hostName opts) cfg
+      qname <- liftIO $ getQueueName opts cfg
+      host <- liftIO $ getHostName opts cfg
 
       let job = JobInfo {
           jiId = 0,
@@ -53,7 +53,7 @@ doEnqueue = do
           jiExitCode = Nothing,
           jiStdout = Nothing,
           jiStderr = Nothing,
-          jiParams = parseParams (jtParams jtype) opts
+          jiParams = parseParams (jtParams jtype) (cmdCommand opts)
         }
 
       let url = baseUrl </> "queue" </> qname
@@ -63,7 +63,8 @@ doList :: Client ()
 doList = do
   baseUrl <- getBaseUrl
   opts <- gets csCmdline
-  case queueToList opts of
+  let command = cmdCommand opts
+  case queueToList command of
     [] -> do
       let url = baseUrl </> "queue"
       response <- doGet url
@@ -77,10 +78,10 @@ doList = do
 
     qnames ->
       forM_ qnames $ \qname -> do
-        statusOpt <- parseStatus (Just New) (throwC "Invalid status") (status opts)
+        statusOpt <- parseStatus (Just New) (throwC "Invalid status") (status command)
         let statusStr = case statusOpt of
                           Nothing -> "?status=all"
-                          Just st -> case status opts of
+                          Just st -> case status command of
                                        Nothing -> ""
                                        _ -> "?status=" ++ map toLower (show st)
         let url = baseUrl </> "queue" </> qname </> "jobs" ++ statusStr
@@ -94,7 +95,8 @@ doStats :: Client ()
 doStats = do
     baseUrl <- getBaseUrl
     opts <- gets csCmdline
-    case queueToStat opts of
+    let command = cmdCommand opts
+    case queueToStat command of
       [] -> do
         let url = baseUrl </> "stats"
         response <- doGet url
@@ -119,26 +121,27 @@ viewJob :: Client ()
 viewJob = do
     baseUrl <- getBaseUrl
     opts <- gets csCmdline
-    let showDescription = if viewDescription opts
+    let command = cmdCommand opts
+    let showDescription = if viewDescription command
                             then True
-                            else if not (viewResult opts) && not (viewAll opts)
+                            else if not (viewResult command) && not (viewAll command)
                                    then True
-                                   else viewDescription opts
-    if (showDescription || viewResult opts) && not (viewAll opts)
+                                   else viewDescription command
+    if (showDescription || viewResult command) && not (viewAll command)
       then do
-           let url = baseUrl </> "job" </> show (jobId opts)
+           let url = baseUrl </> "job" </> show (jobId command)
            response <- doGet url
            when (showDescription) $
                liftIO $ printJob response
-           when (viewResult opts) $
+           when (viewResult command) $
                liftIO $ printLastResult response
       else do
            when (showDescription) $ do
-               let url = baseUrl </> "job" </> show (jobId opts)
+               let url = baseUrl </> "job" </> show (jobId command)
                response <- doGet url
                liftIO $ printJob response
-           when (viewAll opts) $ do
-               let url = baseUrl </> "job" </> show (jobId opts) </> "results"
+           when (viewAll command) $ do
+               let url = baseUrl </> "job" </> show (jobId command) </> "results"
                response <- doGet url
                forM_ (response :: [Database.JobResult]) $ \result -> do
                    liftIO $ printResult result
@@ -174,30 +177,33 @@ updateJob :: Client ()
 updateJob = do
   baseUrl <- getBaseUrl
   opts <- gets csCmdline
+  let command = cmdCommand opts
   let job = object $
-              toList "queue_name" (queueName opts) ++
-              toList "status" (status opts) ++
-              toList "host_name" (hostName opts)
-  let url = baseUrl </> "job" </> show (jobId opts)
+              toList "queue_name" (queueName command) ++
+              toList "status" (status command) ++
+              toList "host_name" (hostName command)
+  let url = baseUrl </> "job" </> show (jobId command)
   doPut url job
 
 deleteJob :: Client ()
 deleteJob = do
   baseUrl <- getBaseUrl
   opts <- gets csCmdline
-  let url = baseUrl </> "job" </> show (jobId opts)
+  let command = cmdCommand opts
+  let url = baseUrl </> "job" </> show (jobId command)
   doDelete url
 
 addQueue :: Client ()
 addQueue = do
   baseUrl <- getBaseUrl
   opts <- gets csCmdline
+  let command = cmdCommand opts
   let queue = Database.Queue {
-                Database.queueName = queueObject opts,
-                Database.queueTitle = fromMaybe (queueObject opts) (title opts),
-                Database.queueEnabled = fromMaybe True (enabled opts),
-                Database.queueScheduleName = fromMaybe "anytime" (scheduleName opts),
-                Database.queueHostName = hostName opts
+                Database.queueName = queueObject command,
+                Database.queueTitle = fromMaybe (queueObject command) (title command),
+                Database.queueEnabled = fromMaybe True (enabled command),
+                Database.queueScheduleName = fromMaybe "anytime" (scheduleName command),
+                Database.queueHostName = hostName command
               }
   let url = baseUrl </> "queue"
   doPost url queue
@@ -206,13 +212,14 @@ updateQueue :: Client ()
 updateQueue = do
     baseUrl <- getBaseUrl
     opts <- gets csCmdline
+    let command = cmdCommand opts
     let queue = object $
-                  toList "enabled" (enabled opts) ++
-                  toList "title" (title opts) ++
-                  toList "schedule_name" (scheduleName opts) ++
-                  toList "host_name" (hostName opts)
+                  toList "enabled" (enabled command) ++
+                  toList "title" (title command) ++
+                  toList "schedule_name" (scheduleName command) ++
+                  toList "host_name" (hostName command)
     -- print queue
-    let url = baseUrl </> "queue" </> queueObject opts
+    let url = baseUrl </> "queue" </> queueObject command
     doPut url queue
 
 toList _ Nothing = []
@@ -222,19 +229,21 @@ deleteQueue :: Client ()
 deleteQueue = do
   baseUrl <- getBaseUrl
   opts <- gets csCmdline
-  let forceStr = if force opts then "?forced=true" else ""
-  let url = baseUrl </> "queue" </> queueObject opts ++ forceStr
+  let command = cmdCommand opts
+  let forceStr = if force command then "?forced=true" else ""
+  let url = baseUrl </> "queue" </> queueObject command ++ forceStr
   doDelete url
 
 doListSchedules :: Client ()
 doListSchedules = do
   baseUrl <- getBaseUrl
   opts <- gets csCmdline
+  let command = cmdCommand opts
   let url = baseUrl </> "schedule"
   response <- doGet url
-  let check = if null (scheduleNames opts)
+  let check = if null (scheduleNames command)
                 then const True
-                else \si -> sName si `elem` scheduleNames opts
+                else \si -> sName si `elem` scheduleNames command
   liftIO $ forM_ (response :: [ScheduleInfo]) $ \si -> do
             when (check si) $ do
               putStrLn $ sName si ++ ":"
@@ -249,17 +258,18 @@ doAddSchedule :: Client ()
 doAddSchedule = do
   baseUrl <- getBaseUrl
   opts <- gets csCmdline
-  when (length (scheduleNames opts) /= 1) $
+  let command = cmdCommand opts
+  when (length (scheduleNames command) /= 1) $
     throwC $ "Exactly one schedule name must be specified when creating a schedule"
-  let ts = forM (periods opts) $ \str -> do
+  let ts = forM (periods command) $ \str -> do
              parsePeriod str
   case ts of
     Left err -> throwC $ "Can't parse period description: " ++ show err
     Right times -> do
       let url = baseUrl </> "schedule"
       let schedule = ScheduleInfo {
-                       sName = head (scheduleNames opts),
-                       sWeekdays = if null (weekdays opts) then Nothing else Just (weekdays opts),
+                       sName = head (scheduleNames command),
+                       sWeekdays = if null (weekdays command) then Nothing else Just (weekdays command),
                        sTime = if null times then Nothing else Just times
                      }
       doPost url schedule
@@ -268,10 +278,11 @@ doDeleteSchedule :: Client ()
 doDeleteSchedule = do
   baseUrl <- getBaseUrl
   opts <- gets csCmdline
-  when (length (scheduleNames opts) /= 1) $
+  let command = cmdCommand opts
+  when (length (scheduleNames command) /= 1) $
     throwC $ "Exactly one schedule name must be specified when deleting a schedule"
-  let sname = head (scheduleNames opts)
-  let forceStr = if force opts then "?forced=true" else ""
+  let sname = head (scheduleNames command)
+  let forceStr = if force command then "?forced=true" else ""
   let url = baseUrl </> "schedule" </> sname ++ forceStr
   doDelete url
 
@@ -279,11 +290,12 @@ doType :: Client ()
 doType = do
   baseUrl <- getBaseUrl
   opts <- gets csCmdline
+  let command = cmdCommand opts
   let url = baseUrl </> "type"
   response <- doGet url
-  let check = if null (types opts)
+  let check = if null (types command)
                 then const True
-                else \jt -> jtName jt `elem` types opts
+                else \jt -> jtName jt `elem` types command
   liftIO $ forM_ (response :: [JobType]) $ \jt -> do
             when (check jt) $ do
               let title = fromMaybe (jtName jt) (jtTitle jt)
@@ -311,9 +323,10 @@ doAddUser :: Client ()
 doAddUser = do
   baseUrl <- getBaseUrl
   opts <- gets csCmdline
+  let command = cmdCommand opts
   let url = baseUrl </> "user"
   pwd <- liftIO $ getPassword2
-  name <- case objectUserName opts of
+  name <- case objectUserName command of
             [n] -> return n
             _ -> fail "user name must be provided"
   let user = UserInfo name pwd
@@ -323,8 +336,9 @@ doChangePassword :: Client ()
 doChangePassword = do
   baseUrl <- getBaseUrl
   opts <- gets csCmdline
+  let command = cmdCommand opts
   creds <- getCredentials
-  name <- case objectUserName opts of
+  name <- case objectUserName command of
             [n] -> return n
             _ -> return $ fst creds
   let url = baseUrl </> "user" </> name
@@ -336,7 +350,8 @@ doListPermissions :: Client ()
 doListPermissions = do
   baseUrl <- getBaseUrl
   opts <- gets csCmdline
-  let url = baseUrl </> "user" </> grantUserName opts </> "permissions"
+  let command = cmdCommand opts
+  let url = baseUrl </> "user" </> grantUserName command </> "permissions"
   response <- doGet url
   liftIO $ forM_ (response :: [Database.UserPermission]) $ \perm -> do
               let qname = fromMaybe "*" $ Database.userPermissionQueueName perm
@@ -348,8 +363,9 @@ doAddPermission :: Client ()
 doAddPermission = do
   baseUrl <- getBaseUrl
   opts <- gets csCmdline
-  let name = grantUserName opts
+  let command = cmdCommand opts
+  let name = grantUserName command
       url = baseUrl </> "user" </> name </> "permissions"
-      perm = Database.UserPermission name (permission opts) (queueName opts) (typeName opts)
+      perm = Database.UserPermission name (permission command) (queueName command) (typeName command)
   doPost url perm
 

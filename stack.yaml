@@ -2,6 +2,7 @@ resolver: nightly-2017-05-19
 
 packages: 
   - .
+  - /home/portnov/src/progs/haskell/libssh2-hs/libssh2
 
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)

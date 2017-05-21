@@ -23,13 +23,13 @@ import Common.Types
 import Common.Config (getPassword)
 import Client.Types as C
 import Client.Config
-import Client.CmdLine (Batch (..))
+import Client.CmdLine
 import Client.Monad
 
-makeClientManager :: Batch -> IO Manager
+makeClientManager :: CmdLine -> IO Manager
 makeClientManager opts = do
     cfg <- loadClientConfig
-    url <- getManagerUrl (managerUrl opts) cfg
+    url <- getManagerUrl opts cfg
     if "https" `isPrefixOf` url
       then mkMngr (ccDisableServerCertificateCheck cfg) (ccCertificate cfg) (ccKey cfg) (ccCertificate cfg)
       else newManager defaultManagerSettings
@@ -92,14 +92,14 @@ getAuthMethods = do
 obtainCredentials :: Client C.Credentials
 obtainCredentials = do
   cfg <- gets csConfig
-  opts <- gets csCmdline
+  opts@(CmdLine o _) <- gets csCmdline
   methods <- getAuthMethods
   let needPassword = BasicAuth `elem` methods
-  name <- liftIO $ getUserName (username opts) cfg
+  name <- liftIO $ getUserName opts cfg
   pass <- if ccDisableAuth cfg || not needPassword
             then return ""
             else do
-                 mbPassword <- liftIO $ getConfigParam' (password opts) "BATCH_PASSWORD" (ccPassword cfg)
+                 mbPassword <- liftIO $ getConfigParam' (password o) "BATCH_PASSWORD" (ccPassword cfg)
                  case mbPassword of
                    Just p -> return p
                    Nothing -> liftIO $ getPassword $ name ++ " password: "
