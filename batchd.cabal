@@ -34,10 +34,11 @@ description:         The batchd is a toolset for batch processing. It enables on
                      and <https://github.com/portnov/batchd/wiki Wiki> on GitHub.
 
 
+Homepage:            https://github.com/portnov/batchd
 license:             BSD3
 license-file:        LICENSE
 author:              Ilya Portnov
-maintainer:          portnov@iportnov.ru
+maintainer:          portnov84@rambler.ru
 -- copyright:           
 category:            System
 build-type:          Simple
@@ -181,4 +182,8 @@ executable batch
 
   ghc-options: -fwarn-unused-imports -fwarn-missing-signatures
   default-language:    Haskell2010
+
+Source-repository head
+  type: git
+  location: https://github.com/portnov/batchd.git
 
