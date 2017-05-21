@@ -1,7 +1,8 @@
 name:                batchd
 version:             0.1.0.0
 synopsis:            Batch processing toolset for Linux / Unix
-description:         The batchd is a toolset for batch processing. It enables one to:
+description:         The batchd is a toolset for batch processing for Linux / Unix operating systems.
+                     It enables one to:
                      .
                      * Create and manage queues of tasks (batch jobs);
                      .
