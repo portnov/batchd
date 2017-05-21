@@ -168,7 +168,9 @@ queue = Queue
   <*> optionalString "schedule" 's' "SCHEDULE" "queue schedule name"
   <*> optionalString "host" 'h' "HOST" "default host name for queue"
   <*> optionalString "name" 'n' "TITLE" "set queue title"
-  <*> optional (switch (long "enable" <> short 'e' <> help "enable/disable queue"))
+  <*> (   flag Nothing (Just True) (long "enable"  <> short 'e' <> help "enable queue")
+      <|> flag Nothing (Just False) (long "disable" <> short 'D' <> help "disable queue")
+      )
   <*> switch (long "force" <> short 'f' <> help "force non-empty queue deletion")
 
 job :: Parser Command

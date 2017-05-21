@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Client.Shell where
 
@@ -18,6 +19,16 @@ import Client.Config
 import Client.Monad
 import Client.Http
 
+detectMode :: CrudMode -> [Command -> Bool] -> Command -> CrudMode
+detectMode mode mods cmd =
+  if mode == Delete
+    then Delete
+    else if mode == Add
+           then Add
+           else if mode == Update || or [mod cmd | mod <- mods]
+                  then Update
+                  else View
+
 commandHandler :: Client ()
 commandHandler = do
   opts <- gets (cmdCommand . csCmdline)
@@ -27,17 +38,14 @@ commandHandler = do
     Stats {} -> doStats
     Type {} -> doType
     Job {} -> do
-      let mode = if jobMode opts == Delete
-                    then Delete
-                    else if jobMode opts == Update || isJust (status opts) || isJust (hostName opts) || isJust (queueName opts)
-                          then Update
-                          else View
+      let mode = detectMode (jobMode opts) [isJust . status, isJust . hostName, isJust . queueName] opts
       case mode of
         View -> viewJob
         Update -> updateJob
         Delete -> deleteJob
-    Queue {} ->
-      case queueMode opts of
+    Queue {} -> do
+      let mode = detectMode (queueMode opts) [isJust . scheduleName, isJust . hostName, isJust . title, isJust . enabled] opts
+      case mode of
         Add -> addQueue
         Update -> updateQueue
         Delete -> deleteQueue
