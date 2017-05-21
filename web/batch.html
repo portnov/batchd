@@ -86,7 +86,7 @@ $.batchd = new $.RestClient('/');
 
 $.batchd.add('queue', {'stringifyData': true});
 $.batchd.queue.add('jobs');
-$.batchd.queue.add('types');
+$.batchd.queue.add('type');
 $.batchd.add('type');
 $.batchd.add('stats');
 $.batchd.add('host');
@@ -132,7 +132,7 @@ function onQueueSelected() {
     $('#host_name').text(host);
   });
   getJobs();
-  $.batchd.queue.types.read(qname).done(function(data) {
+  $.batchd.queue.type.read(qname).done(function(data) {
     $('#selecttype>option').remove();
     $.each(data, function(k,v) {
       if (! k) {

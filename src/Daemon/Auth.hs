@@ -282,6 +282,28 @@ hasCreatePermission name qname mbTypename mbHostname = do
       res <- selectList filtr []
       return $ not $ null res
 
+-- | List names of hosts where user can create jobs of specified type in certain queue.
+-- Returns Nothing if user can create jobs on any host.
+listAllowedHosts :: String -- ^ User name
+                 -> String -- ^ Queue name
+                 -> String -- ^ Job type name
+                 -> DB (Maybe [String])
+listAllowedHosts name qname typename = do
+  super <- isSuperUser name
+  if super
+    then return Nothing
+    else do
+      let byUser  = [UserPermissionUserName ==. name, UserPermissionPermission ==. CreateJobs]
+          byQueue = [UserPermissionQueueName ==. Nothing] ||. [UserPermissionQueueName ==. Just qname]
+          byType  = [UserPermissionTypeName ==. Nothing] ||. [UserPermissionTypeName ==. Just typename]
+          fltr = byUser ++ byQueue ++ byType
+      qryResult <- selectList fltr []
+      let mbHosts = map (userPermissionHostName . entityVal) qryResult
+          result = if any isNothing mbHosts -- in this case user can create jobs on any host
+                     then Nothing
+                     else Just $ map fromJust mbHosts
+      return result
+
 hasPermissionToList :: String -> Permission -> DB Bool
 hasPermissionToList name perm = do
   super <- isSuperUser name

@@ -122,14 +122,14 @@ Permissions required: ManageJobs
 
 Modify named job queue. Request body is similar to "add new queue" call.
 
-URL: /queue/:name/types
+URL: /queue/:name/type
 Method: GET
 Permissions required: CreateJobs for at least some job types
 
 Obtain list of job types which can be created in specified queue by currently
 authenticated user. All details of job types are returned.
 
-URL: /queue/:name/hosts
+URL: /queue/:name/host
 Method: GET
 Permissions required: CreateJobs for at least some hosts
 

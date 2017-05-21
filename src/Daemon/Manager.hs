@@ -68,8 +68,9 @@ routes cfg = do
   Scotty.get "/queue" getQueuesA
   Scotty.get "/queue/:name" getQueueA
   Scotty.get "/queue/:name/jobs" getQueueJobsA
-  Scotty.get "/queue/:name/types" $ getAllowedJobTypesA
-  Scotty.get "/queue/:name/hosts" $ getAllowedHostsA
+  Scotty.get "/queue/:name/type" $ getAllowedJobTypesA
+  Scotty.get "/queue/:qname/type/:tname/host" $ getAllowedHostsForTypeA
+  Scotty.get "/queue/:name/host" $ getAllowedHostsA
   Scotty.put "/queue/:name" updateQueueA
   Scotty.post "/queue" addQueueA
   Scotty.post "/queue/:name" enqueueA
@@ -400,6 +401,20 @@ getAllowedHostsA = do
   let allHostNames = defaultHostOfQueue : map hName hosts
   allowedHosts <- flip filterM allHostNames $ \hostname -> do
                       runDBA $ hasCreatePermission name qname Nothing (Just hostname)
+  Scotty.json allowedHosts
+
+getAllowedHostsForTypeA :: Action ()
+getAllowedHostsForTypeA = do
+  user <- getAuthUser
+  qname <- Scotty.param "qname"
+  tname <- Scotty.param "tname"
+  mbAllowedHosts <- runDBA $ listAllowedHosts (userName user) qname tname
+  allowedHosts <- case mbAllowedHosts of
+                    Just list -> return list -- user is restricted to list of hosts
+                    Nothing -> do -- user can create jobs on any defined host
+                        cfg <- getGlobalConfig
+                        hosts <- liftIO $ listHosts cfg
+                        return $ map hName hosts
   Scotty.json allowedHosts
 
 getUsersA :: Action ()
