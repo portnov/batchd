@@ -128,7 +128,7 @@ function onQueueSelected() {
   }
   $.batchd.queue.read(qname).done(function(queue) {
     $('#schedule_name').text(queue.schedule_name);
-    var host = queue.host_name ? queue.host_name : "local";
+    var host = queue.host_name ? queue.host_name : "*";
     $('#host_name').text(host);
   });
   getJobs();
@@ -163,7 +163,7 @@ function getJobs() {
     $.each(data, function(k,v) {
       var host = v.host_name;
       if (! host) {
-        host = 'local';
+        host = '*';
       }
       var html = '<td>' + v.id + '</td><td>'
                              + v.seq + '</td><td>'
@@ -199,7 +199,7 @@ function showJob(job) {
     $('#viewjob_type').text(job.type);
     var host = job.host_name;
     if (! host) {
-      host = 'local';
+      host = '*';
     }
     $('#viewjob_host').text(host);
     $('#viewjob_user').text(job.user_name);
