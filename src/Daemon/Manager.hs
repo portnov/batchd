@@ -10,6 +10,7 @@ import Control.Monad
 import Control.Monad.Reader
 import qualified Data.ByteString as B
 import qualified Data.Text.Lazy as TL
+import Data.Maybe
 import Data.Default
 import Data.Yaml
 import qualified Database.Persist.Sql as Sql
@@ -200,7 +201,9 @@ enqueueA = do
   jinfo <- jsonData
   qname <- Scotty.param "name"
   user <- getAuthUser
-  checkCanCreateJobs qname (jiType jinfo)
+  -- special name for default host of queue
+  let host = fromMaybe "__default__" (jiHostName jinfo)
+  checkCanCreateJobs qname (jiType jinfo) host
   r <- runDBA $ enqueue (userName user) qname jinfo
   Scotty.json r
 
@@ -341,7 +344,7 @@ getAllowedJobTypesA = do
   cfg <- getGlobalConfig
   types <- liftIO $ listJobTypes cfg
   allowedTypes <- flip filterM types $ \jt -> do
-                      runDBA $ hasCreatePermission name qname (jtName jt)
+                      runDBA $ hasCreatePermission name qname (jtName jt) Nothing
   Scotty.json allowedTypes
 
 listJobTypes :: GlobalConfig -> IO [JobType]

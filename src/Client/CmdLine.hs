@@ -73,7 +73,8 @@ data Command =
       grantUserName :: String,
       permission :: Maybe Permission,
       queueName :: Maybe String,
-      typeName :: Maybe String
+      typeName :: Maybe String,
+      hostName :: Maybe String
     }
   | Type {
       types :: [String]
@@ -208,6 +209,7 @@ grant = Grant
   <*> optionalF "permission" 'p' "PERMISSION" "specify permission, for example ViewJobs"
   <*> optionalString "queue" 'q' "QUEUE" "queue to grant permission to, by default - any"
   <*> optionalString "type" 't' "TYPE" "job type to grant permission to, usable for CreateJobs permission"
+  <*> optionalString "host" 'h' "HOST" "name of host to grant permission to, usable for CreateJobs permission. Use `__default__' value to allow default host of queue."
 
 typesList :: Parser Command
 typesList = Type

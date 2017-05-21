@@ -39,7 +39,7 @@ createUserDb name password staticSalt = do
 createSuperUserDb :: String -> String -> String -> DB (Key User)
 createSuperUserDb name password staticSalt = do
   userKey <- createUserDb name password staticSalt
-  let perm = UserPermission name SuperUser Nothing Nothing
+  let perm = UserPermission name SuperUser Nothing Nothing Nothing
   insert perm
   return userKey
 
@@ -253,13 +253,19 @@ hasPermission name perm qname = do
           any <- selectList [UserPermissionUserName ==. name, UserPermissionPermission ==. perm, UserPermissionQueueName ==. Nothing] []
           return $ not $ null any
 
-hasCreatePermission :: String -> String -> String -> DB Bool
-hasCreatePermission name qname typename = do
+hasCreatePermission :: String -> String -> String -> Maybe String -> DB Bool
+hasCreatePermission name qname typename mbHostname = do
   super <- isSuperUser name
   if super
     then return True
     else do
-      let filtr = [UserPermissionUserName ==. name, UserPermissionPermission ==. CreateJobs] ++ ([UserPermissionQueueName ==. Nothing] ||. [UserPermissionQueueName ==. Just qname]) ++ ([UserPermissionTypeName ==. Nothing] ||. [UserPermissionTypeName ==. Just typename])
+      let byUser  = [UserPermissionUserName ==. name, UserPermissionPermission ==. CreateJobs]
+          byQueue = [UserPermissionQueueName ==. Nothing] ||. [UserPermissionQueueName ==. Just qname]
+          byType  = [UserPermissionTypeName ==. Nothing] ||. [UserPermissionTypeName ==. Just typename]
+          byHost  = case mbHostname of
+                      Nothing -> []
+                      Just hostname -> [UserPermissionHostName ==. Nothing] ||. [UserPermissionHostName ==. Just hostname]
+      let filtr = byUser ++ byQueue ++ byType ++ byHost
       res <- selectList filtr []
       return $ not $ null res
 
@@ -281,12 +287,12 @@ checkPermission message perm qname = do
       when (not ok) $ do
         Scotty.raise $ InsufficientRights message
 
-checkCanCreateJobs :: String -> String -> Action ()
-checkCanCreateJobs qname typename = do
+checkCanCreateJobs :: String -> String -> String -> Action ()
+checkCanCreateJobs qname typename hostname = do
   cfg <- lift $ asks ciGlobalConfig
   when (not $ isAuthDisabled $ dbcAuth cfg) $ do
       user <- getAuthUser
-      ok <- runDBA $ hasCreatePermission (userName user) qname typename
+      ok <- runDBA $ hasCreatePermission (userName user) qname typename (Just hostname)
       when (not ok) $ do
         Scotty.raise $ InsufficientRights "create jobs"
 
