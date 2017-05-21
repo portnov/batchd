@@ -65,6 +65,7 @@ commandHandler = do
         Add -> doAddPermission
     Shell {} -> do
       obtainCredentials
+      liftIO $ putStrLn "This is batch client shell. Type `--help' for list of available commands or `some_command --help' (without quotes) for help message on particular command."
       runShell
 
 errorHandler :: ClientException -> Client ()
@@ -78,6 +79,7 @@ runShell = do
     Nothing -> return ()
     Just "exit" -> return ()
     Just "quit" -> return ()
+    Just "" -> runShell
     Just line -> do
         liftIO $ addHistory line
         let res = execParserPure defaultPrefs parserInfo (words line)

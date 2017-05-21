@@ -366,6 +366,8 @@ doAddPermission = do
   let command = cmdCommand opts
   let name = grantUserName command
       url = baseUrl </> "user" </> name </> "permissions"
-      perm = Database.UserPermission name (permission command) (queueName command) (typeName command)
+  perm <- case permission command of
+            Just p -> return $ Database.UserPermission name p (queueName command) (typeName command)
+            Nothing -> throwC "permission must be specified"
   doPost url perm
 

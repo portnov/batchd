@@ -71,7 +71,7 @@ data Command =
   | Grant {
       grantMode :: CrudMode,
       grantUserName :: String,
-      permission :: Permission,
+      permission :: Maybe Permission,
       queueName :: Maybe String,
       typeName :: Maybe String
     }
@@ -124,6 +124,10 @@ commonOpts = CommonOpts
 required :: Read a => String -> Char -> String -> String -> Parser a
 required longName shortName meta helpText =
   option auto (long longName <> short shortName <> metavar meta <> help helpText)
+
+optionalF :: Read a => String -> Char -> String -> String -> Parser (Maybe a)
+optionalF longName shortName meta helpText =
+  optional $ required longName shortName meta helpText
 
 requiredString :: String -> Char -> String -> String -> Parser String
 requiredString longName shortName meta helpText =
@@ -201,7 +205,7 @@ grant :: Parser Command
 grant = Grant
   <$> crudMode [(View, "view permissions of user"), (Add, "add permissions to user")]
   <*> strArgument (metavar "NAME" <> help "name of user to operate on")
-  <*> required "permission" 'p' "PERMISSION" "specify permission, for example ViewJobs"
+  <*> optionalF "permission" 'p' "PERMISSION" "specify permission, for example ViewJobs"
   <*> optionalString "queue" 'q' "QUEUE" "queue to grant permission to, by default - any"
   <*> optionalString "type" 't' "TYPE" "job type to grant permission to, usable for CreateJobs permission"
 
