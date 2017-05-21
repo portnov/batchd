@@ -23,27 +23,40 @@ import Daemon.Crypto
 import Daemon.Database
 import Daemon.Logging
 
+-- | WAI Request vault key for currently authenticated user name
 usernameKey :: V.Key String
 usernameKey = unsafePerformIO V.newKey
 {-# NOINLINE usernameKey #-}
 
 ---------- Users manipulation --------------------
 
-createUserDb :: String -> String -> String -> DB (Key User)
+-- | Create user
+createUserDb :: String -- ^ User name
+             -> String -- ^ Password
+             -> String -- ^ Static part of salt
+             -> DB (Key User)
 createUserDb name password staticSalt = do
   dynamicSalt <- liftIO randomSalt
   let hash = calcHash password dynamicSalt staticSalt
   let user = User name hash dynamicSalt
   insert user
 
-createSuperUserDb :: String -> String -> String -> DB (Key User)
+-- | Create superuser
+createSuperUserDb :: String -- ^ User name
+                  -> String -- ^ Password
+                  -> String -- ^ Static part of salt
+                  -> DB (Key User)
 createSuperUserDb name password staticSalt = do
   userKey <- createUserDb name password staticSalt
   let perm = UserPermission name SuperUser Nothing Nothing Nothing
   insert perm
   return userKey
 
-createUser :: GlobalConfig -> String -> String -> IO Bool
+-- | Create user
+createUser :: GlobalConfig
+           -> String -- ^ User name
+           -> String -- ^ Password
+           -> IO Bool
 createUser gcfg name password = do
   pool <- getPool gcfg
   let staticSalt = authStaticSalt $ dbcAuth gcfg
@@ -52,7 +65,11 @@ createUser gcfg name password = do
     Left _ -> return False
     Right _ -> return True
 
-createSuperUser :: GlobalConfig -> String -> String -> IO Bool
+-- | Create superuser
+createSuperUser :: GlobalConfig
+                -> String -- ^ User name
+                -> String -- ^ Password
+                -> IO Bool
 createSuperUser gcfg name password = do
   pool <- getPool gcfg
   let staticSalt = authStaticSalt $ dbcAuth gcfg
@@ -61,18 +78,26 @@ createSuperUser gcfg name password = do
     Left _ -> return False
     Right _ -> return True
 
-createPermission :: String -> UserPermission -> DB (Key UserPermission)
+-- | Create permission
+createPermission :: String -- ^ User name
+                 -> UserPermission
+                 -> DB (Key UserPermission)
 createPermission name perm = do
   let perm' = perm {userPermissionUserName = name}
   insert perm'
 
-getPermissions :: String -> DB [(Int64, UserPermission)]
+-- | Get list of permissions and their IDs for specified user
+getPermissions :: String -- ^ User name
+               -> DB [(Int64, UserPermission)]
 getPermissions name = do
   res <- selectList [UserPermissionUserName ==. name] []
   let getKey (UserPermissionKey (SqlBackendKey id)) = id
   return [(getKey (entityKey e), entityVal e) | e <- res]
 
-deletePermission :: Int64 -> String -> DB ()
+-- | Delete permission. Fail if specified permission does not belong to specified user.
+deletePermission :: Int64 -- ^ Permission ID
+                 -> String -- ^ User name
+                 -> DB ()
 deletePermission id name = do
   let pid = UserPermissionKey (SqlBackendKey id)
   mbPerm <- get pid
@@ -83,13 +108,18 @@ deletePermission id name = do
         then delete pid
         else throwR $ UnknownError "Permission does not belong to specified user"
 
-changePassword :: String -> String -> String -> DB ()
+-- | Change user password
+changePassword :: String -- ^ User name
+               -> String -- ^ New password
+               -> String -- ^ Static part of salt
+               -> DB ()
 changePassword name password staticSalt = do
   dynamicSalt <- liftIO randomSalt
   let hash = calcHash password dynamicSalt staticSalt
       key = UserKey name
   update key [UserPwdHash =. hash, UserSalt =. dynamicSalt]
 
+-- | Get list of all users
 getUsers :: DB [String]
 getUsers = do
   res <- selectList [] []
@@ -139,27 +169,31 @@ extractBasicUser req =
     Nothing -> "anonymous"
     Just (name,_) -> bstrToString name
 
+-- | Returns true if this is OPTIONS request for @/@
 isRootOptions :: Request -> Bool
 isRootOptions rq = requestMethod rq == "OPTIONS" && pathInfo rq == []
 
+-- | HTTP basic auth middleware
 basicAuth :: GlobalConfig -> Middleware
 basicAuth gcfg app req sendResponse =
   let settings = "batchd" :: HA.AuthSettings
       username = extractBasicUser req
+      -- put user name extracted from header to vault
       req' = req {vault = V.insert usernameKey username $ vault req}
   in  if isRootOptions req
-        then app req sendResponse
+        then app req sendResponse -- OPTIONS / is available without auth
         else case getAuthUserRq req of
                  Nothing -> do
                      liftIO $ infoIO gcfg $ "Will try to authenticate user with basic auth: " ++ username
                      HA.basicAuth (checkUser gcfg) settings app req' sendResponse
                  Just _ -> app req sendResponse
 
+-- | Authentication by X-Auth-User HTTP header
 headerAuth :: GlobalConfig -> Middleware
 headerAuth gcfg app req sendResponse = do
   -- liftIO $ putStrLn $ "X-Auth-User: " ++ show req
   if isRootOptions req
-    then app req sendResponse
+    then app req sendResponse -- OPTIONS / is available without auth
     else case lookup "X-Auth-User" (requestHeaders req) of
             Nothing -> do
                 liftIO $ infoIO gcfg $ "No X-Auth-User header"
@@ -169,18 +203,22 @@ headerAuth gcfg app req sendResponse = do
         --         Just _ -> app req sendResponse
             Just name -> do
               let username = bstrToString name
+                  -- put user name extracted from header to vault
                   req' = req {vault = V.insert usernameKey username $ vault req}
               ok <- liftIO $ checkUserExists gcfg name
-              liftIO $ infoIO gcfg $ "User from X-AUth-User header authenticated, treated as superuser: " ++ username
+              liftIO $ infoIO gcfg $ "User from X-AUth-User header authenticated: " ++ username
               if ok
                 then app req' sendResponse
                 else sendResponse $ responseLBS status401 [] "Specified user does not exist"
 
+-- | Unconditional authentication
 noAuth :: GlobalConfig -> Middleware
 noAuth gcfg app req sendResponse = do
   let username = case lookup "X-Auth-User" (requestHeaders req) of
                    Just n -> bstrToString n
                    Nothing -> extractBasicUser req
+      -- if by some condition username appeared in header, put it to vault.
+      -- otherwise user name will be anonymous.
       req' = req {vault = V.insert usernameKey username $ vault req}
   liftIO $ infoIO gcfg $ "Authentication is disabled. User treated as superuser: " ++ username
   app req' sendResponse
@@ -197,14 +235,19 @@ noAuth gcfg app req sendResponse = do
 
 ------------ Get current user ------------
 
+-- | Get user name from WAI Request vault
 getAuthUserRq :: Request -> Maybe String
 getAuthUserRq req = V.lookup usernameKey $ vault req
 
+-- | Get currently authenticated user name.
+-- Nothing means user was not authenticated.
 getAuthUserName :: Action (Maybe String)
 getAuthUserName = do
   rq <- Scotty.request
   return $ getAuthUserRq rq
 
+-- | Get currently authenticated user.
+-- Fail if user was not authenticated.
 getAuthUser :: Action User
 getAuthUser = do
   mbName <- getAuthUserName
@@ -222,11 +265,13 @@ isAuthDisabled _ = False
 
 ----------- Check user rights ---------------
 
+-- | Check if user has SuperUser permission
 isSuperUser :: String -> DB Bool
 isSuperUser name = do
   res <- selectList [UserPermissionUserName ==. name, UserPermissionPermission ==. SuperUser] []
   return $ not $ null res
 
+-- | Check if user is superuser. Fail otherwise.
 checkSuperUser :: Action ()
 checkSuperUser = do
   cfg <- lift $ asks ciGlobalConfig
@@ -236,12 +281,17 @@ checkSuperUser = do
       when (not ok) $ do
         Scotty.raise $ InsufficientRights "user has to be superuser"
 
+-- | Check that user is authenticated. Fail otherwise.
 checkUserAuthenticated :: Action ()
 checkUserAuthenticated = do
   _ <- getAuthUser
   return ()
 
-hasPermission :: String -> Permission -> String -> DB Bool
+-- | Check if user has specified permission
+hasPermission :: String -- ^ User name
+              -> Permission
+              -> String -- ^ Queue name
+              -> DB Bool
 hasPermission name perm qname = do
   super <- isSuperUser name
   if super
@@ -254,6 +304,7 @@ hasPermission name perm qname = do
           any <- selectList [UserPermissionUserName ==. name, UserPermissionPermission ==. perm, UserPermissionQueueName ==. Nothing] []
           return $ not $ null any
 
+-- | Special constant for default host of the queue
 defaultHostOfQueue :: String
 defaultHostOfQueue = "__default__"
 
@@ -305,7 +356,10 @@ listAllowedHosts name qname typename = do
                      else Just $ map fromJust mbHosts
       return result
 
-hasPermissionToList :: String -> Permission -> DB Bool
+-- | Check if user has permission to the full list of objects.
+hasPermissionToList :: String     -- ^ User name
+                    -> Permission
+                    -> DB Bool
 hasPermissionToList name perm = do
   super <- isSuperUser name
   if super
@@ -314,7 +368,11 @@ hasPermissionToList name perm = do
          any <- selectList [UserPermissionUserName ==. name, UserPermissionPermission ==. perm, UserPermissionQueueName ==. Nothing] []
          return $ not $ null any
 
-checkPermission :: String -> Permission -> String -> Action ()
+-- | Check that user has specified permission. Fail otherwise.
+checkPermission :: String      -- ^ Error message for case of insufficient privileges
+                -> Permission
+                -> String      -- ^ Queue name
+                -> Action ()
 checkPermission message perm qname = do
   cfg <- lift $ asks ciGlobalConfig
   when (not $ isAuthDisabled $ dbcAuth cfg) $ do
@@ -323,7 +381,11 @@ checkPermission message perm qname = do
       when (not ok) $ do
         Scotty.raise $ InsufficientRights message
 
-checkCanCreateJobs :: String -> String -> String -> Action ()
+-- | Check if user can create jobs in given conditions. Fail otherwise.
+checkCanCreateJobs :: String -- ^ Queue name
+                   -> String -- ^ Job type name
+                   -> String -- ^ Host name. Use @__default__@ for default host of queue.
+                   -> Action ()
 checkCanCreateJobs qname typename hostname = do
   cfg <- lift $ asks ciGlobalConfig
   when (not $ isAuthDisabled $ dbcAuth cfg) $ do
@@ -332,7 +394,10 @@ checkCanCreateJobs qname typename hostname = do
       when (not ok) $ do
         Scotty.raise $ InsufficientRights "create jobs"
 
-checkPermissionToList :: String -> Permission -> Action ()
+-- | Check that user has permission to full list of objects. Fail otherwise.
+checkPermissionToList :: String     -- ^ Error message for case of insufficient privileges
+                      -> Permission
+                      -> Action ()
 checkPermissionToList message perm = do
   cfg <- lift $ asks ciGlobalConfig
   when (not $ isAuthDisabled $ dbcAuth cfg) $ do
