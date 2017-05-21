@@ -46,8 +46,21 @@
       </div>
 
       <div id='viewjob'>
-        <div id='viewparams'>
-        </div>
+        <p>Job details:</p>
+        <table id='viewjob_details'>
+          <tr><td>ID: </td><td id='viewjob_id'></td></tr>
+          <tr><td>Sequence #: </td><td id='viewjob_seq'></td></tr>
+          <tr><td>Type: </td><td id='viewjob_type'></td></tr>
+          <tr><td>Host: </td><td id='viewjob_host'></td></tr>
+          <tr><td>User: </td><td id='viewjob_user'></td></tr>
+          <tr><td>Status: </td><td id='viewjob_status'></td></tr>
+          <tr><td>Create time: </td><td id='viewjob_created'></td></tr>
+          <tr><td>Finish time: </td><td id='viewjob_finished'></td></tr>
+          <tr><td>Retry count: </td><td id='viewjob_try'></td></tr>
+        </table>
+        <p>Job parameters:</p>
+        <table id='viewparams'>
+        </table>
         <p>Output:</p>
         <div id='stdout'></div>
         <p>Errors:</p>
@@ -180,16 +193,33 @@ setInterval(getJobs, 5*1000);
 
 function showJob(job) {
   return function(data) {
-    $('#viewjob').show();
     $('#viewparams').empty();
+    $('#viewjob_id').text(job.id);
+    $('#viewjob_seq').text(job.seq);
+    $('#viewjob_type').text(job.type);
+    var host = job.host_name;
+    if (! host) {
+      host = 'local';
+    }
+    $('#viewjob_host').text(host);
+    $('#viewjob_user').text(job.user_name);
+    $('#viewjob_status').text(job.status);
+    $('#viewjob_created').text(job.create_time);
+    $('#viewjob_finished').text(job.result_time);
+    $('#viewjob_try').text(job.try_count);
     for (var name in job.params) {
       var value = job.params[name];
       $('#viewparams').append(
-          $('<p>').text(name + ': ' + value)
+          $('<tr>').append(
+            $('<td>').text(name)
+          ).append(
+            $('<td>').text(value)
+          )
       );
     }
     $('#stdout').text(job.stdout);
     $('#stderr').text(job.stderr);
+    $('#viewjob').show();
   };
 };
 

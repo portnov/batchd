@@ -33,6 +33,10 @@ table#jobslist td {
   text-align: center;
 }
 
+table#jobslist tr {
+  cursor: pointer;
+}
+
 table#jobslist tr td {
   border-right: 1px gray solid;
   border-bottom: 1px gray solid;
@@ -58,6 +62,10 @@ div#viewjob {
   left: 2em;
   right: 2em;
   background-color: #4d4d4d;
+  padding: 1ex;
+}
+
+table#viewparams {
   padding: 1ex;
 }
 
