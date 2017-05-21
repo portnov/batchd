@@ -66,10 +66,11 @@ createPermission name perm = do
   let perm' = perm {userPermissionUserName = name}
   insert perm'
 
-getPermissions :: String -> DB [UserPermission]
+getPermissions :: String -> DB [(Int64, UserPermission)]
 getPermissions name = do
   res <- selectList [UserPermissionUserName ==. name] []
-  return $ map entityVal res
+  let getKey (UserPermissionKey (SqlBackendKey id)) = id
+  return [(getKey (entityKey e), entityVal e) | e <- res]
 
 deletePermission :: Int64 -> String -> DB ()
 deletePermission id name = do

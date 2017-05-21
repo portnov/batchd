@@ -7,6 +7,7 @@ module Client.Actions where
 
 import Control.Monad
 import Control.Monad.State
+import Data.Int
 import Data.Maybe
 import qualified Data.Map as M
 import qualified Data.Text as T
@@ -353,12 +354,12 @@ doListPermissions = do
   let command = cmdCommand opts
   let url = baseUrl </> "user" </> grantUserName command </> "permissions"
   response <- doGet url
-  liftIO $ forM_ (response :: [Database.UserPermission]) $ \perm -> do
+  liftIO $ forM_ (response :: [(Int64, Database.UserPermission)]) $ \(id, perm) -> do
               let qname = fromMaybe "*" $ Database.userPermissionQueueName perm
                   tname = fromMaybe "*" $ Database.userPermissionTypeName perm
                   host  = fromMaybe "*" $ Database.userPermissionHostName perm
-              printf "Permission:\t%s\nQueue:\t%s\nJob type:\t%s\nHost:\t%s\n"
-                (show $ Database.userPermissionPermission perm) qname tname host
+              printf "Id:\t%d\nPermission:\t%s\nQueue:\t%s\nJob type:\t%s\nHost:\t%s\n"
+                id (show $ Database.userPermissionPermission perm) qname tname host
 
 doAddPermission :: Client ()
 doAddPermission = do
