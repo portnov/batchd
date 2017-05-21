@@ -69,6 +69,7 @@ routes cfg = do
   Scotty.get "/queue/:name" getQueueA
   Scotty.get "/queue/:name/jobs" getQueueJobsA
   Scotty.get "/queue/:name/types" $ getAllowedJobTypesA
+  Scotty.get "/queue/:name/hosts" $ getAllowedHostsA
   Scotty.put "/queue/:name" updateQueueA
   Scotty.post "/queue" addQueueA
   Scotty.post "/queue/:name" enqueueA
@@ -202,8 +203,8 @@ enqueueA = do
   qname <- Scotty.param "name"
   user <- getAuthUser
   -- special name for default host of queue
-  let host = fromMaybe "__default__" (jiHostName jinfo)
-  checkCanCreateJobs qname (jiType jinfo) host
+  let hostToCheck = fromMaybe defaultHostOfQueue (jiHostName jinfo)
+  checkCanCreateJobs qname (jiType jinfo) hostToCheck
   r <- runDBA $ enqueue (userName user) qname jinfo
   Scotty.json r
 
@@ -344,7 +345,7 @@ getAllowedJobTypesA = do
   cfg <- getGlobalConfig
   types <- liftIO $ listJobTypes cfg
   allowedTypes <- flip filterM types $ \jt -> do
-                      runDBA $ hasCreatePermission name qname (jtName jt) Nothing
+                      runDBA $ hasCreatePermission name qname (Just $ jtName jt) Nothing
   Scotty.json allowedTypes
 
 listJobTypes :: GlobalConfig -> IO [JobType]
@@ -369,19 +370,37 @@ getJobTypeA = do
     Left err -> raise err
     Right jt -> Scotty.json jt
 
-getHostsA :: Action ()
-getHostsA = do
-  dirs <- liftIO $ getConfigDirs "hosts"
-  files <- liftIO $ forM dirs $ \dir -> glob (dir </> "*.yaml")
+listHosts :: GlobalConfig -> IO [Host]
+listHosts cfg = do
+  dirs <- getConfigDirs "hosts"
+  files <- forM dirs $ \dir -> glob (dir </> "*.yaml")
   hs <- forM (concat files) $ \path -> do
-             r <- liftIO $ decodeFileEither path
+             r <- decodeFileEither path
              case r of
                Left err -> do
-                  lift $ $reportError $ show err
+                  reportErrorIO cfg $ show err
                   return []
                Right host -> return [host]
   let hosts = concat hs :: [Host]
+  return hosts
+
+getHostsA :: Action ()
+getHostsA = do
+  cfg <- getGlobalConfig
+  hosts <- liftIO $ listHosts cfg
   Scotty.json $ map hName hosts
+
+getAllowedHostsA :: Action ()
+getAllowedHostsA = do
+  user <- getAuthUser
+  qname <- Scotty.param "name"
+  let name = userName user
+  cfg <- getGlobalConfig
+  hosts <- liftIO $ listHosts cfg
+  let allHostNames = defaultHostOfQueue : map hName hosts
+  allowedHosts <- flip filterM allHostNames $ \hostname -> do
+                      runDBA $ hasCreatePermission name qname Nothing (Just hostname)
+  Scotty.json allowedHosts
 
 getUsersA :: Action ()
 getUsersA = do

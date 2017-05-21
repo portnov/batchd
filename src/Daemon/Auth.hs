@@ -253,15 +253,28 @@ hasPermission name perm qname = do
           any <- selectList [UserPermissionUserName ==. name, UserPermissionPermission ==. perm, UserPermissionQueueName ==. Nothing] []
           return $ not $ null any
 
-hasCreatePermission :: String -> String -> String -> Maybe String -> DB Bool
-hasCreatePermission name qname typename mbHostname = do
+defaultHostOfQueue :: String
+defaultHostOfQueue = "__default__"
+
+-- | Check if user has permissions to create jobs in certain queue
+hasCreatePermission :: String -- ^ User name
+                    -> String -- ^ Queue name
+                    -> Maybe String -- ^ Just type name, or Nothing if you want to check that user has permission
+                                    -- to create jobs of at least some type
+                    -> Maybe String -- ^ Just host name, or Nothing if you want to check that user has permission
+                                    -- to create jobs on at least some host. Use special @__default__@ value
+                                    -- for default host of queue.
+                    -> DB Bool
+hasCreatePermission name qname mbTypename mbHostname = do
   super <- isSuperUser name
   if super
     then return True
     else do
       let byUser  = [UserPermissionUserName ==. name, UserPermissionPermission ==. CreateJobs]
           byQueue = [UserPermissionQueueName ==. Nothing] ||. [UserPermissionQueueName ==. Just qname]
-          byType  = [UserPermissionTypeName ==. Nothing] ||. [UserPermissionTypeName ==. Just typename]
+          byType  = case mbTypename of
+                      Nothing -> []
+                      Just typename -> [UserPermissionTypeName ==. Nothing] ||. [UserPermissionTypeName ==. Just typename]
           byHost  = case mbHostname of
                       Nothing -> []
                       Just hostname -> [UserPermissionHostName ==. Nothing] ||. [UserPermissionHostName ==. Just hostname]
@@ -292,7 +305,7 @@ checkCanCreateJobs qname typename hostname = do
   cfg <- lift $ asks ciGlobalConfig
   when (not $ isAuthDisabled $ dbcAuth cfg) $ do
       user <- getAuthUser
-      ok <- runDBA $ hasCreatePermission (userName user) qname typename (Just hostname)
+      ok <- runDBA $ hasCreatePermission (userName user) qname (Just typename) (Just hostname)
       when (not ok) $ do
         Scotty.raise $ InsufficientRights "create jobs"
 
