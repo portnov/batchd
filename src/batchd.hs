@@ -3,7 +3,8 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 
 import Control.Concurrent
-import System.Console.CmdArgs
+import Data.Semigroup ((<>))
+import Options.Applicative
 
 import Common.Types
 import Common.Config
@@ -11,14 +12,24 @@ import Daemon.Database
 import Daemon.Manager as Manager
 import Daemon.Dispatcher as Dispatcher
 
-batchd :: DaemonMode
-batchd =
-  modes [Both &= auto, Manager, Dispatcher]
-    &= program "batchd"
+parser :: Parser DaemonMode
+parser =
+  hsubparser
+    (  command "both"       (info (pure Both) (progDesc "run both manager and dispatcher"))
+    <> command "manager"    (info (pure Manager) (progDesc "run manager"))
+    <> command "dispatcher" (info (pure Dispatcher) (progDesc "run dispatcher"))
+    )
+  <|> pure Both
+
+parserInfo :: ParserInfo DaemonMode
+parserInfo = info (parser <**> helper)
+               (fullDesc
+               <> header "batchd - the batchd toolset daemon server-side program"
+               <> progDesc "process client requests and / or execute batch jobs" )
 
 main :: IO ()
 main = do
-  cmd <- cmdArgs batchd
+  cmd <- execParser parserInfo
   cfgR <- loadGlobalConfig
   case cfgR of
     Left err -> fail $ show err

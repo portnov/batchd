@@ -60,7 +60,7 @@ executable batchd
                        text >= 1.2,
                        parsec >= 3.1,
                        bytestring >= 0.10,
-                       cmdargs >= 0.10,
+                       optparse-applicative >= 0.13.2.0,
                        template >= 0.2,
                        process >= 1.2.3.0,
                        libssh2 >= 0.2,

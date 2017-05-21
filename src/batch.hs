@@ -22,7 +22,7 @@ errorHandler (ClientException e) = putStrLn $ "Error: " ++ e
 realMain :: IO ()
 realMain = do
   opts <- getCmdArgs
-  print opts
+  -- print opts
 
   manager <- makeClientManager opts
   cfg <- loadClientConfig
