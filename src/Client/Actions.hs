@@ -356,8 +356,9 @@ doListPermissions = do
   liftIO $ forM_ (response :: [Database.UserPermission]) $ \perm -> do
               let qname = fromMaybe "*" $ Database.userPermissionQueueName perm
                   tname = fromMaybe "*" $ Database.userPermissionTypeName perm
-              printf "Permission:\t%s\nQueue:\t%s\nJob type:\t%s\n\n"
-                (show $ Database.userPermissionPermission perm) qname tname
+                  host  = fromMaybe "*" $ Database.userPermissionHostName perm
+              printf "Permission:\t%s\nQueue:\t%s\nJob type:\t%s\nHost:\t%s\n"
+                (show $ Database.userPermissionPermission perm) qname tname host
 
 doAddPermission :: Client ()
 doAddPermission = do
