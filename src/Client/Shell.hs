@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE RankNTypes #-}
 
-module Client.Shell where
+module Client.Shell (commandHandler) where
 
 import Control.Exception
 import Control.Monad.State
@@ -67,6 +67,10 @@ commandHandler = do
       obtainCredentials
       runShell
 
+errorHandler :: ClientException -> Client ()
+errorHandler (ClientException e) =
+  liftIO $ putStrLn $ "Error: " ++ e
+
 runShell :: Client ()
 runShell = do
   mbLine <- liftIO $ readline "batch> "
@@ -80,7 +84,7 @@ runShell = do
         case res of
           (Success cmd) -> do
             modify $ \st -> st {csCmdline = cmd}
-            commandHandler
+            commandHandler `catchC` errorHandler
           (Failure failure) -> do
             progn <- liftIO $ getProgName
             let (msg,_) = renderFailure failure progn

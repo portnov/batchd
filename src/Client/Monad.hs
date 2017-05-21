@@ -44,3 +44,14 @@ wrapClient wrapper actions = do
   put state'
   return result
 
+catchC :: Exception e
+            => Client a
+            -> (e -> Client a)
+            -> Client a
+catchC action handler = do
+    state <- get
+    (result, state') <- liftIO $ runStateT action state `catch` \e ->
+                          runStateT (handler e) state
+    put state'
+    return result
+
