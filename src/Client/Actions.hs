@@ -358,7 +358,7 @@ doListPermissions = do
               let qname = fromMaybe "*" $ Database.userPermissionQueueName perm
                   tname = fromMaybe "*" $ Database.userPermissionTypeName perm
                   host  = fromMaybe "*" $ Database.userPermissionHostName perm
-              printf "Id:\t%d\nPermission:\t%s\nQueue:\t%s\nJob type:\t%s\nHost:\t%s\n"
+              printf "Id:\t%d\nPermission:\t%s\nQueue:\t%s\nJob type:\t%s\nHost:\t%s\n\n"
                 id (show $ Database.userPermissionPermission perm) qname tname host
 
 doAddPermission :: Client ()

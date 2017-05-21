@@ -414,7 +414,7 @@ getAllowedHostsForTypeA = do
                     Nothing -> do -- user can create jobs on any defined host
                         cfg <- getGlobalConfig
                         hosts <- liftIO $ listHosts cfg
-                        return $ map hName hosts
+                        return $ defaultHostOfQueue : map hName hosts
   Scotty.json allowedHosts
 
 getUsersA :: Action ()

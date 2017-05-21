@@ -87,9 +87,10 @@ $.batchd = new $.RestClient('/');
 $.batchd.add('queue', {'stringifyData': true});
 $.batchd.queue.add('jobs');
 $.batchd.queue.add('type');
+$.batchd.queue.type.add('host');
 $.batchd.add('type');
 $.batchd.add('stats');
-$.batchd.add('host');
+//$.batchd.add('host');
 
 function fillQueues() {
   $.batchd.queue.read().done(function(data) {
@@ -108,18 +109,34 @@ function fillQueues() {
 };
 
 function fillHosts() {
-  $.batchd.host.read().done(function(data) {
-    $('#selecthost').empty();
-    $('#selecthost').append(
-        $('<option>').val("*").text("<Use default for this queue>")
-      );
-    $.each(data, function(k,v) {
-      $('#selecthost').append(
-          $('<option>').val(v).text(v)
-        );
-    });
-  });
+  var qname = $('#queuelist').val();
+  if (! qname) {
+    qname = $.default_queue;
+  }
+  var type = $('#selecttype').val();
+  if (! type) {
+    type = $.default_job_type;
+  }
+  //alert(type);
+  if (type) {
+    $.batchd.queue.type.host.read(qname, type).done(onHostListReceived);
+  }
 };
+
+function onHostListReceived(data) {
+    $('#selecthost').empty();
+    $.each(data, function(k,v) {
+      if (v == '__default__') {
+        $('#selecthost').append(
+            $('<option>').val("*").text("<Use default for this queue>")
+          );
+      } else {
+        $('#selecthost').append(
+            $('<option>').val(v).text(v)
+          );
+      }
+    });
+}
 
 function onQueueSelected() {
   var qname = $('#queuelist').val();
@@ -152,6 +169,7 @@ function onQueueSelected() {
 
 $(document).ready(function() {
   fillQueues();
+  $.default_job_type = $('#selecttype').val();
   fillHosts();
 });
 
@@ -228,6 +246,7 @@ function hideJob() {
 };
 
 function fillEnqueueForm() {
+  fillHosts();
   var type = $('#selecttype').val();
   if (! type) {
     type = $.default_job_type;
