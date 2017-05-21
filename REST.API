@@ -282,22 +282,33 @@ URL: /user/:name/permissions
 Method: GET
 Permissions required: SuperUser
 
-Obtain list of permissions for specified user. Returned is a list of dictionaries with following keys:
+Obtain list of permissions for specified user. Returned is a list of pairs:
 
-* user_name
-* permission. Possible values are:
-  * SuperUser
-  * CreateJobs
-  * ViewJobs
-  * ManageJobs
-  * ViewQueues
-  * ManageQueues
-  * ViewSchedules
-  * ManageSchedules
-* queue_name - name of queue to which this permission applies. null means any
-  queue.
-* type_name - name of job type to which this permission applies. null means any
-  job type.
+* Permission ID
+* Permission description - a dictionary with following keys:
+  * user_name
+  * permission. Possible values are:
+    * SuperUser
+    * CreateJobs
+    * ViewJobs
+    * ManageJobs
+    * ViewQueues
+    * ManageQueues
+    * ViewSchedules
+    * ManageSchedules
+  * queue_name - name of queue to which this permission applies. null means any
+    queue.
+  * type_name - name of job type to which this permission applies. null means any
+    job type.
+  * host_name - name of host to which this permission applies. null means any host.
+    `__default__` means default host of queue.
+
+Example response:
+    
+    [[8,{"host_name":null,"type_name":null,"permission":"ViewJobs","user_name":"dummy","queue_name":"laptop"}],
+     [9,{"host_name":null,"type_name":null,"permission":"ViewQueues","user_name":"dummy","queue_name":null}],
+     [10,{"host_name":null,"type_name":null,"permission":"ViewSchedules","user_name":"dummy","queue_name":null}],
+     [11,{"host_name":null,"type_name":"blender","permission":"CreateJobs","user_name":"dummy","queue_name":"laptop"}]]
 
 URL: /user/:name/permissions
 Method: POST
