@@ -129,6 +129,18 @@ Permissions required: CreateJobs for at least some job types
 Obtain list of job types which can be created in specified queue by currently
 authenticated user. All details of job types are returned.
 
+URL: /queue/:name/hosts
+Method: GET
+Permissions required: CreateJobs for at least some hosts
+
+Obtain list of host names where currently authenticated user can create at
+least some type of jobs. A special `__default__` value is used to indicate
+default host of queue.
+
+Example response:
+
+    ["__default__", "renderer"]
+
 URL: /queue/:name
 Method: DELETE
 Permissions required: ManageQueues
