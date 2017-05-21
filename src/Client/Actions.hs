@@ -370,6 +370,18 @@ doAddPermission = do
       url = baseUrl </> "user" </> name </> "permissions"
   perm <- case permission command of
             Just p -> return $ Database.UserPermission name p (queueName command) (typeName command) (hostName command)
-            Nothing -> throwC "permission must be specified"
+            Nothing -> throwC "permission (-p) must be specified"
   doPost url perm
+
+doRevokePermission :: Client ()
+doRevokePermission = do
+  baseUrl <- getBaseUrl
+  opts <- gets csCmdline
+  let command = cmdCommand opts
+  let name = grantUserName command
+  url <- case grantPermissionId command of
+           Just permId -> return $ baseUrl </> "user" </> name </> "permissions" </> show permId
+           Nothing -> throwC "permission ID (-i) must be specified"
+  -- liftIO $ print url
+  doDelete url
 

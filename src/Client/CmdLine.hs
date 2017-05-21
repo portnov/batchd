@@ -6,6 +6,7 @@ module Client.CmdLine where
 
 import Data.Generics hiding (Generic)
 import qualified Data.Map as M
+import Data.Int
 import Data.Dates
 import Data.Semigroup ((<>))
 import Options.Applicative
@@ -71,6 +72,7 @@ data Command =
   | Grant {
       grantMode :: CrudMode,
       grantUserName :: String,
+      grantPermissionId :: Maybe Int64,
       permission :: Maybe Permission,
       queueName :: Maybe String,
       typeName :: Maybe String,
@@ -204,8 +206,9 @@ user = User
 
 grant :: Parser Command
 grant = Grant
-  <$> crudMode [(View, "view permissions of user"), (Add, "add permissions to user")]
+  <$> crudMode [(View, "view permissions of user"), (Add, "add permissions to user"), (Delete, "revoke permission from user")]
   <*> strArgument (metavar "NAME" <> help "name of user to operate on")
+  <*> optionalF "id" 'i' "ID" "permission ID to operate on. mandatory for revoke operation."
   <*> optionalF "permission" 'p' "PERMISSION" "specify permission, for example ViewJobs"
   <*> optionalString "queue" 'q' "QUEUE" "queue to grant permission to, by default - any"
   <*> optionalString "type" 't' "TYPE" "job type to grant permission to, usable for CreateJobs permission"
