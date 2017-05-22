@@ -26,16 +26,19 @@ import Client.Config
 import Client.CmdLine
 import Client.Monad
 
+-- | Create a Manager - a structure which contains all required information to
+-- maintain HTTP connection, over TLS if required.
 makeClientManager :: CmdLine -> IO Manager
 makeClientManager opts = do
     cfg <- loadClientConfig
     url <- getManagerUrl opts cfg
     if "https" `isPrefixOf` url
       then mkMngr (ccDisableServerCertificateCheck cfg) (ccCertificate cfg) (ccKey cfg) (ccCertificate cfg)
-      else newManager defaultManagerSettings
+      else newManager defaultManagerSettings -- for HTTP everything is easy
   where
     mkMngr :: Bool -> Maybe FilePath -> Maybe FilePath -> Maybe FilePath -> IO Manager
     mkMngr disableServerCertCheck mbCertFile mbKeyFile mbCaFile = do
+     -- load Credentials from certificate and private key file (.pem and .key usually)
      creds <- case (mbCertFile, mbKeyFile) of
                 (Just certFile, Just keyFile) -> do
                     r <- credentialLoadX509 certFile keyFile
@@ -45,6 +48,7 @@ makeClientManager opts = do
                 _ -> do
                      putStrLn "certificate or key file is not specified, try to access HTTPS without them"
                      return Nothing
+     -- load trusted CA store if specified
      mbStore <- case mbCaFile of
                        Nothing -> return Nothing
                        Just caFile -> do
@@ -60,9 +64,10 @@ makeClientManager opts = do
          skip _ _ _ _ = do
                 putStrLn "server certificate check disabled"
                 return []
+         -- handlers for TLS protocol events on client side
          hooks = if disableServerCertCheck
                    then def {
-                          onCertificateRequest = clientCertHook,
+                          onCertificateRequest = clientCertHook, -- return loaded client certificate
                           onServerCertificate = skip
                         }
                    else def {
@@ -70,14 +75,17 @@ makeClientManager opts = do
                         }
          clientParams = (defaultParamsClient "" "")
                         { clientHooks = hooks,
-                          clientUseServerNameIndication = True,
+                          clientUseServerNameIndication = True, -- SNI
                           clientShared = shared,
+                          -- This is probably to be configurable
                           clientSupported = def { supportedCiphers = ciphersuite_all, supportedVersions = [TLS12] }
                         }
          tlsSettings = TLSSettings clientParams
 
      newManager $ mkManagerSettings tlsSettings Nothing
 
+-- | Obtain list of authentication methods supported by server.
+-- This is done by requesting OPTIONS /.
 getAuthMethods :: Client [AuthMethod]
 getAuthMethods = do
   mbMethods <- gets csAuthMethods
@@ -89,12 +97,13 @@ getAuthMethods = do
       modify $ \st -> st {csAuthMethods = Just methods}
       return methods
 
+-- | Obtain user name and password if required
 obtainCredentials :: Client C.Credentials
 obtainCredentials = do
   cfg <- gets csConfig
   opts@(CmdLine o _) <- gets csCmdline
   methods <- getAuthMethods
-  let needPassword = BasicAuth `elem` methods
+  let needPassword = BasicAuth `elem` methods -- only basic auth of currently supported methods requires a password.
   name <- liftIO $ getUserName opts cfg
   pass <- if ccDisableAuth cfg || not needPassword
             then return ""
@@ -104,9 +113,11 @@ obtainCredentials = do
                    Just p -> return p
                    Nothing -> liftIO $ getPassword $ name ++ " password: "
   let creds = (name, pass)
+  -- remember credentials in client state
   modify $ \st -> st {csCredentials = Just creds}
   return creds
 
+-- | Obain and cache user name and password, if required
 getCredentials :: Client C.Credentials
 getCredentials = do
   mbCreds <- gets csCredentials
@@ -114,6 +125,7 @@ getCredentials = do
     Just creds -> return creds
     Nothing -> obtainCredentials
 
+-- | Add authentication headers to HTTP request
 applyAuth :: Request -> Client Request
 applyAuth rq = do
   methods <- getAuthMethods
@@ -137,11 +149,13 @@ handleStatus rs =
 allowAny :: Request -> Response BodyReader -> IO ()
 allowAny _ _ = return ()
 
+-- Generic HTTP request wrapper, useful mostly for debugging
 doHttp :: Request -> Manager -> Client L.ByteString
 doHttp request manager = do
   -- liftIO $ print request
   liftIO $ handleStatus =<< httpLbs request manager
 
+-- PUT request
 doPut :: ToJSON a => String -> a -> Client ()
 doPut urlStr object = do
   manager <- gets csManager
@@ -154,6 +168,7 @@ doPut urlStr object = do
   doHttp request manager
   return ()
 
+-- POST request
 doPost :: ToJSON a => String -> a -> Client ()
 doPost urlStr object = do
   manager <- gets csManager
@@ -166,6 +181,7 @@ doPost urlStr object = do
   doHttp request manager
   return ()
 
+-- DELETE request
 doDelete :: String -> Client ()
 doDelete urlStr = do
   manager <- gets csManager
@@ -176,6 +192,7 @@ doDelete urlStr = do
   doHttp request manager
   return ()
 
+-- GET request
 doGet :: FromJSON a => String -> Client a
 doGet urlStr = do
   manager <- gets csManager
@@ -187,6 +204,7 @@ doGet urlStr = do
     Left err -> throwC err
     Right res -> return res
 
+-- OPTIONS request
 doOptions :: FromJSON a => String -> Client a
 doOptions urlStr = do
   manager <- gets csManager
