@@ -24,6 +24,7 @@ import Database.Persist
 import Data.Maybe
 import Data.Aeson
 import qualified Data.Text as T
+import qualified Data.ByteString as B
 
 import           Database.Persist.TH
 import System.Exit
@@ -56,6 +57,13 @@ JobResult
   stdout T.Text sqltype=TEXT
   stderr T.Text sqltype=TEXT
   Primary jobId time
+
+JobLog
+  jobId JobId
+  time UTCTime default=CURRENT_TIMESTAMP
+  hostName String
+  isError Bool
+  message B.ByteString sqltype=TEXT
 
 Queue
   name String

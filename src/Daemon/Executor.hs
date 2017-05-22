@@ -4,23 +4,30 @@
 module Daemon.Executor where
 
 import Control.Monad
+import Control.Concurrent.MVar
 import Data.Maybe
 import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
+import qualified Data.ByteString as B
 import Data.Text.Template
+import Database.Persist
 import qualified Database.Persist.Sql as Sql
 import Data.Time
 import System.Process
 import System.FilePath
 import System.Exit
+import Pipes
+import qualified Pipes.ByteString as PB
 
 import Common.Types
 import Common.Config
+import Daemon.Types
 import Daemon.Logging
 import Common.Data
+import Daemon.Database
 import Daemon.Hosts
-import Daemon.SSH
+import Daemon.SSH (processOnHost)
 
 mkContext :: JobParamInfo -> Context
 mkContext m key =
@@ -59,12 +66,33 @@ executeJob cfg counters q jt job = do
       case hostR of
         Right host -> do
           let command = getCommand (Just host) jt job
-          (ec, stdout) <- processOnHost cfg counters host jt job command
+          (mvar, stdout) <- processOnHost cfg counters host jt job command
+          -- runEffect $ stdout >-> consumeOutput cfg jid hostname False
+          runEffect $ stdout >-> PB.stdout
+          ec <- takeMVar mvar
           now <- getCurrentTime
-          return $ JobResult jid now ec stdout T.empty
+          return $ JobResult jid now ec T.empty T.empty
         Left err -> do
           $reportErrorDB cfg $ show err
           now <- getCurrentTime
           return $ JobResult jid now (ExitFailure (-1)) T.empty (T.pack $ show err)
 
+consumeOutput :: GlobalConfig -> Key Job -> String -> Bool -> Consumer B.ByteString IO ()
+consumeOutput gcfg jkey host isError = do
+    pool <- liftIO $ getPool gcfg
+    loop gcfg pool
+    
+  where
+    
+    loop gcfg pool = do
+      chunk <- await
+      liftIO $ runDBIO gcfg pool $ writeLog chunk
+      loop gcfg pool
+
+    writeLog :: B.ByteString -> DB ()
+    writeLog chunk = do
+      now <- liftIO $ getCurrentTime
+      let record = JobLog jkey now  host isError chunk
+      insert record
+      return ()
 

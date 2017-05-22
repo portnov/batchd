@@ -87,6 +87,8 @@ executable batchd
                        optparse-applicative >= 0.13.2.0,
                        template >= 0.2,
                        process >= 1.2.3.0,
+                       pipes >= 4.3.3,
+                       pipes-bytestring >= 2.1.4,
                        libssh2 >= 0.2,
                        cryptonite >= 0.23,
                        template-haskell >= 2.8,

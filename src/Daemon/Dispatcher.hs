@@ -1,11 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Daemon.Dispatcher (runDispatcher) where
 
 import Control.Concurrent
 import Control.Monad
+import Control.Exception
 import Control.Monad.Reader
 import qualified Data.Text as T
 import qualified Data.Map as M
@@ -88,24 +90,26 @@ callbackListener resChan = forever $ do
                     else setJobStatus job Failed
 
 worker :: GlobalConfig -> Sql.ConnectionPool -> Int -> HostCounters -> Chan (Queue, JobInfo) -> Chan (JobInfo, JobResult, OnFailAction) -> IO ()
-worker cfg pool idx hosts jobsChan resChan = forever $ do
-  (queue, job) <- readChan jobsChan
-  $infoDB cfg $ printf "[%d] got job #%d" idx (jiId job)
-  runDBIO cfg pool $ setJobStatus job Processing
-  jtypeR <- Config.loadTemplate (jiType job)
-  (result, onFail) <-
-      case jtypeR of
-              Left err -> do
-                  $reportErrorDB cfg $ printf "[%d] invalid job type %s: %s" idx (jiType job) (show err)
-                  let jid = JobKey (Sql.SqlBackendKey $ jiId job)
-                  now <- getCurrentTime
-                  let res = JobResult jid now (ExitFailure (-1)) T.empty (T.pack $ show err)
-                  return (res, Continue)
+worker cfg pool idx hosts jobsChan resChan = forever $ (do
+    (queue, job) <- readChan jobsChan
+    $infoDB cfg $ printf "[%d] got job #%d" idx (jiId job)
+    runDBIO cfg pool $ setJobStatus job Processing
+    jtypeR <- Config.loadTemplate (jiType job)
+    (result, onFail) <-
+        case jtypeR of
+                Left err -> do
+                    $reportErrorDB cfg $ printf "[%d] invalid job type %s: %s" idx (jiType job) (show err)
+                    let jid = JobKey (Sql.SqlBackendKey $ jiId job)
+                    now <- getCurrentTime
+                    let res = JobResult jid now (ExitFailure (-1)) T.empty (T.pack $ show err)
+                    return (res, Continue)
 
-              Right jtype -> do
-                  res <- executeJob cfg hosts queue jtype job
-                  return (res, jtOnFail jtype)
+                Right jtype -> do
+                    res <- executeJob cfg hosts queue jtype job
+                    return (res, jtOnFail jtype)
 
-  writeChan resChan (job, result, onFail)
-  $infoDB cfg $ printf "[%d] done job #%d" idx (jiId job)
+    writeChan resChan (job, result, onFail)
+    $infoDB cfg $ printf "[%d] done job #%d" idx (jiId job)
+  ) `catch` (\(err :: SomeException) -> do
+                                        reportErrorIO cfg $ "Exception in worker: " ++ show err) 
 
