@@ -4,14 +4,18 @@
 
 import Data.Semigroup ((<>))
 import Options.Applicative
+import Database.Persist
+import qualified Database.Persist.Sql as Sql
 
 import Common.Types
 import Common.Config
+import Common.Data (migrateAll)
 import Daemon.Database
 import Daemon.Auth
 
 data Admin =
-  CreateSuperuser {userName :: String}
+    CreateSuperuser {username :: String}
+  | Migrate
   deriving (Show)
 
 createSuperuser :: Parser Admin
@@ -21,7 +25,8 @@ createSuperuser = CreateSuperuser
 parser :: Parser Admin
 parser =
   hsubparser
-    (command "create-superuser" (info createSuperuser (progDesc "create super user")))
+    (  command "create-superuser" (info createSuperuser (progDesc "create super user"))
+    <> command "upgrade-db" (info (pure Migrate) (progDesc "upgrade database to current version of batchd")))
 
 parserInfo :: ParserInfo Admin
 parserInfo = info (parser <**> helper)
@@ -35,7 +40,12 @@ main = do
   case cfgR of
     Left err -> fail $ show err
     Right cfg -> do
-      password <- getPassword2
-      createSuperUser cfg (userName cmd) password
-      return ()
+      case cmd of
+        CreateSuperuser {} -> do
+            password <- getPassword2
+            createSuperUser cfg (username cmd) password
+            return ()
+        Migrate -> do
+          pool <- getPool cfg
+          Sql.runSqlPool (Sql.runMigration migrateAll) pool
 

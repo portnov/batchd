@@ -30,7 +30,6 @@ import Daemon.Hosts
 runDispatcher :: GlobalConfig -> Sql.ConnectionPool -> IO ()
 runDispatcher cfg pool = do
   let connInfo = ConnectionInfo cfg pool
-  Sql.runSqlPool (Sql.runMigration migrateAll) (ciPool connInfo)
   jobsChan <- newChan
   resChan <- newChan
   counters <- newMVar M.empty
