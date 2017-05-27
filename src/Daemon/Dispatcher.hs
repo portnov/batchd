@@ -14,6 +14,7 @@ import Data.Dates
 import Database.Persist
 import qualified Database.Persist.Sql as Sql
 import System.Exit
+import System.Log.Heavy (Logger)
 import Text.Printf
 
 import Common.Types
@@ -28,28 +29,28 @@ import Daemon.Logging
 import Daemon.Hosts
 
 -- | Set up workers, callback listener and dispatcher itself.
-runDispatcher :: GlobalConfig -> Sql.ConnectionPool -> IO ()
-runDispatcher cfg pool = do
-  let connInfo = ConnectionInfo cfg pool
-  jobsChan <- newChan
-  resChan <- newChan
-  counters <- newMVar M.empty
-  $infoDB cfg $ "Starting " ++ show (dbcWorkers cfg) ++ " workers"
+runDispatcher :: Daemon ()
+runDispatcher = do
+  cfg <- askConfig
+  jobsChan <- liftIO newChan
+  resChan <- liftIO newChan
+  counters <- liftIO $ newMVar M.empty
+  $info $ "Starting " ++ show (dbcWorkers cfg) ++ " workers"
   -- Each worker will run in separate thread.
   -- All workers read jobs to be executed from single Chan.
   -- So job put into Chan will be executed by first worker who sees it.
   forM_ [1.. dbcWorkers cfg] $ \idx -> do
-    $debugDB cfg $ "  Starting worker #" ++ show idx
-    forkIO $ worker cfg pool idx counters jobsChan resChan
-  forkIO $ runReaderT (runConnection (callbackListener resChan)) connInfo
-  runReaderT (runConnection (dispatcher jobsChan)) connInfo
+    $debug $ "  Starting worker #" ++ show idx
+    forkDaemon $ worker idx counters jobsChan resChan
+  forkDaemon $ callbackListener resChan
+  dispatcher jobsChan
 
 -- | Dispatcher main loop itself.
-dispatcher :: Chan (Queue, JobInfo) -> ConnectionM ()
+dispatcher :: Chan (Queue, JobInfo) -> Daemon ()
 dispatcher jobsChan = do
   forever $ do
     qesr <- runDB getEnabledQueues
-    cfg <- asks ciGlobalConfig
+    cfg <- askConfig
     case qesr of
       Left err -> $reportError (show err) -- database exception
       Right qes -> do
@@ -62,7 +63,7 @@ dispatcher jobsChan = do
               -- pick next job from the queue
               mbJob <- getNextJob (entityKey qe)
               case mbJob of
-                Nothing -> $debugDB cfg $ "Queue " ++ qname ++ " exhaused."
+                Nothing -> $debugDB $ "Queue " ++ qname ++ " exhaused."
                 Just job -> do
                     -- Waiting means that Dispatcher saw job and put it to Chan to be
                     -- picked by some of workers.
@@ -73,10 +74,10 @@ dispatcher jobsChan = do
 
 -- | This listens for job results Chan and writes results to DB.
 -- It also reschedules failed jobs if needed.
-callbackListener :: Chan (JobInfo, JobResult, OnFailAction) -> ConnectionM ()
+callbackListener :: Chan (JobInfo, JobResult, OnFailAction) -> Daemon ()
 callbackListener resChan = forever $ do
   (job, result, onFail) <- liftIO $ readChan resChan
-  cfg <- asks ciGlobalConfig
+  cfg <- askConfig
   runDB $ do
       insert_ result
       if jobResultExitCode result == ExitSuccess
@@ -87,39 +88,39 @@ callbackListener resChan = forever $ do
                   count <- increaseTryCount job
                   if count <= m
                     then do
-                      $infoDB cfg "Retry now"
+                      $infoDB ("Retry now" :: String)
                       setJobStatus job New -- job will be picked up by dispatcher at nearest iteration.
                     else setJobStatus job Failed
                RetryLater m -> do
                   count <- increaseTryCount job
                   if count <= m
                     then do
-                      $infoDB cfg "Retry later"
+                      $infoDB ("Retry later" :: String)
                       moveToEnd job -- put the job to the end of queue.
                     else setJobStatus job Failed
 
 -- | Worker loop executes jobs themeselves
-worker :: GlobalConfig -> Sql.ConnectionPool -> Int -> HostCounters -> Chan (Queue, JobInfo) -> Chan (JobInfo, JobResult, OnFailAction) -> IO ()
-worker cfg pool idx hosts jobsChan resChan = forever $ do
-  (queue, job) <- readChan jobsChan
-  $infoDB cfg $ printf "[%d] got job #%d" idx (jiId job)
+worker :: Int -> HostCounters -> Chan (Queue, JobInfo) -> Chan (JobInfo, JobResult, OnFailAction) -> Daemon ()
+worker idx hosts jobsChan resChan = forever $ do
+  (queue, job) <- liftIO $ readChan jobsChan
+  $info $ (printf "[%d] got job #%d" idx (jiId job) :: String)
   -- now job is picked up by worker, mark it as Processing
-  runDBIO cfg pool $ setJobStatus job Processing
-  jtypeR <- Config.loadTemplate (jiType job)
+  runDB $ setJobStatus job Processing
+  jtypeR <- liftIO $  Config.loadTemplate (jiType job)
   (result, onFail) <-
       case jtypeR of
               Left err -> do -- we could not load job type description
-                  $reportErrorDB cfg $ printf "[%d] invalid job type %s: %s" idx (jiType job) (show err)
+                  $reportError $ (printf "[%d] invalid job type %s: %s" idx (jiType job) (show err) :: String)
                   let jid = JobKey (Sql.SqlBackendKey $ jiId job)
-                  now <- getCurrentTime
+                  now <- liftIO getCurrentTime
                   let res = JobResult jid now (ExitFailure (-1)) T.empty (T.pack $ show err)
                   return (res, Continue)
 
               Right jtype -> do
-                  res <- executeJob cfg hosts queue jtype job
+                  res <- executeJob hosts queue jtype job
                   return (res, jtOnFail jtype)
 
   -- put job result to Chan, to be picked up by callbacklistener
-  writeChan resChan (job, result, onFail)
-  $infoDB cfg $ printf "[%d] done job #%d" idx (jiId job)
+  liftIO $ writeChan resChan (job, result, onFail)
+  $info $ (printf "[%d] done job #%d" idx (jiId job) :: String)
 

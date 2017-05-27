@@ -2,14 +2,18 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 
+import Control.Monad.Trans
+import Control.Monad.Reader
 import Data.Semigroup ((<>))
 import Options.Applicative
 import Database.Persist
 import qualified Database.Persist.Sql as Sql
+import System.Log.Heavy
 
 import Common.Types
 import Common.Config
 import Common.Data (migrateAll)
+import Daemon.Types
 import Daemon.Database
 import Daemon.Auth
 
@@ -40,12 +44,17 @@ main = do
   case cfgR of
     Left err -> fail $ show err
     Right cfg -> do
+      let logSettings = LogBackend $ defStderrSettings
       case cmd of
         CreateSuperuser {} -> do
             password <- getPassword2
-            createSuperUser cfg (username cmd) password
+            withLogging logSettings id $ do
+              logger <- ask
+              liftIO $ createSuperUser cfg logger (username cmd) password
             return ()
         Migrate -> do
-          pool <- getPool cfg
-          Sql.runSqlPool (Sql.runMigration migrateAll) pool
+          withLogging logSettings id $ do
+              logger <- ask
+              pool <- liftIO $ getPool cfg logger
+              Sql.runSqlPool (Sql.runMigration migrateAll) pool
 

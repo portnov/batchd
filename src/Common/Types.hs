@@ -349,6 +349,43 @@ authMethods (AuthConfig {..}) =
   (if authBasicEnabled then [BasicAuth] else []) ++
   (if authHeaderEnabled then [HeaderAuth] else [])
 
+data LogTarget =
+    LogSyslog
+  | LogStdout
+  | LogStderr
+  | LogFile FilePath
+  deriving (Eq, Show, Data, Typeable, Generic)
+
+instance ToJSON LogTarget where
+  toJSON LogSyslog = Aeson.String "syslog"
+  toJSON LogStdout = Aeson.String "stdout"
+  toJSON LogStderr = Aeson.String "stderr"
+  toJSON (LogFile path) = toJSON path
+
+instance FromJSON LogTarget where
+  parseJSON (Aeson.String "syslog") = return LogSyslog
+  parseJSON (Aeson.String "stdout") = return LogStdout
+  parseJSON (Aeson.String "stderr") = return LogStderr
+  parseJSON (Aeson.String path) = return $ LogFile $ T.unpack path
+  parseJSON invalid = typeMismatch "log target" invalid
+
+data LogConfig = LogConfig {
+    lcTarget :: LogTarget,
+    lcLevel :: LogLevel
+  }
+  deriving (Eq, Show, Data, Typeable, Generic)
+
+defaultLogConfig :: LogConfig
+defaultLogConfig = LogConfig LogSyslog LevelInfo
+
+instance ToJSON LogConfig where
+  toJSON = genericToJSON (jsonOptions "lc")
+
+instance FromJSON LogConfig where
+  parseJSON (Object v) = LogConfig
+    <$> v .:? "target" .!= LogSyslog
+    <*> v .:? "level" .!= LevelInfo
+
 data GlobalConfig = GlobalConfig {
     dbcDaemonMode :: DaemonMode,
     dbcManagerPort :: Int,
@@ -356,7 +393,7 @@ data GlobalConfig = GlobalConfig {
     dbcConnectionString :: T.Text,
     dbcWorkers :: Int,
     dbcPollTimeout :: Int,
-    dbcLogLevel :: LogLevel,
+    dbcLogging :: LogConfig,
     dbcAuth :: AuthMode,
     dbcWebClientPath :: Maybe String,
     dbcAllowedOrigin :: Maybe String,
@@ -379,7 +416,7 @@ instance FromJSON GlobalConfig where
       <*> v .:? "connection_string" .!= ":memory:"
       <*> v .:? "workers" .!= 1
       <*> v .:? "poll_timeout" .!= 10
-      <*> v .:? "log_level" .!= LevelInfo
+      <*> v .:? "logging" .!= defaultLogConfig
       <*> v .:? "auth" .!= defaultAuthMode
       <*> v .:? "web_client_path"
       <*> v .:? "allowed_origin"

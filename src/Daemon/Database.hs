@@ -16,6 +16,7 @@
 module Daemon.Database where
 
 import Control.Monad.Reader
+import qualified Control.Monad.State as State
 
 import Data.Time
 import Database.Persist
@@ -29,18 +30,27 @@ import           Database.Persist.Sqlite as Sqlite
 import           Database.Persist.Postgresql as Postgres
 import qualified Database.Esqueleto as E
 import Database.Esqueleto ((^.))
+import System.Log.Heavy
 
 import Common.Types
 import Daemon.Types
 import Common.Data
 
-getPool :: GlobalConfig -> IO Sql.ConnectionPool
-getPool cfg =
+getPool :: GlobalConfig -> Logger -> IO Sql.ConnectionPool
+getPool cfg logger =
   case dbcDriver cfg of
-    Sqlite -> (enableLogging cfg) (Sqlite.createSqlitePool (dbcConnectionString cfg) 1)
+    Sqlite -> runLoggingTReader (Sqlite.createSqlitePool (dbcConnectionString cfg) 1) logger
     PostgreSql -> do
         let str = TE.encodeUtf8 (dbcConnectionString cfg)
-        (enableLogging cfg) (Postgres.createPostgresqlPool str 10)
+        runLoggingTReader (Postgres.createPostgresqlPool str 10) logger
+
+connectPool :: Daemon Sql.ConnectionPool
+connectPool = do
+  cfg <- askConfig
+  logger <- askLoggerM
+  pool <- liftIO $ getPool cfg logger
+  Daemon $ lift $ State.modify $ \st -> st {ciPool = Just pool}
+  return pool
 
 buildJobInfo :: Int64 -> Job -> Maybe JobResult -> JobParamInfo -> JobInfo
 buildJobInfo jid j mbr params =

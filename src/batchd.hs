@@ -5,9 +5,11 @@
 import Control.Concurrent
 import Data.Semigroup ((<>))
 import Options.Applicative
+import System.Log.Heavy
 
 import Common.Types
 import Common.Config
+import Daemon.Types (runDaemon, forkDaemon)
 import Daemon.Database
 import Daemon.Manager as Manager
 import Daemon.Dispatcher as Dispatcher
@@ -37,11 +39,13 @@ main = do
       let mode = if cmd == Both
                    then dbcDaemonMode cfg
                    else cmd
-      pool <- getPool cfg
-      case mode of
-        Manager    -> Manager.runManager cfg pool
-        Dispatcher -> Dispatcher.runDispatcher cfg pool
-        Both -> do
-          forkIO $ Manager.runManager cfg pool
-          Dispatcher.runDispatcher cfg pool
+      let logSettings = LogBackend $ defStderrSettings
+      runDaemon cfg Nothing logSettings $ do
+        connectPool
+        case mode of
+          Manager    -> Manager.runManager
+          Dispatcher -> Dispatcher.runDispatcher
+          Both -> do
+            forkDaemon $ Manager.runManager
+            Dispatcher.runDispatcher
 

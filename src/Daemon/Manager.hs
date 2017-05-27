@@ -8,6 +8,7 @@ module Daemon.Manager where
 import Control.Concurrent
 import Control.Monad
 import Control.Monad.Reader
+import qualified Control.Monad.State as State
 import qualified Data.ByteString as B
 import qualified Data.Text.Lazy as TL
 import Data.Maybe
@@ -22,6 +23,7 @@ import Network.Wai.Middleware.Static as Static
 import Web.Scotty.Trans as Scotty
 import System.FilePath
 import System.FilePath.Glob
+import System.Log.Heavy (Logger)
 
 import Common.Types
 import Common.Config
@@ -42,19 +44,19 @@ corsPolicy cfg =
     corsMethods = ["GET", "POST", "PUT", "DELETE"]
   }
 
-routes :: GlobalConfig -> ScottyT Error ConnectionM ()
-routes cfg = do
+routes :: GlobalConfig -> Logger -> ScottyT Error Daemon ()
+routes cfg logger = do
   Scotty.defaultHandler raiseError
 
   Scotty.middleware $ cors $ const $ Just $ corsPolicy cfg
   
   case dbcAuth cfg of
-    AuthDisabled -> Scotty.middleware (noAuth cfg)
+    AuthDisabled -> Scotty.middleware (noAuth cfg logger)
     AuthConfig {..} -> do
       when authHeaderEnabled $
-        Scotty.middleware (headerAuth cfg)
+        Scotty.middleware (headerAuth cfg logger)
       when authBasicEnabled $
-        Scotty.middleware (basicAuth cfg)
+        Scotty.middleware (basicAuth cfg logger)
     
   case dbcWebClientPath cfg of
     Just path -> do
@@ -103,24 +105,21 @@ routes cfg = do
   Scotty.options "/" $ getAuthOptionsA
   Scotty.options (Scotty.regex "/.*") $ done
 
-runManager :: GlobalConfig -> Sql.ConnectionPool -> IO ()
-runManager cfg pool = do
-  let connInfo = ConnectionInfo cfg pool
-  -- Sql.runSqlPool (Sql.runMigration migrateAll) (ciPool connInfo)
+runManager :: Daemon ()
+runManager = do
+  connInfo <- Daemon $ lift State.get
+  cfg <- askConfig
   let options = def {Scotty.settings = setPort (dbcManagerPort cfg) defaultSettings}
-  let r m = runReaderT (runConnection m) connInfo
-  forkIO $ runReaderT (runConnection maintainer) connInfo
-  scottyOptsT options r $ routes cfg
+  logger <- askLoggerM
+  liftIO $ do
+    forkIO $ runConnectionIO connInfo logger maintainer
+    scottyOptsT options (runConnectionIO connInfo logger) $ routes cfg logger
 
-maintainer :: ConnectionM ()
+maintainer :: Daemon ()
 maintainer = forever $ do
-  cfg <- asks ciGlobalConfig
+  cfg <- askConfig
   runDB $ cleanupJobResults (dbcStoreDone cfg)
   liftIO $ threadDelay $ 60 * 1000*1000
-
-getGlobalConfig :: Action GlobalConfig
-getGlobalConfig = do
-  lift $ asks ciGlobalConfig
 
 -- | Get URL parameter in form ?name=value
 getUrlParam :: B.ByteString -> Action (Maybe B.ByteString)
@@ -155,7 +154,7 @@ getQueuesA :: Action ()
 getQueuesA = do
   user <- getAuthUser
   let name = userName user
-  cfg <- getGlobalConfig
+  cfg <- askConfigA
   qes <- runDBA $ do
            super <- isSuperUser name
            if super || isAuthDisabled (dbcAuth cfg)
@@ -334,8 +333,9 @@ deleteJobsA = do
 
 getJobTypesA :: Action ()
 getJobTypesA = do
-  cfg <- getGlobalConfig
-  types <- liftIO $ listJobTypes cfg
+  cfg <- askConfigA
+  logger <- askLogger
+  types <- liftIO $ listJobTypes cfg logger
   Scotty.json types
 
 getAllowedJobTypesA :: Action ()
@@ -343,21 +343,22 @@ getAllowedJobTypesA = do
   user <- getAuthUser
   qname <- Scotty.param "name"
   let name = userName user
-  cfg <- getGlobalConfig
-  types <- liftIO $ listJobTypes cfg
+  cfg <- askConfigA
+  logger <- askLogger
+  types <- liftIO $ listJobTypes cfg logger
   allowedTypes <- flip filterM types $ \jt -> do
                       runDBA $ hasCreatePermission name qname (Just $ jtName jt) Nothing
   Scotty.json allowedTypes
 
-listJobTypes :: GlobalConfig -> IO [JobType]
-listJobTypes cfg = do
+listJobTypes :: GlobalConfig -> Logger -> IO [JobType]
+listJobTypes cfg logger = do
   dirs <- getConfigDirs "jobtypes"
   files <- forM dirs $ \dir -> glob (dir </> "*.yaml")
   ts <- forM (concat files) $ \path -> do
              r <- decodeFileEither path
              case r of
                Left err -> do
-                  reportErrorIO cfg $ show err
+                  reportErrorIO logger $(here) $ show err
                   return []
                Right jt -> return [jt]
   let types = concat ts :: [JobType]
@@ -371,15 +372,15 @@ getJobTypeA = do
     Left err -> raise err
     Right jt -> Scotty.json jt
 
-listHosts :: GlobalConfig -> IO [Host]
-listHosts cfg = do
+listHosts :: GlobalConfig -> Logger -> IO [Host]
+listHosts cfg logger = do
   dirs <- getConfigDirs "hosts"
   files <- forM dirs $ \dir -> glob (dir </> "*.yaml")
   hs <- forM (concat files) $ \path -> do
              r <- decodeFileEither path
              case r of
                Left err -> do
-                  reportErrorIO cfg $ show err
+                  reportErrorIO logger $(here) $ show err
                   return []
                Right host -> return [host]
   let hosts = concat hs :: [Host]
@@ -387,8 +388,9 @@ listHosts cfg = do
 
 getHostsA :: Action ()
 getHostsA = do
-  cfg <- getGlobalConfig
-  hosts <- liftIO $ listHosts cfg
+  cfg <- askConfigA
+  logger <- askLogger
+  hosts <- liftIO $ listHosts cfg logger
   Scotty.json $ map hName hosts
 
 getAllowedHostsA :: Action ()
@@ -396,8 +398,9 @@ getAllowedHostsA = do
   user <- getAuthUser
   qname <- Scotty.param "name"
   let name = userName user
-  cfg <- getGlobalConfig
-  hosts <- liftIO $ listHosts cfg
+  cfg <- askConfigA
+  logger <- askLogger
+  hosts <- liftIO $ listHosts cfg logger
   let allHostNames = defaultHostOfQueue : map hName hosts
   allowedHosts <- flip filterM allHostNames $ \hostname -> do
                       runDBA $ hasCreatePermission name qname Nothing (Just hostname)
@@ -412,8 +415,9 @@ getAllowedHostsForTypeA = do
   allowedHosts <- case mbAllowedHosts of
                     Just list -> return list -- user is restricted to list of hosts
                     Nothing -> do -- user can create jobs on any defined host
-                        cfg <- getGlobalConfig
-                        hosts <- liftIO $ listHosts cfg
+                        cfg <- askConfigA
+                        logger <- askLogger
+                        hosts <- liftIO $ listHosts cfg logger
                         return $ defaultHostOfQueue : map hName hosts
   Scotty.json allowedHosts
 
@@ -427,7 +431,7 @@ createUserA :: Action ()
 createUserA = do
   checkSuperUser
   user <- jsonData
-  cfg <- getGlobalConfig
+  cfg <- askConfigA
   let staticSalt = authStaticSalt $ dbcAuth cfg
   name <- runDBA $ createUserDb (uiName user) (uiPassword user) staticSalt
   Scotty.json name
@@ -439,7 +443,7 @@ changePasswordA = do
   when (userName curUser /= name) $
       checkSuperUser
   user <- jsonData
-  cfg <- getGlobalConfig
+  cfg <- askConfigA
   let staticSalt = authStaticSalt $ dbcAuth cfg
   runDBA $ changePassword name (uiPassword user) staticSalt
   done
@@ -469,7 +473,7 @@ deletePermissionA = do
 
 getAuthOptionsA :: Action ()
 getAuthOptionsA = do
-  cfg <- getGlobalConfig
+  cfg <- askConfigA
   let methods = authMethods $ dbcAuth cfg
   Scotty.json methods
 

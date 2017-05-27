@@ -2,11 +2,15 @@
 
 module Daemon.Logging where
 
+import qualified Control.Monad.Trans as Trans
 import Control.Monad.Reader hiding (lift)
-import Control.Monad.Logger
 import qualified Data.Text as T
+import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 import Language.Haskell.TH.Lift
+import Control.Monad.Logger (MonadLogger (..), LogLevel (..), liftLoc)
+import System.Log.Heavy
+import qualified System.Log.FastLogger as F
 
 import Common.Types
 import Daemon.Types
@@ -16,15 +20,27 @@ deriveLift ''DaemonMode
 deriveLift ''DbDriver
 
 deriveLift ''AuthMode
+deriveLift ''LogTarget
+deriveLift ''LogConfig
 deriveLift ''GlobalConfig
 
 logConnectionM :: LogLevel -> Q Exp
 logConnectionM level = [| \msg ->
   do
-    cfg <- asks ciGlobalConfig
     let loc = $(qLocation >>= liftLoc)
-    let src = T.pack (loc_module loc)
-    enableLogging cfg ( monadLoggerLog loc src $(lift level) (T.pack msg) ) |]
+    let src = splitDots (loc_module loc)
+    let message = LogMessage $(lift level) src loc $ F.toLogStr msg
+    Daemon $ logMessage message |]
+
+here :: Q Exp
+here = qLocation >>= liftLoc
+
+logIO :: MonadIO m => Logger -> Loc -> LogLevel -> String -> m ()
+logIO logger loc level msg = Trans.liftIO $
+  do
+    let src = splitDots (loc_module loc)
+    let message = LogMessage level src loc $ F.toLogStr msg
+    logger message
 
 debug :: Q Exp
 debug = logConnectionM LevelDebug
@@ -36,11 +52,12 @@ reportError :: Q Exp
 reportError = logConnectionM LevelError
 
 logDB :: LogLevel -> Q Exp
-logDB level = [| \cfg msg ->
+logDB level = [| \msg ->
   do
     let loc = $(qLocation >>= liftLoc)
-    let src = T.pack (loc_module loc)
-    enableLogging cfg ( monadLoggerLog loc src $(lift level) (T.pack msg) ) |]
+    let src = splitDots (loc_module loc)
+    let message = LogMessage $(lift level) src loc $ F.toLogStr msg
+    Trans.lift $ logMessage message |]
 
 infoDB :: Q Exp
 infoDB = logDB LevelInfo
@@ -51,15 +68,12 @@ debugDB = logDB LevelDebug
 reportErrorDB :: Q Exp
 reportErrorDB = logDB LevelError
 
-debugIO :: GlobalConfig -> String -> IO ()
-debugIO cfg msg = do
-  enableLogging cfg ( $(logDebug) $ T.pack msg ) 
+debugIO :: MonadIO m => Logger -> Loc -> String -> m ()
+debugIO logger loc = logIO logger loc LevelDebug
 
-infoIO :: GlobalConfig -> String -> IO ()
-infoIO cfg msg = do
-  enableLogging cfg ( $(logInfo) $ T.pack msg ) 
+infoIO :: MonadIO m => Logger -> Loc -> String -> m ()
+infoIO logger loc = logIO logger loc LevelInfo
 
-reportErrorIO :: GlobalConfig -> String -> IO ()
-reportErrorIO cfg msg = do
-  enableLogging cfg ( $(logError) $ T.pack msg ) 
+reportErrorIO :: MonadIO m => Logger -> Loc -> String -> m ()
+reportErrorIO logger loc = logIO logger loc LevelError
 

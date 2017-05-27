@@ -6,9 +6,11 @@ module Daemon.Hosts where
 
 import Control.Concurrent
 import Control.Exception
+import Control.Monad.Trans
 import qualified Data.Map as M
 
 import Common.Types
+import Daemon.Types
 
 type HostName = String
 type HostCounters = MVar (M.Map HostName (MVar Int))
@@ -60,7 +62,11 @@ releaseHost mvar host = do
     return $ M.insert name counter m
   return ()
 
-withHost :: HostCounters -> Host -> JobType -> IO a -> IO a
+withHost :: HostCounters -> Host -> JobType -> Daemon a -> Daemon a
 withHost mvar host jtype actions = do
-  bracket_ (acquireHost mvar host jtype) (releaseHost mvar host) actions
+  cfg <- askConfig
+  pool <- askPool
+  logger <- askLoggerM
+  let connInfo = ConnectionInfo cfg (Just pool)
+  liftIO $ bracket_ (acquireHost mvar host jtype) (releaseHost mvar host) $ runConnectionIO connInfo logger actions
 

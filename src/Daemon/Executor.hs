@@ -4,6 +4,7 @@
 module Daemon.Executor where
 
 import Control.Monad
+import Control.Monad.Trans
 import Data.Maybe
 import qualified Data.Map as M
 import qualified Data.Text as T
@@ -14,11 +15,13 @@ import Data.Time
 import System.Process
 import System.FilePath
 import System.Exit
+import System.Log.Heavy (Logger)
 
 import Common.Types
 import Common.Config
 import Daemon.Logging
 import Common.Data
+import Daemon.Types
 import Daemon.Hosts
 import Daemon.SSH
 
@@ -44,27 +47,28 @@ hostContext (Just host) jt params = M.fromList $ map update $ M.assocs params
         Just OutputFile -> (key, hOutputDirectory host </> takeFileName value)
         _ -> (key, value)
 
-executeJob :: GlobalConfig -> HostCounters -> Queue -> JobType -> JobInfo -> IO JobResult
-executeJob cfg counters q jt job = do
+executeJob :: HostCounters -> Queue -> JobType -> JobInfo -> Daemon JobResult
+executeJob counters q jt job = do
+  cfg <- askConfig
   let mbHostName = getHostName q jt job
       jid = JobKey (Sql.SqlBackendKey $ jiId job)
   case mbHostName of
     Nothing -> do -- localhost
       let command = getCommand Nothing jt job
-      (ec, stdout, stderr) <- readCreateProcessWithExitCode (shell command) ""
-      now <- getCurrentTime
+      (ec, stdout, stderr) <- liftIO $ readCreateProcessWithExitCode (shell command) ""
+      now <- liftIO $ getCurrentTime
       return $ JobResult jid now ec (T.pack stdout) (T.pack stderr)
     Just hostname -> do
-      hostR <- loadHost hostname
+      hostR <- liftIO $ loadHost hostname
       case hostR of
         Right host -> do
           let command = getCommand (Just host) jt job
-          (ec, stdout) <- processOnHost cfg counters host jt job command
-          now <- getCurrentTime
+          (ec, stdout) <- processOnHost counters host jt job command
+          now <- liftIO getCurrentTime
           return $ JobResult jid now ec stdout T.empty
         Left err -> do
-          $reportErrorDB cfg $ show err
-          now <- getCurrentTime
+          $reportError $ show err
+          now <- liftIO $ getCurrentTime
           return $ JobResult jid now (ExitFailure (-1)) T.empty (T.pack $ show err)
 
 

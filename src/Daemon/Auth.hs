@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 module Daemon.Auth where
 
 import Control.Monad
@@ -13,6 +14,7 @@ import Network.HTTP.Types (status401, hAuthorization)
 import Network.Wai
 import qualified Network.Wai.Middleware.HttpAuth as HA
 import qualified Web.Scotty.Trans as Scotty
+import System.Log.Heavy (Logger)
 
 import System.IO.Unsafe (unsafePerformIO)
 
@@ -54,26 +56,28 @@ createSuperUserDb name password staticSalt = do
 
 -- | Create user
 createUser :: GlobalConfig
+           -> Logger
            -> String -- ^ User name
            -> String -- ^ Password
            -> IO Bool
-createUser gcfg name password = do
-  pool <- getPool gcfg
+createUser gcfg logger name password = do
+  pool <- getPool gcfg logger
   let staticSalt = authStaticSalt $ dbcAuth gcfg
-  res <- runDBIO gcfg pool (createUserDb name password staticSalt)
+  res <- runDBIO gcfg pool logger (createUserDb name password staticSalt)
   case res of
     Left _ -> return False
     Right _ -> return True
 
 -- | Create superuser
 createSuperUser :: GlobalConfig
+                -> Logger
                 -> String -- ^ User name
                 -> String -- ^ Password
                 -> IO Bool
-createSuperUser gcfg name password = do
-  pool <- getPool gcfg
+createSuperUser gcfg logger name password = do
+  pool <- getPool gcfg logger
   let staticSalt = authStaticSalt $ dbcAuth gcfg
-  res <- runDBIO gcfg pool (createSuperUserDb name password staticSalt)
+  res <- runDBIO gcfg pool logger (createSuperUserDb name password staticSalt)
   case res of
     Left _ -> return False
     Right _ -> return True
@@ -141,22 +145,22 @@ checkUserExistsDb name = do
   mbUser <- get (UserKey name)
   return $ isJust mbUser
 
-checkUser :: GlobalConfig -> (B.ByteString -> B.ByteString -> IO Bool)
-checkUser gcfg nameBstr passwordBstr = do
-  pool <- getPool gcfg
+checkUser :: GlobalConfig -> Logger -> (B.ByteString -> B.ByteString -> IO Bool)
+checkUser gcfg logger nameBstr passwordBstr = do
+  pool <- getPool gcfg logger
   let name = bstrToString nameBstr
       password = bstrToString passwordBstr
       salt = authStaticSalt $ dbcAuth gcfg
-  res <- runDBIO gcfg pool (checkUserDb name password salt)
+  res <- runDBIO gcfg pool logger (checkUserDb name password salt)
   case res of
     Left _ -> return False
     Right r -> return r
 
-checkUserExists :: GlobalConfig -> B.ByteString -> IO Bool
-checkUserExists gcfg nameBstr = do
-  pool <- getPool gcfg
+checkUserExists :: GlobalConfig -> Logger -> B.ByteString -> IO Bool
+checkUserExists gcfg logger nameBstr = do
+  pool <- getPool gcfg logger
   let name = bstrToString nameBstr
-  res <- runDBIO gcfg pool (checkUserExistsDb name)
+  res <- runDBIO gcfg pool logger (checkUserExistsDb name)
   case res of
     Left _ -> return False
     Right r -> return r
@@ -174,8 +178,8 @@ isRootOptions :: Request -> Bool
 isRootOptions rq = requestMethod rq == "OPTIONS" && pathInfo rq == []
 
 -- | HTTP basic auth middleware
-basicAuth :: GlobalConfig -> Middleware
-basicAuth gcfg app req sendResponse =
+basicAuth :: GlobalConfig -> Logger -> Middleware
+basicAuth gcfg logger app req sendResponse =
   let settings = "batchd" :: HA.AuthSettings
       username = extractBasicUser req
       -- put user name extracted from header to vault
@@ -184,19 +188,19 @@ basicAuth gcfg app req sendResponse =
         then app req sendResponse -- OPTIONS / is available without auth
         else case getAuthUserRq req of
                  Nothing -> do
-                     liftIO $ infoIO gcfg $ "Will try to authenticate user with basic auth: " ++ username
-                     HA.basicAuth (checkUser gcfg) settings app req' sendResponse
+                     infoIO logger $(here) $ "Will try to authenticate user with basic auth: " ++ username
+                     HA.basicAuth (checkUser gcfg logger) settings app req' sendResponse
                  Just _ -> app req sendResponse
 
 -- | Authentication by X-Auth-User HTTP header
-headerAuth :: GlobalConfig -> Middleware
-headerAuth gcfg app req sendResponse = do
+headerAuth :: GlobalConfig -> Logger -> Middleware
+headerAuth gcfg logger app req sendResponse = do
   -- liftIO $ putStrLn $ "X-Auth-User: " ++ show req
   if isRootOptions req
     then app req sendResponse -- OPTIONS / is available without auth
     else case lookup "X-Auth-User" (requestHeaders req) of
             Nothing -> do
-                liftIO $ infoIO gcfg $ "No X-Auth-User header"
+                infoIO logger $(here) $ "No X-Auth-User header"
                 app req sendResponse
         --       case getAuthUserRq req of
         --         Nothing -> sendResponse $ responseLBS status401 [] "User name not provided"
@@ -205,22 +209,22 @@ headerAuth gcfg app req sendResponse = do
               let username = bstrToString name
                   -- put user name extracted from header to vault
                   req' = req {vault = V.insert usernameKey username $ vault req}
-              ok <- liftIO $ checkUserExists gcfg name
-              liftIO $ infoIO gcfg $ "User from X-AUth-User header authenticated: " ++ username
+              ok <- liftIO $ checkUserExists gcfg logger name
+              infoIO logger $(here) $ "User from X-AUth-User header authenticated: " ++ username
               if ok
                 then app req' sendResponse
                 else sendResponse $ responseLBS status401 [] "Specified user does not exist"
 
 -- | Unconditional authentication
-noAuth :: GlobalConfig -> Middleware
-noAuth gcfg app req sendResponse = do
+noAuth :: GlobalConfig -> Logger -> Middleware
+noAuth gcfg logger app req sendResponse = do
   let username = case lookup "X-Auth-User" (requestHeaders req) of
                    Just n -> bstrToString n
                    Nothing -> extractBasicUser req
       -- if by some condition username appeared in header, put it to vault.
       -- otherwise user name will be anonymous.
       req' = req {vault = V.insert usernameKey username $ vault req}
-  liftIO $ infoIO gcfg $ "Authentication is disabled. User treated as superuser: " ++ username
+  infoIO logger $(here) $ "Authentication is disabled. User treated as superuser: " ++ username
   app req' sendResponse
 
 -- authentication :: GlobalConfig -> Middleware
@@ -274,7 +278,7 @@ isSuperUser name = do
 -- | Check if user is superuser. Fail otherwise.
 checkSuperUser :: Action ()
 checkSuperUser = do
-  cfg <- lift $ asks ciGlobalConfig
+  cfg <- askConfigA
   when (not $ isAuthDisabled $ dbcAuth cfg) $ do
       user <- getAuthUser
       ok <- runDBA $ isSuperUser (userName user)
@@ -374,7 +378,7 @@ checkPermission :: String      -- ^ Error message for case of insufficient privi
                 -> String      -- ^ Queue name
                 -> Action ()
 checkPermission message perm qname = do
-  cfg <- lift $ asks ciGlobalConfig
+  cfg <- askConfigA
   when (not $ isAuthDisabled $ dbcAuth cfg) $ do
       user <- getAuthUser
       ok <- runDBA $ hasPermission (userName user) perm qname
@@ -387,7 +391,7 @@ checkCanCreateJobs :: String -- ^ Queue name
                    -> String -- ^ Host name. Use @__default__@ for default host of queue.
                    -> Action ()
 checkCanCreateJobs qname typename hostname = do
-  cfg <- lift $ asks ciGlobalConfig
+  cfg <- askConfigA
   when (not $ isAuthDisabled $ dbcAuth cfg) $ do
       user <- getAuthUser
       ok <- runDBA $ hasCreatePermission (userName user) qname (Just typename) (Just hostname)
@@ -399,7 +403,7 @@ checkPermissionToList :: String     -- ^ Error message for case of insufficient 
                       -> Permission
                       -> Action ()
 checkPermissionToList message perm = do
-  cfg <- lift $ asks ciGlobalConfig
+  cfg <- askConfigA
   when (not $ isAuthDisabled $ dbcAuth cfg) $ do
       user <- getAuthUser
       ok <- runDBA $ hasPermissionToList (userName user) perm
