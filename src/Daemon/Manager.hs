@@ -112,8 +112,8 @@ runManager = do
   let options = def {Scotty.settings = setPort (dbcManagerPort cfg) defaultSettings}
   logger <- askLoggerM
   liftIO $ do
-    forkIO $ runConnectionIO connInfo logger maintainer
-    scottyOptsT options (runConnectionIO connInfo logger) $ routes cfg logger
+    forkIO $ runDaemonIO connInfo logger maintainer
+    scottyOptsT options (runDaemonIO connInfo logger) $ routes cfg logger
 
 maintainer :: Daemon ()
 maintainer = forever $ do

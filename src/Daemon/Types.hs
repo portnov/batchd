@@ -20,14 +20,17 @@ instance Scotty.ScottyError Error where
   stringError e = UnknownError e
   showError e = TL.pack (show e)
 
-type Result a = ExceptT Error IO a
-
+-- | Standard monad for database actions
 type DB a = ReaderT Sql.SqlBackend (LoggingT (ExceptT Error (ResourceT IO))) a
+
+-- | Temporary monad type for usage of DB from IO directly
 type DBIO a = ReaderT Sql.SqlBackend (LoggingT (ResourceT IO)) a
 
+-- | Throw an error in DB monad
 throwR :: Error -> DB a
 throwR ex = lift $ lift $ throwError ex
 
+-- | Convert DB monad into DBIO
 dbio :: DB a -> DBIO (Either Error a)
 dbio action = do
   backend <- ask
@@ -38,20 +41,25 @@ dbio action = do
         return $ Left err
     Right r -> return $ Right r
 
+-- | Database connection information and configuration
 data ConnectionInfo = ConnectionInfo {
-    ciGlobalConfig :: GlobalConfig,
-    ciPool :: Maybe Sql.ConnectionPool
+    ciGlobalConfig :: GlobalConfig     -- ^ Global configuration
+  , ciPool :: Maybe Sql.ConnectionPool -- ^ DB connection pool
   }
 
+-- | Main monad for daemon actions (both Manager and Dispatcher). This handles logging
+-- and DB connection.
 newtype Daemon a = Daemon {
-    runConnectionM :: LoggingT (StateT ConnectionInfo IO) a
+    runDaemonT :: LoggingT (StateT ConnectionInfo IO) a
   }
   deriving (Applicative,Functor,Monad,MonadIO, MonadReader Logger)
 
-runConnectionIO :: ConnectionInfo -> Logger -> Daemon a -> IO a
-runConnectionIO connInfo logger actions =
-  evalStateT (runLoggingTReader (runConnectionM actions) logger) connInfo
+-- | Run daemon actions within IO monad
+runDaemonIO :: ConnectionInfo -> Logger -> Daemon a -> IO a
+runDaemonIO connInfo logger actions =
+  evalStateT (runLoggingTReader (runDaemonT actions) logger) connInfo
 
+-- | REST handler monad type
 type Action a = Scotty.ActionT Error Daemon a
 
 askConnectionInfo :: Daemon ConnectionInfo
@@ -88,6 +96,7 @@ askPoolA = do
 askConfigA :: Action GlobalConfig
 askConfigA = asksConnectionInfo ciGlobalConfig
 
+-- | Run DB action within Action monad. Raise HTTP-level error if DB action fails.
 runDBA :: DB a -> Action a
 runDBA qry = do
   pool <- askPoolA
@@ -98,6 +107,7 @@ runDBA qry = do
     Left err -> Scotty.raise err
     Right x -> return x
 
+-- | Run DB action within Action monad.
 runDBA' :: DB a -> Action (Either Error a)
 runDBA' qry = do
   pool <- askPoolA
@@ -106,6 +116,7 @@ runDBA' qry = do
   r <- liftIO $ runResourceT $ runLoggingTReader (Sql.runSqlPool (dbio qry) pool) logger
   return r
 
+-- | Run DB action within Daemon monad.
 runDB :: DB a -> Daemon (Either Error a)
 runDB qry = do
   pool <- askPool
@@ -113,13 +124,15 @@ runDB qry = do
   logger <- askLoggerM
   liftIO $ runResourceT $ runLoggingTReader (Sql.runSqlPool (dbio qry) pool) logger
 
+-- | Run DB action within IO monad.
 runDBIO :: GlobalConfig -> Sql.ConnectionPool -> Logger -> DB a -> IO (Either Error a)
 runDBIO cfg pool logger qry = do
   runResourceT $ runLoggingTReader (Sql.runSqlPool (dbio qry) pool) logger
 
+-- | Run Daemon action within IO monad.
 runDaemon :: GlobalConfig -> Maybe Sql.ConnectionPool -> LogBackend -> Daemon a -> IO a
 runDaemon cfg mbPool backend daemon =
-    runner $ withLogging backend runner (runConnectionM daemon)
+    runner $ withLogging backend runner (runDaemonT daemon)
   where
     runner r = evalStateT r initState
     initState = ConnectionInfo cfg mbPool
@@ -130,9 +143,10 @@ wrapDaemon wrapper daemon = do
     pool <- askPool
     logger <- askLoggerM
     let connInfo = ConnectionInfo cfg (Just pool)
-    result <- liftIO $ wrapper $ \c -> runConnectionIO connInfo logger (daemon c)
+    result <- liftIO $ wrapper $ \c -> runDaemonIO connInfo logger (daemon c)
     return result
 
+-- | forkIO for Daemon monad.
 forkDaemon :: Daemon a -> Daemon ()
 forkDaemon daemon = do
     cfg <- askConfig
@@ -140,7 +154,7 @@ forkDaemon daemon = do
     logger <- askLoggerM
     let connInfo = ConnectionInfo cfg (Just pool)
     liftIO $ forkIO $ do
-               runConnectionIO connInfo logger daemon
+               runDaemonIO connInfo logger daemon
                return ()
     return ()
 

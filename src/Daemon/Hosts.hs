@@ -68,5 +68,5 @@ withHost mvar host jtype actions = do
   pool <- askPool
   logger <- askLoggerM
   let connInfo = ConnectionInfo cfg (Just pool)
-  liftIO $ bracket_ (acquireHost mvar host jtype) (releaseHost mvar host) $ runConnectionIO connInfo logger actions
+  liftIO $ bracket_ (acquireHost mvar host jtype) (releaseHost mvar host) $ runDaemonIO connInfo logger actions
 
