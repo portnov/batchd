@@ -150,7 +150,8 @@ enqueue = Enqueue
 
 list :: Parser Command
 list = List
-  <$> optionalString "status" 's' "STATUS" "list only jobs of specified status"
+  <$> (optionalString "status" 's' "STATUS" "list only jobs of specified status"
+       <|> flag Nothing (Just "all") (long "all" <> short 'a' <> help "synonym for --status=all"))
   <*> many (strArgument (metavar "QUEUE" <> help "queue to list"))
 
 crudMode :: [(CrudMode, String)] -> Parser CrudMode
