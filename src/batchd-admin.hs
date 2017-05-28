@@ -6,14 +6,11 @@ import Control.Monad.Trans
 import Control.Monad.Reader
 import Data.Semigroup ((<>))
 import Options.Applicative
-import Database.Persist
 import qualified Database.Persist.Sql as Sql
 import System.Log.Heavy
 
-import Common.Types
 import Common.Config
 import Common.Data (migrateAll)
-import Daemon.Types
 import Daemon.Database
 import Daemon.Auth
 

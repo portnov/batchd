@@ -5,13 +5,11 @@ module Daemon.Types where
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Except
--- import Control.Monad.Logger.Syslog (runSyslogLoggingT)
 import Control.Monad.Trans.Resource
 import Control.Concurrent
 import qualified Data.Text.Lazy as TL
 import qualified Database.Persist.Sql as Sql
 import qualified Web.Scotty.Trans as Scotty
-import qualified System.Log.FastLogger as F
 import System.Log.Heavy
 
 import Common.Types

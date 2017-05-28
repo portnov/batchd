@@ -14,7 +14,6 @@ import Data.Dates
 import Database.Persist
 import qualified Database.Persist.Sql as Sql
 import System.Exit
-import System.Log.Heavy (Logger)
 import Text.Printf
 
 import Common.Types

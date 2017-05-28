@@ -2,10 +2,8 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 
-import Control.Concurrent
 import Data.Semigroup ((<>))
 import Options.Applicative
-import System.Log.Heavy
 
 import Common.Types
 import Common.Config

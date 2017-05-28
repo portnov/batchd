@@ -14,7 +14,6 @@ import qualified Data.Text.Lazy as TL
 import Data.Maybe
 import Data.Default
 import Data.Yaml
-import qualified Database.Persist.Sql as Sql
 import Network.HTTP.Types
 import qualified Network.Wai as Wai
 import Network.Wai.Handler.Warp (defaultSettings, setPort)

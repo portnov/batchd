@@ -15,7 +15,6 @@ import Data.Time
 import System.Process
 import System.FilePath
 import System.Exit
-import System.Log.Heavy (Logger)
 
 import Common.Types
 import Common.Config

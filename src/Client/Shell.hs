@@ -5,7 +5,6 @@
 
 module Client.Shell (commandHandler) where
 
-import Control.Exception
 import Control.Monad.State
 import Data.Maybe
 import Options.Applicative
@@ -15,7 +14,6 @@ import System.Environment (getProgName)
 import Client.Types
 import Client.Actions
 import Client.CmdLine
-import Client.Config
 import Client.Monad
 import Client.Http
 

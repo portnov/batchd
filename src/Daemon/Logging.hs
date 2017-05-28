@@ -4,12 +4,10 @@ module Daemon.Logging where
 
 import qualified Control.Monad.Trans as Trans
 import Control.Monad.Reader hiding (lift)
-import qualified Data.Text as T
-import qualified Data.Map as M
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 import Language.Haskell.TH.Lift
-import Control.Monad.Logger (MonadLogger (..), LogLevel (..), liftLoc)
+import Control.Monad.Logger (LogLevel (..), liftLoc)
 import System.Log.Heavy
 import qualified System.Log.FastLogger as F
 

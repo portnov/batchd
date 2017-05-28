@@ -15,7 +15,6 @@ import Network.SSH.Client.LibSSH2
 import System.FilePath
 import System.Environment
 import System.Exit
-import System.Log.Heavy
 
 import Common.Types
 import Daemon.Types

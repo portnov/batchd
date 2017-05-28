@@ -3,10 +3,8 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 import Control.Exception
-import Data.Maybe
 
 import Client.Types
-import Client.Actions
 import Client.CmdLine
 import Client.Config
 import Client.Monad
