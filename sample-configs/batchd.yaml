@@ -6,8 +6,17 @@
 driver: PostgreSql
 connection_string: "host=localhost port=5432 user=batchd password=batchd" 
 
-# you can set this to debug
-log_level: info
+# Logging settings
+logging:
+  # default logging level
+  # possible values: debug info warning error
+  level: info
+
+  # More precise filter.
+  # You can specify logging level for each program module
+  #filter:
+  #  Daemon.Dispatcher: debug
+  #  SQL: debug
 
 # Number of concurrent workers
 # workers: 1
