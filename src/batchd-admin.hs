@@ -11,6 +11,7 @@ import System.Log.Heavy
 
 import Common.Config
 import Common.Data (migrateAll)
+import Daemon.Logging (getLoggingSettings)
 import Daemon.Database
 import Daemon.Auth
 
@@ -41,7 +42,7 @@ main = do
   case cfgR of
     Left err -> fail $ show err
     Right cfg -> do
-      let logSettings = LogBackend $ defStderrSettings
+      let logSettings = getLoggingSettings cfg
       case cmd of
         CreateSuperuser {} -> do
             password <- getPassword2
