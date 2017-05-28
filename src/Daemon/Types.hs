@@ -33,7 +33,7 @@ dbio :: DB a -> DBIO (Either Error a)
 dbio action = do
   backend <- ask
   logger <- lift ask
-  x <- liftIO $ runResourceT $ runExceptT $ runLoggingTReader (runReaderT action backend) logger
+  x <- liftIO $ runResourceT $ runExceptT $ runLoggingT (runReaderT action backend) logger
   case x of
     Left err -> do
         return $ Left err
@@ -55,7 +55,7 @@ newtype Daemon a = Daemon {
 -- | Run daemon actions within IO monad
 runDaemonIO :: ConnectionInfo -> Logger -> Daemon a -> IO a
 runDaemonIO connInfo logger actions =
-  evalStateT (runLoggingTReader (runDaemonT actions) logger) connInfo
+  evalStateT (runLoggingT (runDaemonT actions) logger) connInfo
 
 -- | REST handler monad type
 type Action a = Scotty.ActionT Error Daemon a
@@ -100,7 +100,7 @@ runDBA qry = do
   pool <- askPoolA
   cfg <- askConfigA
   logger <- askLogger
-  r <- liftIO $ runResourceT $ runLoggingTReader (Sql.runSqlPool (dbio qry) pool) logger
+  r <- liftIO $ runResourceT $ runLoggingT (Sql.runSqlPool (dbio qry) pool) logger
   case r of
     Left err -> Scotty.raise err
     Right x -> return x
@@ -111,7 +111,7 @@ runDBA' qry = do
   pool <- askPoolA
   cfg <- asksConnectionInfo ciGlobalConfig
   logger <- askLogger
-  r <- liftIO $ runResourceT $ runLoggingTReader (Sql.runSqlPool (dbio qry) pool) logger
+  r <- liftIO $ runResourceT $ runLoggingT (Sql.runSqlPool (dbio qry) pool) logger
   return r
 
 -- | Run DB action within Daemon monad.
@@ -120,12 +120,12 @@ runDB qry = do
   pool <- askPool
   cfg <- askConfig
   logger <- askLoggerM
-  liftIO $ runResourceT $ runLoggingTReader (Sql.runSqlPool (dbio qry) pool) logger
+  liftIO $ runResourceT $ runLoggingT (Sql.runSqlPool (dbio qry) pool) logger
 
 -- | Run DB action within IO monad.
 runDBIO :: GlobalConfig -> Sql.ConnectionPool -> Logger -> DB a -> IO (Either Error a)
 runDBIO cfg pool logger qry = do
-  runResourceT $ runLoggingTReader (Sql.runSqlPool (dbio qry) pool) logger
+  runResourceT $ runLoggingT (Sql.runSqlPool (dbio qry) pool) logger
 
 -- | Run Daemon action within IO monad.
 runDaemon :: GlobalConfig -> Maybe Sql.ConnectionPool -> LogBackend -> Daemon a -> IO a

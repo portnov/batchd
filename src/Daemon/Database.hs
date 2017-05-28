@@ -39,10 +39,10 @@ import Common.Data
 getPool :: GlobalConfig -> Logger -> IO Sql.ConnectionPool
 getPool cfg logger =
   case dbcDriver cfg of
-    Sqlite -> runLoggingTReader (Sqlite.createSqlitePool (dbcConnectionString cfg) 1) logger
+    Sqlite -> runLoggingT (Sqlite.createSqlitePool (dbcConnectionString cfg) 1) logger
     PostgreSql -> do
         let str = TE.encodeUtf8 (dbcConnectionString cfg)
-        runLoggingTReader (Postgres.createPostgresqlPool str 10) logger
+        runLoggingT (Postgres.createPostgresqlPool str 10) logger
 
 connectPool :: Daemon Sql.ConnectionPool
 connectPool = do
