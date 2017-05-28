@@ -10,6 +10,7 @@ import System.Log.Heavy
 import Common.Types
 import Common.Config
 import Daemon.Types (runDaemon, forkDaemon)
+import Daemon.Logging (getLoggingSettings)
 import Daemon.Database
 import Daemon.Manager as Manager
 import Daemon.Dispatcher as Dispatcher
@@ -39,7 +40,7 @@ main = do
       let mode = if cmd == Both
                    then dbcDaemonMode cfg
                    else cmd
-      let logSettings = LogBackend $ defStderrSettings
+      let logSettings = getLoggingSettings cfg
       runDaemon cfg Nothing logSettings $ do
         connectPool
         case mode of

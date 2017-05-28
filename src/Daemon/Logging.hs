@@ -5,6 +5,7 @@ module Daemon.Logging where
 import qualified Control.Monad.Trans as Trans
 import Control.Monad.Reader hiding (lift)
 import qualified Data.Text as T
+import qualified Data.Map as M
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 import Language.Haskell.TH.Lift
@@ -76,4 +77,18 @@ infoIO logger loc = logIO logger loc LevelInfo
 
 reportErrorIO :: MonadIO m => Logger -> Loc -> String -> m ()
 reportErrorIO logger loc = logIO logger loc LevelError
+
+getLoggingSettings :: GlobalConfig -> LogBackend
+getLoggingSettings cfg =
+    case lcTarget $ dbcLogging cfg of
+      LogSyslog -> LogBackend $ defaultSyslogSettings {ssIdent = "batchd", ssFilter = fltr}
+      LogStdout -> LogBackend $ defStdoutSettings {lsFilter = fltr}
+      LogStderr -> LogBackend $ defStderrSettings {lsFilter = fltr}
+      LogFile path -> LogBackend $ (defFileSettings path) {lsFilter = fltr}
+  where
+    fltr :: LogFilter
+    fltr = map toFilter (lcFilter $ dbcLogging cfg) ++ [([], lcLevel $ dbcLogging cfg)]
+
+    toFilter :: (String, LogLevel) -> (LogSource, LogLevel)
+    toFilter (src, level) = (splitDots src, level)
 

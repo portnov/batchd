@@ -371,12 +371,13 @@ instance FromJSON LogTarget where
 
 data LogConfig = LogConfig {
     lcTarget :: LogTarget,
-    lcLevel :: LogLevel
+    lcLevel :: LogLevel,
+    lcFilter :: [(String, LogLevel)]
   }
   deriving (Eq, Show, Data, Typeable, Generic)
 
 defaultLogConfig :: LogConfig
-defaultLogConfig = LogConfig LogSyslog LevelInfo
+defaultLogConfig = LogConfig LogSyslog LevelInfo []
 
 instance ToJSON LogConfig where
   toJSON = genericToJSON (jsonOptions "lc")
@@ -385,6 +386,10 @@ instance FromJSON LogConfig where
   parseJSON (Object v) = LogConfig
     <$> v .:? "target" .!= LogSyslog
     <*> v .:? "level" .!= LevelInfo
+    <*> parseFilter (v .:? "filter" .!= M.empty)
+    where
+      parseFilter :: Parser (M.Map String LogLevel) -> Parser [(String, LogLevel)]
+      parseFilter = fmap M.assocs
 
 data GlobalConfig = GlobalConfig {
     dbcDaemonMode :: DaemonMode,
