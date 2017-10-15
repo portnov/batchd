@@ -8,13 +8,14 @@ import Data.Maybe
 import Data.Int
 import qualified Data.Vault.Lazy as V
 import Database.Persist
-import Database.Persist.Sql as Sql
+import Database.Persist.Sql as Sql hiding (Single)
 import qualified Data.ByteString as B
 import Network.HTTP.Types (status401, hAuthorization)
 import Network.Wai
 import qualified Network.Wai.Middleware.HttpAuth as HA
 import qualified Web.Scotty.Trans as Scotty
 import System.Log.Heavy (Logger)
+import Data.Text.Format.Heavy
 
 import System.IO.Unsafe (unsafePerformIO)
 
@@ -188,7 +189,7 @@ basicAuth gcfg logger app req sendResponse =
         then app req sendResponse -- OPTIONS / is available without auth
         else case getAuthUserRq req of
                  Nothing -> do
-                     infoIO logger $(here) $ "Will try to authenticate user with basic auth: " ++ username
+                     infoIO logger $(here) "Will try to authenticate user with basic auth: {}" (Single username)
                      HA.basicAuth (checkUser gcfg logger) settings app req' sendResponse
                  Just _ -> app req sendResponse
 
@@ -200,7 +201,7 @@ headerAuth gcfg logger app req sendResponse = do
     then app req sendResponse -- OPTIONS / is available without auth
     else case lookup "X-Auth-User" (requestHeaders req) of
             Nothing -> do
-                infoIO logger $(here) $ "No X-Auth-User header"
+                infoIO logger $(here) "No X-Auth-User header" ()
                 app req sendResponse
         --       case getAuthUserRq req of
         --         Nothing -> sendResponse $ responseLBS status401 [] "User name not provided"
@@ -210,7 +211,7 @@ headerAuth gcfg logger app req sendResponse = do
                   -- put user name extracted from header to vault
                   req' = req {vault = V.insert usernameKey username $ vault req}
               ok <- liftIO $ checkUserExists gcfg logger name
-              infoIO logger $(here) $ "User from X-AUth-User header authenticated: " ++ username
+              infoIO logger $(here) "User from X-AUth-User header authenticated: {}" (Single username)
               if ok
                 then app req' sendResponse
                 else sendResponse $ responseLBS status401 [] "Specified user does not exist"
@@ -224,7 +225,7 @@ noAuth gcfg logger app req sendResponse = do
       -- if by some condition username appeared in header, put it to vault.
       -- otherwise user name will be anonymous.
       req' = req {vault = V.insert usernameKey username $ vault req}
-  infoIO logger $(here) $ "Authentication is disabled. User treated as superuser: " ++ username
+  infoIO logger $(here) "Authentication is disabled. User treated as superuser: {}" (Single username)
   app req' sendResponse
 
 -- authentication :: GlobalConfig -> Middleware

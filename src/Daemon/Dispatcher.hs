@@ -12,9 +12,9 @@ import qualified Data.Map as M
 import Data.Time
 import Data.Dates
 import Database.Persist
-import qualified Database.Persist.Sql as Sql
+import qualified Database.Persist.Sql as Sql hiding (Single)
 import System.Exit
-import Text.Printf
+import Data.Text.Format.Heavy
 
 import Common.Types
 import Daemon.Types
@@ -34,12 +34,12 @@ runDispatcher = do
   jobsChan <- liftIO newChan
   resChan <- liftIO newChan
   counters <- liftIO $ newMVar M.empty
-  $info $ "Starting " ++ show (dbcWorkers cfg) ++ " workers"
+  $info "Starting {} workers..." (Single $ dbcWorkers cfg)
   -- Each worker will run in separate thread.
   -- All workers read jobs to be executed from single Chan.
   -- So job put into Chan will be executed by first worker who sees it.
   forM_ [1.. dbcWorkers cfg] $ \idx -> do
-    $debug $ "  Starting worker #" ++ show idx
+    $debug "  Starting worker #{}" (Single idx)
     forkDaemon $ worker idx counters jobsChan resChan
   forkDaemon $ callbackListener resChan
   dispatcher jobsChan
@@ -51,7 +51,7 @@ dispatcher jobsChan = do
     qesr <- runDB getEnabledQueues
     cfg <- askConfig
     case qesr of
-      Left err -> $reportError (show err) -- database exception
+      Left err -> $reportError "Can't get list of enabled queues: {}" (Single $ Shown err)
       Right qes -> do
         forM_ qes $ \qe -> runDB $ do
           schedule <- loadSchedule (queueSchedule $ entityVal qe)
@@ -62,7 +62,7 @@ dispatcher jobsChan = do
               -- pick next job from the queue
               mbJob <- getNextJob (entityKey qe)
               case mbJob of
-                Nothing -> $debugDB $ "Queue " ++ qname ++ " exhaused."
+                Nothing -> $debugDB "Queue `{}' exhaused." (Single qname)
                 Just job -> do
                     -- Waiting means that Dispatcher saw job and put it to Chan to be
                     -- picked by some of workers.
@@ -87,14 +87,14 @@ callbackListener resChan = forever $ do
                   count <- increaseTryCount job
                   if count <= m
                     then do
-                      $infoDB ("Retry now" :: String)
+                      $infoDB "Retry now" ()
                       setJobStatus job New -- job will be picked up by dispatcher at nearest iteration.
                     else setJobStatus job Failed
                RetryLater m -> do
                   count <- increaseTryCount job
                   if count <= m
                     then do
-                      $infoDB ("Retry later" :: String)
+                      $infoDB "Retry later" ()
                       moveToEnd job -- put the job to the end of queue.
                     else setJobStatus job Failed
 
@@ -102,14 +102,14 @@ callbackListener resChan = forever $ do
 worker :: Int -> HostCounters -> Chan (Queue, JobInfo) -> Chan (JobInfo, JobResult, OnFailAction) -> Daemon ()
 worker idx hosts jobsChan resChan = forever $ do
   (queue, job) <- liftIO $ readChan jobsChan
-  $info $ (printf "[%d] got job #%d" idx (jiId job) :: String)
+  $info "[{}] got job #{}" (idx, jiId job)
   -- now job is picked up by worker, mark it as Processing
   runDB $ setJobStatus job Processing
   jtypeR <- liftIO $  Config.loadTemplate (jiType job)
   (result, onFail) <-
       case jtypeR of
               Left err -> do -- we could not load job type description
-                  $reportError $ (printf "[%d] invalid job type %s: %s" idx (jiType job) (show err) :: String)
+                  $reportError "[{}] invalid job type {}: {}" (idx, jiType job, show err)
                   let jid = JobKey (Sql.SqlBackendKey $ jiId job)
                   now <- liftIO getCurrentTime
                   let res = JobResult jid now (ExitFailure (-1)) T.empty (T.pack $ show err)
@@ -121,5 +121,5 @@ worker idx hosts jobsChan resChan = forever $ do
 
   -- put job result to Chan, to be picked up by callbacklistener
   liftIO $ writeChan resChan (job, result, onFail)
-  $info $ (printf "[%d] done job #%d" idx (jiId job) :: String)
+  $info "[{}] done job #{}." (idx, jiId job)
 

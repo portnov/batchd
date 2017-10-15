@@ -11,6 +11,7 @@ import Control.Monad.Reader
 import qualified Control.Monad.State as State
 import qualified Data.ByteString as B
 import qualified Data.Text.Lazy as TL
+import Data.Text.Format.Heavy
 import Data.Maybe
 import Data.Default
 import Data.Yaml
@@ -310,7 +311,7 @@ updateJobA = do
   checkPermission "modify job" ManageJobs (jiQueue job)
   qry <- jsonData
   runDBA $ case qry of
-            UpdateJob upd -> updateJob job upd
+            UpdateJob upd -> updateJob jid upd
             Move qname -> moveJob jid qname
             Prioritize action -> prioritizeJob jid action
   done
@@ -360,7 +361,7 @@ listJobTypes cfg logger = do
              r <- decodeFileEither path
              case r of
                Left err -> do
-                  reportErrorIO logger $(here) $ show err
+                  reportErrorIO logger $(here) "Can't parse job type description file: {}" (Single $ Shown err)
                   return []
                Right jt -> return [jt]
   let types = concat ts :: [JobType]
@@ -382,7 +383,7 @@ listHosts cfg logger = do
              r <- decodeFileEither path
              case r of
                Left err -> do
-                  reportErrorIO logger $(here) $ show err
+                  reportErrorIO logger $(here) "Can't parse host description file: {}" (Single $ Shown err)
                   return []
                Right host -> return [host]
   let hosts = concat hs :: [Host]

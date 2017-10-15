@@ -11,6 +11,7 @@ import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TLE
+import Data.Text.Format.Heavy
 import Network.SSH.Client.LibSSH2
 import System.FilePath
 import System.Environment
@@ -49,17 +50,17 @@ processOnHost counters h jtype job command = do
       port = hPort h
       hostname = hHostName h
 
-  $info $ "CONNECTING TO " ++ hostname
-  $debug $ show h
+  $info "CONNECTING TO {}" (Single hostname)
+  $debug "Target host settings: {}" (Single $ Shown h)
   withHost counters h jtype $ do
     wrapDaemon (withSSH2 known_hosts public_key private_key passphrase user hostname port) $ \session -> do
-        $info "Connected."
+        $info "Connected." ()
         liftIO $ execCommands session (hStartupCommands h)
                    `catch` (\(e :: SomeException) -> throw (ExecException e))
         uploadFiles (getInputFiles jtype job) (hInputDirectory h) session
-        $info $ "EXECUTING: " ++ command
+        $info "EXECUTING: {}" (Single command)
         (ec,out) <- liftIO $ execCommands session [command]
-        $info "Done."
+        $info "Done." ()
         downloadFiles (hOutputDirectory h) (getOutputFiles jtype job) session
         let outText = TL.toStrict $ TLE.decodeUtf8 (head out)
             ec' = if ec == 0
@@ -84,17 +85,17 @@ uploadFiles :: [FilePath] -> FilePath -> Session -> Daemon ()
 uploadFiles files input_directory session =
   forM_ files $ \path -> do
     let remotePath = input_directory </> takeFileName path
-    $info $ "Uploading: `" ++ path ++ "' to `" ++ remotePath ++ "'"
+    $info "Uploading `{}' to `{}'" (path, remotePath)
     size <- liftIO $ scpSendFile session 0o777 path remotePath
                        `catch` (\(e :: SomeException) -> throw (UploadException path e))
-    $debug $ "Done (" ++ show size ++ " bytes)."
+    $debug "Done ({} bytes)." (Single size)
 
 downloadFiles :: FilePath -> [FilePath] -> Session -> Daemon ()
 downloadFiles output_directory files session =
   forM_ files $ \path -> do
     let remotePath = output_directory </> takeFileName path
-    $info $ "Downloading: `" ++ remotePath ++ "' to `" ++ path ++ "'"
+    $info "Downlooading `{}' to `{}'" (remotePath, path)
     liftIO $ scpReceiveFile session remotePath path
               `catch` (\(e :: SomeException) -> throw (DownloadException path e))
-    $debug "Done."
+    $debug "Done." ()
 

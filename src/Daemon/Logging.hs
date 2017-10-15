@@ -4,12 +4,14 @@ module Daemon.Logging where
 
 import qualified Control.Monad.Trans as Trans
 import Control.Monad.Reader hiding (lift)
+import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Format.Heavy as F
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 import Language.Haskell.TH.Lift
 import Control.Monad.Logger (LogLevel (..), liftLoc)
 import System.Log.Heavy
-import qualified System.Log.FastLogger as F
+-- import qualified System.Log.FastLogger as FL
 
 import Common.Types
 import Daemon.Types
@@ -24,21 +26,21 @@ deriveLift ''LogConfig
 deriveLift ''GlobalConfig
 
 logConnectionM :: LogLevel -> Q Exp
-logConnectionM level = [| \msg ->
+logConnectionM level = [| \msg vars ->
   do
     let loc = $(qLocation >>= liftLoc)
     let src = splitDots (loc_module loc)
-    let message = LogMessage $(lift level) src loc $ F.toLogStr msg
+    let message = LogMessage $(lift level) src loc (TL.pack msg) vars
     Daemon $ logMessage message |]
 
 here :: Q Exp
 here = qLocation >>= liftLoc
 
-logIO :: MonadIO m => Logger -> Loc -> LogLevel -> String -> m ()
-logIO logger loc level msg = Trans.liftIO $
+logIO :: (F.VarContainer vars, MonadIO m) => Logger -> Loc -> LogLevel -> String -> vars -> m ()
+logIO logger loc level msg vars = Trans.liftIO $
   do
     let src = splitDots (loc_module loc)
-    let message = LogMessage level src loc $ F.toLogStr msg
+    let message = LogMessage level src loc (TL.pack msg) vars
     logger message
 
 debug :: Q Exp
@@ -51,11 +53,11 @@ reportError :: Q Exp
 reportError = logConnectionM LevelError
 
 logDB :: LogLevel -> Q Exp
-logDB level = [| \msg ->
+logDB level = [| \msg vars ->
   do
     let loc = $(qLocation >>= liftLoc)
     let src = splitDots (loc_module loc)
-    let message = LogMessage $(lift level) src loc $ F.toLogStr msg
+    let message = LogMessage $(lift level) src loc (TL.pack msg) vars
     Trans.lift $ logMessage message |]
 
 infoDB :: Q Exp
@@ -67,13 +69,13 @@ debugDB = logDB LevelDebug
 reportErrorDB :: Q Exp
 reportErrorDB = logDB LevelError
 
-debugIO :: MonadIO m => Logger -> Loc -> String -> m ()
+debugIO :: (F.VarContainer vars, MonadIO m) => Logger -> Loc -> String -> vars -> m ()
 debugIO logger loc = logIO logger loc LevelDebug
 
-infoIO :: MonadIO m => Logger -> Loc -> String -> m ()
+infoIO :: (F.VarContainer vars, MonadIO m) => Logger -> Loc -> String -> vars -> m ()
 infoIO logger loc = logIO logger loc LevelInfo
 
-reportErrorIO :: MonadIO m => Logger -> Loc -> String -> m ()
+reportErrorIO :: (F.VarContainer vars, MonadIO m) => Logger -> Loc -> String -> vars -> m ()
 reportErrorIO logger loc = logIO logger loc LevelError
 
 getLoggingSettings :: GlobalConfig -> LogBackend

@@ -10,7 +10,8 @@ import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import Data.Text.Template
-import qualified Database.Persist.Sql as Sql
+import Data.Text.Format.Heavy
+import qualified Database.Persist.Sql as Sql hiding (Single)
 import Data.Time
 import System.Process
 import System.FilePath
@@ -66,7 +67,7 @@ executeJob counters q jt job = do
           now <- liftIO getCurrentTime
           return $ JobResult jid now ec stdout T.empty
         Left err -> do
-          $reportError $ show err
+          $reportError "Error while executing job: {}" (Single $ Shown err)
           now <- liftIO $ getCurrentTime
           return $ JobResult jid now (ExitFailure (-1)) T.empty (T.pack $ show err)
 

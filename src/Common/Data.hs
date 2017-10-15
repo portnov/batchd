@@ -166,7 +166,7 @@ instance FromJSON MoveAction where
 data JobUpdate =
     Prioritize MoveAction
   | Move String
-  | UpdateJob [Update Job]
+  | UpdateJob (UpdateList Job)
 
 instance FromJSON JobUpdate where
   parseJSON o@(Object v) = do
