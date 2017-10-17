@@ -50,10 +50,10 @@ data ConnectionInfo = ConnectionInfo {
 newtype Daemon a = Daemon {
     runDaemonT :: LoggingT (StateT ConnectionInfo IO) a
   }
-  deriving (Applicative,Functor,Monad,MonadIO, MonadReader Logger)
+  deriving (Applicative,Functor,Monad,MonadIO, MonadReader SpecializedLogger)
 
 -- | Run daemon actions within IO monad
-runDaemonIO :: ConnectionInfo -> Logger -> Daemon a -> IO a
+runDaemonIO :: ConnectionInfo -> SpecializedLogger -> Daemon a -> IO a
 runDaemonIO connInfo logger actions =
   evalStateT (runLoggingT (runDaemonT actions) logger) connInfo
 
@@ -68,10 +68,10 @@ asksConnectionInfo fn = do
   ci <- lift askConnectionInfo
   return $ fn ci
 
-askLoggerM :: Daemon Logger
+askLoggerM :: Daemon SpecializedLogger
 askLoggerM = ask
 
-askLogger :: Action Logger
+askLogger :: Action SpecializedLogger
 askLogger = lift $ askLoggerM
 
 askPool :: Daemon Sql.ConnectionPool
@@ -123,17 +123,18 @@ runDB qry = do
   liftIO $ runResourceT $ runLoggingT (Sql.runSqlPool (dbio qry) pool) logger
 
 -- | Run DB action within IO monad.
-runDBIO :: GlobalConfig -> Sql.ConnectionPool -> Logger -> DB a -> IO (Either Error a)
+runDBIO :: GlobalConfig -> Sql.ConnectionPool -> SpecializedLogger -> DB a -> IO (Either Error a)
 runDBIO cfg pool logger qry = do
   runResourceT $ runLoggingT (Sql.runSqlPool (dbio qry) pool) logger
 
 -- | Run Daemon action within IO monad.
-runDaemon :: GlobalConfig -> Maybe Sql.ConnectionPool -> LogBackend -> Daemon a -> IO a
+runDaemon :: GlobalConfig -> Maybe Sql.ConnectionPool -> LoggingSettings -> Daemon a -> IO a
 runDaemon cfg mbPool backend daemon =
-    runner $ withLogging backend runner (runDaemonT daemon)
+    runner $ runLoggingT (withLogging backend (runDaemonT daemon)) undefinedLogger
   where
     runner r = evalStateT r initState
     initState = ConnectionInfo cfg mbPool
+    undefinedLogger = error "Internal error: logger is not defined yet"
 
 wrapDaemon :: ((c -> IO a) -> IO a) -> (c -> Daemon a) -> Daemon a
 wrapDaemon wrapper daemon = do

@@ -23,7 +23,7 @@ import Network.Wai.Middleware.Static as Static
 import Web.Scotty.Trans as Scotty
 import System.FilePath
 import System.FilePath.Glob
-import System.Log.Heavy (Logger)
+import System.Log.Heavy (SpecializedLogger)
 
 import Common.Types
 import Common.Config
@@ -44,7 +44,7 @@ corsPolicy cfg =
     corsMethods = ["GET", "POST", "PUT", "DELETE"]
   }
 
-routes :: GlobalConfig -> Logger -> ScottyT Error Daemon ()
+routes :: GlobalConfig -> SpecializedLogger -> ScottyT Error Daemon ()
 routes cfg logger = do
   Scotty.defaultHandler raiseError
 
@@ -353,7 +353,7 @@ getAllowedJobTypesA = do
                       runDBA $ hasCreatePermission name qname (Just $ jtName jt) Nothing
   Scotty.json allowedTypes
 
-listJobTypes :: GlobalConfig -> Logger -> IO [JobType]
+listJobTypes :: GlobalConfig -> SpecializedLogger -> IO [JobType]
 listJobTypes cfg logger = do
   dirs <- getConfigDirs "jobtypes"
   files <- forM dirs $ \dir -> glob (dir </> "*.yaml")
@@ -375,7 +375,7 @@ getJobTypeA = do
     Left err -> raise err
     Right jt -> Scotty.json jt
 
-listHosts :: GlobalConfig -> Logger -> IO [Host]
+listHosts :: GlobalConfig -> SpecializedLogger -> IO [Host]
 listHosts cfg logger = do
   dirs <- getConfigDirs "hosts"
   files <- forM dirs $ \dir -> glob (dir </> "*.yaml")

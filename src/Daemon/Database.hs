@@ -36,7 +36,7 @@ import Common.Types
 import Daemon.Types
 import Common.Data
 
-getPool :: GlobalConfig -> Logger -> IO Sql.ConnectionPool
+getPool :: GlobalConfig -> SpecializedLogger -> IO Sql.ConnectionPool
 getPool cfg logger =
   case dbcDriver cfg of
     Sqlite -> runLoggingT (Sqlite.createSqlitePool (dbcConnectionString cfg) 1) logger

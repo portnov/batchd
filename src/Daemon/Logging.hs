@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell, TypeFamilies #-}
 
 module Daemon.Logging where
 
@@ -11,6 +11,8 @@ import Language.Haskell.TH.Syntax
 import Language.Haskell.TH.Lift
 import Control.Monad.Logger (LogLevel (..), liftLoc)
 import System.Log.Heavy
+import System.Log.Heavy.Types
+import System.Log.Heavy.Backends
 -- import qualified System.Log.FastLogger as FL
 
 import Common.Types
@@ -36,7 +38,7 @@ logConnectionM level = [| \msg vars ->
 here :: Q Exp
 here = qLocation >>= liftLoc
 
-logIO :: (F.VarContainer vars, MonadIO m) => Logger -> Loc -> LogLevel -> String -> vars -> m ()
+logIO :: (F.VarContainer vars, MonadIO m) => SpecializedLogger -> Loc -> LogLevel -> String -> vars -> m ()
 logIO logger loc level msg vars = Trans.liftIO $
   do
     let src = splitDots (loc_module loc)
@@ -69,22 +71,22 @@ debugDB = logDB LevelDebug
 reportErrorDB :: Q Exp
 reportErrorDB = logDB LevelError
 
-debugIO :: (F.VarContainer vars, MonadIO m) => Logger -> Loc -> String -> vars -> m ()
+debugIO :: (F.VarContainer vars, MonadIO m) => SpecializedLogger -> Loc -> String -> vars -> m ()
 debugIO logger loc = logIO logger loc LevelDebug
 
-infoIO :: (F.VarContainer vars, MonadIO m) => Logger -> Loc -> String -> vars -> m ()
+infoIO :: (F.VarContainer vars, MonadIO m) => SpecializedLogger -> Loc -> String -> vars -> m ()
 infoIO logger loc = logIO logger loc LevelInfo
 
-reportErrorIO :: (F.VarContainer vars, MonadIO m) => Logger -> Loc -> String -> vars -> m ()
+reportErrorIO :: (F.VarContainer vars, MonadIO m) => SpecializedLogger -> Loc -> String -> vars -> m ()
 reportErrorIO logger loc = logIO logger loc LevelError
 
-getLoggingSettings :: GlobalConfig -> LogBackend
+getLoggingSettings :: GlobalConfig -> LoggingSettings
 getLoggingSettings cfg =
     case lcTarget $ dbcLogging cfg of
-      LogSyslog -> LogBackend $ defaultSyslogSettings {ssIdent = "batchd", ssFilter = fltr}
-      LogStdout -> LogBackend $ defStdoutSettings {lsFilter = fltr}
-      LogStderr -> LogBackend $ defStderrSettings {lsFilter = fltr}
-      LogFile path -> LogBackend $ (defFileSettings path) {lsFilter = fltr}
+      LogSyslog -> LoggingSettings $ defaultSyslogSettings {ssIdent = "batchd", ssFilter = fltr}
+      LogStdout -> LoggingSettings $ defStdoutSettings {lsFilter = fltr}
+      LogStderr -> LoggingSettings $ defStderrSettings {lsFilter = fltr}
+      LogFile path -> LoggingSettings $ (defFileSettings path) {lsFilter = fltr}
   where
     fltr :: LogFilter
     fltr = map toFilter (lcFilter $ dbcLogging cfg) ++ [([], lcLevel $ dbcLogging cfg)]

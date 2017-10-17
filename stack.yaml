@@ -7,10 +7,11 @@ packages:
       commit: master
     extra-dep: true
     subdirs: [libssh2]
-  - location:
-      git: https://github.com/portnov/heavy-logger.git
-      commit: master
-    extra-dep: true
+  - location: /home/portnov/src/progs/haskell/heavy-logger/
+#   - location:
+#       git: https://github.com/portnov/heavy-logger.git
+#       commit: master
+#    extra-dep: true
 
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)

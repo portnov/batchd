@@ -46,12 +46,12 @@ main = do
       case cmd of
         CreateSuperuser {} -> do
             password <- getPassword2
-            withLogging logSettings id $ do
+            withLoggingT logSettings $ do
               logger <- ask
               liftIO $ createSuperUser cfg logger (username cmd) password
             return ()
         Migrate -> do
-          withLogging logSettings id $ do
+          withLoggingT logSettings $ do
               logger <- ask
               pool <- liftIO $ getPool cfg logger
               Sql.runSqlPool (Sql.runMigration migrateAll) pool

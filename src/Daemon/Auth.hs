@@ -14,7 +14,7 @@ import Network.HTTP.Types (status401, hAuthorization)
 import Network.Wai
 import qualified Network.Wai.Middleware.HttpAuth as HA
 import qualified Web.Scotty.Trans as Scotty
-import System.Log.Heavy (Logger)
+import System.Log.Heavy (SpecializedLogger)
 import Data.Text.Format.Heavy
 
 import System.IO.Unsafe (unsafePerformIO)
@@ -57,7 +57,7 @@ createSuperUserDb name password staticSalt = do
 
 -- | Create user
 createUser :: GlobalConfig
-           -> Logger
+           -> SpecializedLogger
            -> String -- ^ User name
            -> String -- ^ Password
            -> IO Bool
@@ -71,7 +71,7 @@ createUser gcfg logger name password = do
 
 -- | Create superuser
 createSuperUser :: GlobalConfig
-                -> Logger
+                -> SpecializedLogger
                 -> String -- ^ User name
                 -> String -- ^ Password
                 -> IO Bool
@@ -146,7 +146,7 @@ checkUserExistsDb name = do
   mbUser <- get (UserKey name)
   return $ isJust mbUser
 
-checkUser :: GlobalConfig -> Logger -> (B.ByteString -> B.ByteString -> IO Bool)
+checkUser :: GlobalConfig -> SpecializedLogger -> (B.ByteString -> B.ByteString -> IO Bool)
 checkUser gcfg logger nameBstr passwordBstr = do
   pool <- getPool gcfg logger
   let name = bstrToString nameBstr
@@ -157,7 +157,7 @@ checkUser gcfg logger nameBstr passwordBstr = do
     Left _ -> return False
     Right r -> return r
 
-checkUserExists :: GlobalConfig -> Logger -> B.ByteString -> IO Bool
+checkUserExists :: GlobalConfig -> SpecializedLogger -> B.ByteString -> IO Bool
 checkUserExists gcfg logger nameBstr = do
   pool <- getPool gcfg logger
   let name = bstrToString nameBstr
@@ -179,7 +179,7 @@ isRootOptions :: Request -> Bool
 isRootOptions rq = requestMethod rq == "OPTIONS" && pathInfo rq == []
 
 -- | HTTP basic auth middleware
-basicAuth :: GlobalConfig -> Logger -> Middleware
+basicAuth :: GlobalConfig -> SpecializedLogger -> Middleware
 basicAuth gcfg logger app req sendResponse =
   let settings = "batchd" :: HA.AuthSettings
       username = extractBasicUser req
@@ -194,7 +194,7 @@ basicAuth gcfg logger app req sendResponse =
                  Just _ -> app req sendResponse
 
 -- | Authentication by X-Auth-User HTTP header
-headerAuth :: GlobalConfig -> Logger -> Middleware
+headerAuth :: GlobalConfig -> SpecializedLogger -> Middleware
 headerAuth gcfg logger app req sendResponse = do
   -- liftIO $ putStrLn $ "X-Auth-User: " ++ show req
   if isRootOptions req
@@ -217,7 +217,7 @@ headerAuth gcfg logger app req sendResponse = do
                 else sendResponse $ responseLBS status401 [] "Specified user does not exist"
 
 -- | Unconditional authentication
-noAuth :: GlobalConfig -> Logger -> Middleware
+noAuth :: GlobalConfig -> SpecializedLogger -> Middleware
 noAuth gcfg logger app req sendResponse = do
   let username = case lookup "X-Auth-User" (requestHeaders req) of
                    Just n -> bstrToString n
