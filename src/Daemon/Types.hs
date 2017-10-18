@@ -8,7 +8,9 @@ import Control.Monad.Except
 import Control.Monad.Trans.Resource
 import Control.Concurrent
 import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Format.Heavy as F
 import qualified Database.Persist.Sql as Sql
+import Network.Wai
 import qualified Web.Scotty.Trans as Scotty
 import qualified Web.Scotty.Internal.Types as SI
 import System.Log.Heavy
@@ -56,7 +58,7 @@ newtype Daemon a = Daemon {
 -- | Run daemon actions within IO monad
 runDaemonIO' :: ConnectionInfo -> SpecializedLogger -> Daemon a -> IO a
 runDaemonIO' connInfo logger actions =
-  let globalContext = LogContextFrame [] (Include defaultLogFilter)
+  let globalContext = LogContextFrame [] NoChange
       lts = LoggingTState logger [globalContext]
   in  evalStateT (runLoggingT (runDaemonT actions) lts) connInfo
 
@@ -85,6 +87,14 @@ instance HasLogger (Scotty.ActionT Error Daemon) where
         localLogger logger $ runStateT (runReaderT (runExcept $ SI.runAM actions) env) rs
     where
       runExcept (ExceptT m) = m
+
+instance F.VarContainer Request where
+  lookupVar "method" rq = Just $ F.Variable $ show $ httpVersion rq
+  lookupVar "path" rq = Just $ F.Variable $ rawPathInfo rq
+  lookupVar "secure" rq = Just $ F.Variable $ isSecure rq
+  lookupVar "referer" rq = Just $ F.Variable $ requestHeaderReferer rq
+  lookupVar "useragent" rq = Just $ F.Variable $ requestHeaderUserAgent rq
+  lookupVar _ rq = Nothing
 
 askConnectionInfo :: Daemon ConnectionInfo
 askConnectionInfo = Daemon $ lift get
@@ -163,7 +173,7 @@ runDBIO cfg pool lts qry = do
 runDaemon :: GlobalConfig -> Maybe Sql.ConnectionPool -> LoggingSettings -> Daemon a -> IO a
 runDaemon cfg mbPool backend daemon =
     runner $ withLoggingT backend $ 
-      withLogContext (LogContextFrame [] (Include defaultLogFilter)) $ runDaemonT daemon
+      withLogContext (LogContextFrame [] NoChange) $ runDaemonT daemon
   where
     runner r = evalStateT r initState
     initState = ConnectionInfo cfg mbPool

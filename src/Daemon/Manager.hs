@@ -50,6 +50,7 @@ routes cfg lts = do
   Scotty.defaultHandler raiseError
 
   Scotty.middleware $ cors $ const $ Just $ corsPolicy cfg
+  Scotty.middleware $ requestLogger cfg lts
   
   case dbcAuth cfg of
     AuthDisabled -> Scotty.middleware (noAuth cfg lts)
@@ -106,6 +107,12 @@ routes cfg lts = do
   Scotty.options "/" $ getAuthOptionsA
   Scotty.options (Scotty.regex "/.*") $ done
 
+requestLogger :: GlobalConfig -> LoggingTState -> Wai.Middleware
+requestLogger gcfg lts app req sendResponse = do
+  -- putStrLn "request logger"
+  debugIO lts $(here) "Request: {method} {path}. User-Agent: {useragent}" req
+  app req sendResponse
+
 runManager :: Daemon ()
 runManager = do
   connInfo <- Daemon $ lift State.get
@@ -154,11 +161,16 @@ done = Scotty.json ("done" :: String)
 inUserContext :: Action a -> Action a
 inUserContext action = do
   name <- getAuthUserName
-  withLogVariable "user" ("user " ++ fromMaybe "<unauthorized>" name ++ ";") action
+  withLogVariable "user" ("user " ++ fromMaybe "<unauthorized>" name ++ ";") $ do
+    -- req <- Scotty.request
+    -- context <- getLogContext
+    -- liftIO $ putStrLn $ show context
+    -- $debug "Request: {method} {path}. User-Agent: {useragent}" req
+    action
 
 getQueuesA :: Action ()
 getQueuesA = inUserContext $ do
-  $info "getting queues list" ()
+  $debug "getting queues list" ()
   user <- getAuthUser
   let name = userName user
   cfg <- askConfigA
