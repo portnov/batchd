@@ -33,7 +33,7 @@ logConnectionM level = [| \msg vars ->
     let loc = $(qLocation >>= liftLoc)
     let src = splitDots (loc_module loc)
     let message = LogMessage $(lift level) src loc (TL.pack msg) vars []
-    Daemon $ logMessage message |]
+    logMessage message |]
 
 here :: Q Exp
 here = qLocation >>= liftLoc
@@ -92,7 +92,7 @@ getLoggingSettings cfg =
     fltr :: LogFilter
     fltr = map toFilter (lcFilter $ dbcLogging cfg) ++ [([], lcLevel $ dbcLogging cfg)]
 
-    logFormat = "{time} [{level}] {source}: (worker={worker}; job={job}) {message}\n"
+    logFormat = "{time} [{level}] {source} ({user}{worker}{job}): {message}\n"
 
     toFilter :: (String, LogLevel) -> (LogSource, LogLevel)
     toFilter (src, level) = (splitDots src, level)

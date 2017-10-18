@@ -23,7 +23,8 @@ import Network.Wai.Middleware.Static as Static
 import Web.Scotty.Trans as Scotty
 import System.FilePath
 import System.FilePath.Glob
-import System.Log.Heavy (LoggingTState)
+import System.Log.Heavy.Types
+import System.Log.Heavy
 
 import Common.Types
 import Common.Config
@@ -150,8 +151,14 @@ raiseError e = do
 done :: Action ()
 done = Scotty.json ("done" :: String)
 
+inUserContext :: Action a -> Action a
+inUserContext action = do
+  name <- getAuthUserName
+  withLogVariable "user" ("user " ++ fromMaybe "<unauthorized>" name ++ ";") action
+
 getQueuesA :: Action ()
-getQueuesA = do
+getQueuesA = inUserContext $ do
+  $info "getting queues list" ()
   user <- getAuthUser
   let name = userName user
   cfg <- askConfigA
@@ -164,7 +171,7 @@ getQueuesA = do
   Scotty.json qes
 
 getQueueA :: Action ()
-getQueueA = do
+getQueueA = inUserContext $ do
   qname <- Scotty.param "name"
   checkPermission "view queue" ViewQueues qname
   mbQueue <- runDBA $ getQueue qname
@@ -176,7 +183,7 @@ parseStatus' :: Maybe JobStatus -> Maybe B.ByteString -> Action (Maybe JobStatus
 parseStatus' dflt str = parseStatus dflt (raise (InvalidJobStatus str)) str
 
 getQueueJobsA :: Action ()
-getQueueJobsA = do
+getQueueJobsA = inUserContext $ do
   qname <- Scotty.param "name"
   checkPermission "view queue jobs" ViewJobs qname
   st <- getUrlParam "status"
@@ -185,20 +192,20 @@ getQueueJobsA = do
   Scotty.json jobs
 
 getQueueStatsA :: Action ()
-getQueueStatsA = do
+getQueueStatsA = inUserContext $ do
   qname <- Scotty.param "name"
   checkPermission "view queue statistics" ManageJobs qname
   stats <- runDBA $ getQueueStats qname
   Scotty.json stats
 
 getStatsA :: Action ()
-getStatsA = do
+getStatsA = inUserContext $ do
   checkPermissionToList "view queue statistics" ManageJobs
   stats <- runDBA getStats
   Scotty.json stats
 
 enqueueA :: Action ()
-enqueueA = do
+enqueueA = inUserContext $ do
   jinfo <- jsonData
   qname <- Scotty.param "name"
   user <- getAuthUser
@@ -209,7 +216,7 @@ enqueueA = do
   Scotty.json r
 
 removeJobA :: Action ()
-removeJobA = do
+removeJobA = inUserContext $ do
   qname <- Scotty.param "name"
   checkPermission "delete jobs from queue" ManageJobs qname
   jseq <- Scotty.param "seq"
@@ -217,14 +224,14 @@ removeJobA = do
   done
 
 removeJobByIdA :: Action ()
-removeJobByIdA = do
+removeJobByIdA = inUserContext $ do
   checkPermissionToList "delete jobs" ManageJobs
   jid <- Scotty.param "id"
   runDBA $ removeJobById jid
   done
 
 getJobLastResultA :: Action ()
-getJobLastResultA = do
+getJobLastResultA = inUserContext $ do
   jid <- Scotty.param "id"
   job <- runDBA $ loadJob' jid
   checkPermission "view job result" ViewJobs (jiQueue job)
@@ -232,7 +239,7 @@ getJobLastResultA = do
   Scotty.json res
 
 getJobResultsA :: Action ()
-getJobResultsA = do
+getJobResultsA = inUserContext $ do
   jid <- Scotty.param "id"
   job <- runDBA $ loadJob' jid
   checkPermission "view job result" ViewJobs (jiQueue job)
@@ -240,7 +247,7 @@ getJobResultsA = do
   Scotty.json res
 
 removeQueueA :: Action ()
-removeQueueA = do
+removeQueueA = inUserContext $ do
   qname <- Scotty.param "name"
   checkPermission "delete queue" ManageQueues qname
   forced <- getUrlParam "forced"
@@ -259,20 +266,20 @@ removeQueueA = do
         done
 
 getSchedulesA :: Action ()
-getSchedulesA = do
+getSchedulesA = inUserContext $ do
   checkPermissionToList "get list of schedules" ViewSchedules
   ss <- runDBA loadAllSchedules
   Scotty.json ss
 
 addScheduleA :: Action ()
-addScheduleA = do
+addScheduleA = inUserContext $ do
   checkPermissionToList "create schedule" ManageSchedules
   sd <- jsonData
   name <- runDBA $ addSchedule sd
   Scotty.json name
 
 removeScheduleA :: Action ()
-removeScheduleA = do
+removeScheduleA = inUserContext $ do
   checkPermissionToList "delete schedule" ManageSchedules
   name <- Scotty.param "name"
   forced <- getUrlParam "forced"
@@ -283,14 +290,14 @@ removeScheduleA = do
     Right _ -> done
 
 addQueueA :: Action ()
-addQueueA = do
+addQueueA = inUserContext $ do
   checkPermissionToList "create queue" ManageQueues
   qd <- jsonData
   name <- runDBA $ addQueue qd
   Scotty.json name
 
 updateQueueA :: Action ()
-updateQueueA = do
+updateQueueA = inUserContext $ do
   name <- Scotty.param "name"
   checkPermission "modify queue" ManageQueues name
   upd <- jsonData
@@ -298,14 +305,14 @@ updateQueueA = do
   done
 
 getJobA :: Action ()
-getJobA = do
+getJobA = inUserContext $ do
   jid <- Scotty.param "id"
   job <- runDBA $ loadJob' jid
   checkPermission "view job" ViewJobs (jiQueue job)
   Scotty.json job
 
 updateJobA :: Action ()
-updateJobA = do
+updateJobA = inUserContext $ do
   jid <- Scotty.param "id"
   job <- runDBA $ loadJob' jid
   checkPermission "modify job" ManageJobs (jiQueue job)
@@ -317,7 +324,7 @@ updateJobA = do
   done
 
 getJobsA :: Action ()
-getJobsA = do
+getJobsA = inUserContext $ do
   checkPermissionToList "view jobs from all queues" ViewJobs
   st <- getUrlParam "status"
   fltr <- parseStatus' (Just New) st
@@ -325,7 +332,7 @@ getJobsA = do
   Scotty.json jobs
 
 deleteJobsA :: Action ()
-deleteJobsA = do
+deleteJobsA = inUserContext $ do
   name <- Scotty.param "name"
   checkPermission "delete jobs" ManageJobs name
   st <- getUrlParam "status"
@@ -335,14 +342,14 @@ deleteJobsA = do
     Just status -> runDBA $ removeJobs name status
 
 getJobTypesA :: Action ()
-getJobTypesA = do
+getJobTypesA = inUserContext $ do
   cfg <- askConfigA
   lts <- askLts
   types <- liftIO $ listJobTypes cfg lts
   Scotty.json types
 
 getAllowedJobTypesA :: Action ()
-getAllowedJobTypesA = do
+getAllowedJobTypesA = inUserContext $ do
   user <- getAuthUser
   qname <- Scotty.param "name"
   let name = userName user
@@ -368,7 +375,7 @@ listJobTypes cfg lts = do
   return types
 
 getJobTypeA :: Action ()
-getJobTypeA = do
+getJobTypeA = inUserContext $ do
   name <- Scotty.param "name"
   r <- liftIO $ loadTemplate name
   case r of
@@ -390,14 +397,14 @@ listHosts cfg lts = do
   return hosts
 
 getHostsA :: Action ()
-getHostsA = do
+getHostsA = inUserContext $ do
   cfg <- askConfigA
   lts <- askLts
   hosts <- liftIO $ listHosts cfg lts
   Scotty.json $ map hName hosts
 
 getAllowedHostsA :: Action ()
-getAllowedHostsA = do
+getAllowedHostsA = inUserContext $ do
   user <- getAuthUser
   qname <- Scotty.param "name"
   let name = userName user
@@ -410,7 +417,7 @@ getAllowedHostsA = do
   Scotty.json allowedHosts
 
 getAllowedHostsForTypeA :: Action ()
-getAllowedHostsForTypeA = do
+getAllowedHostsForTypeA = inUserContext $ do
   user <- getAuthUser
   qname <- Scotty.param "qname"
   tname <- Scotty.param "tname"
@@ -425,13 +432,13 @@ getAllowedHostsForTypeA = do
   Scotty.json allowedHosts
 
 getUsersA :: Action ()
-getUsersA = do
+getUsersA = inUserContext $ do
   checkSuperUser
   names <- runDBA getUsers
   Scotty.json names
 
 createUserA :: Action ()
-createUserA = do
+createUserA = inUserContext $ do
   checkSuperUser
   user <- jsonData
   cfg <- askConfigA
@@ -440,7 +447,7 @@ createUserA = do
   Scotty.json name
 
 changePasswordA :: Action ()
-changePasswordA = do
+changePasswordA = inUserContext $ do
   name <- Scotty.param "name"
   curUser <- getAuthUser
   when (userName curUser /= name) $
@@ -452,7 +459,7 @@ changePasswordA = do
   done
 
 createPermissionA :: Action ()
-createPermissionA = do
+createPermissionA = inUserContext $ do
   checkSuperUser
   name <- Scotty.param "name"
   perm <- jsonData
@@ -460,14 +467,14 @@ createPermissionA = do
   Scotty.json id
 
 getPermissionsA :: Action ()
-getPermissionsA = do
+getPermissionsA = inUserContext $ do
   checkSuperUser
   name <- Scotty.param "name"
   perms <- runDBA $ getPermissions name
   Scotty.json perms
 
 deletePermissionA :: Action ()
-deletePermissionA = do
+deletePermissionA = inUserContext $ do
   checkSuperUser
   name <- Scotty.param "name"
   id <- Scotty.param "id"
@@ -475,7 +482,7 @@ deletePermissionA = do
   done
 
 getAuthOptionsA :: Action ()
-getAuthOptionsA = do
+getAuthOptionsA = inUserContext $ do
   cfg <- askConfigA
   let methods = authMethods $ dbcAuth cfg
   Scotty.json methods

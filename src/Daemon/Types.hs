@@ -10,6 +10,7 @@ import Control.Concurrent
 import qualified Data.Text.Lazy as TL
 import qualified Database.Persist.Sql as Sql
 import qualified Web.Scotty.Trans as Scotty
+import qualified Web.Scotty.Internal.Types as SI
 import System.Log.Heavy
 
 import Common.Types
@@ -66,6 +67,24 @@ runDaemonIO connInfo lts actions =
 
 -- | REST handler monad type
 type Action a = Scotty.ActionT Error Daemon a
+
+instance HasLogContext (Scotty.ActionT Error Daemon) where
+  getLogContext = lift getLogContext
+
+  withLogContext frame actions =
+      SI.ActionT $ ExceptT $ ReaderT $ \env -> StateT $ \rs ->
+        withLogContext frame $ runStateT (runReaderT (runExcept $ SI.runAM actions) env) rs
+    where
+      runExcept (ExceptT m) = m
+
+instance HasLogger (Scotty.ActionT Error Daemon) where
+  getLogger = lift getLogger
+
+  localLogger logger actions = 
+      SI.ActionT $ ExceptT $ ReaderT $ \env -> StateT $ \rs ->
+        localLogger logger $ runStateT (runReaderT (runExcept $ SI.runAM actions) env) rs
+    where
+      runExcept (ExceptT m) = m
 
 askConnectionInfo :: Daemon ConnectionInfo
 askConnectionInfo = Daemon $ lift get
