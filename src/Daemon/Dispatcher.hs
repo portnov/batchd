@@ -103,28 +103,33 @@ withWorker idx = withLogContext (LogContextFrame vars NoChange)
   where
     vars = [("worker", Variable idx)]
 
+withJob job = withLogContext (LogContextFrame vars NoChange)
+  where
+    vars = [("job", Variable job)]
+
 -- | Worker loop executes jobs themeselves
 worker :: Int -> HostCounters -> Chan (Queue, JobInfo) -> Chan (JobInfo, JobResult, OnFailAction) -> Daemon ()
 worker idx hosts jobsChan resChan = forever $ withWorker idx $ do
   (queue, job) <- liftIO $ readChan jobsChan
-  $info "[{}] got job #{}" (idx, jiId job)
-  -- now job is picked up by worker, mark it as Processing
-  runDB $ setJobStatus job Processing
-  jtypeR <- liftIO $  Config.loadTemplate (jiType job)
-  (result, onFail) <-
-      case jtypeR of
-              Left err -> do -- we could not load job type description
-                  $reportError "[{}] invalid job type {}: {}" (idx, jiType job, show err)
-                  let jid = JobKey (Sql.SqlBackendKey $ jiId job)
-                  now <- liftIO getCurrentTime
-                  let res = JobResult jid now (ExitFailure (-1)) T.empty (T.pack $ show err)
-                  return (res, Continue)
+  withJob (jiId job) $ do
+    $info "got job #{}" (Single $ jiId job)
+    -- now job is picked up by worker, mark it as Processing
+    runDB $ setJobStatus job Processing
+    jtypeR <- liftIO $  Config.loadTemplate (jiType job)
+    (result, onFail) <-
+        case jtypeR of
+                Left err -> do -- we could not load job type description
+                    $reportError "Invalid job type {}: {}" (jiType job, show err)
+                    let jid = JobKey (Sql.SqlBackendKey $ jiId job)
+                    now <- liftIO getCurrentTime
+                    let res = JobResult jid now (ExitFailure (-1)) T.empty (T.pack $ show err)
+                    return (res, Continue)
 
-              Right jtype -> do
-                  res <- executeJob hosts queue jtype job
-                  return (res, jtOnFail jtype)
+                Right jtype -> do
+                    res <- executeJob hosts queue jtype job
+                    return (res, jtOnFail jtype)
 
-  -- put job result to Chan, to be picked up by callbacklistener
-  liftIO $ writeChan resChan (job, result, onFail)
-  $info "[{}] done job #{}." (idx, jiId job)
+    -- put job result to Chan, to be picked up by callbacklistener
+    liftIO $ writeChan resChan (job, result, onFail)
+    $info "done job #{}." (Single $ jiId job)
 
