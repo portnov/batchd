@@ -15,6 +15,7 @@ import Database.Persist
 import qualified Database.Persist.Sql as Sql hiding (Single)
 import System.Exit
 import Data.Text.Format.Heavy
+import System.Log.Heavy
 
 import Common.Types
 import Daemon.Types
@@ -98,9 +99,13 @@ callbackListener resChan = forever $ do
                       moveToEnd job -- put the job to the end of queue.
                     else setJobStatus job Failed
 
+withWorker idx = withLogContext (LogContextFrame vars NoChange)
+  where
+    vars = [("worker", Variable idx)]
+
 -- | Worker loop executes jobs themeselves
 worker :: Int -> HostCounters -> Chan (Queue, JobInfo) -> Chan (JobInfo, JobResult, OnFailAction) -> Daemon ()
-worker idx hosts jobsChan resChan = forever $ do
+worker idx hosts jobsChan resChan = forever $ withWorker idx $ do
   (queue, job) <- liftIO $ readChan jobsChan
   $info "[{}] got job #{}" (idx, jiId job)
   -- now job is picked up by worker, mark it as Processing

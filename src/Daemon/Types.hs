@@ -50,7 +50,7 @@ data ConnectionInfo = ConnectionInfo {
 newtype Daemon a = Daemon {
     runDaemonT :: LoggingT (StateT ConnectionInfo IO) a
   }
-  deriving (Applicative,Functor,Monad,MonadIO, MonadReader LoggingTState)
+  deriving (Applicative,Functor,Monad,MonadIO, MonadReader LoggingTState, HasLogContext)
 
 -- | Run daemon actions within IO monad
 runDaemonIO' :: ConnectionInfo -> SpecializedLogger -> Daemon a -> IO a

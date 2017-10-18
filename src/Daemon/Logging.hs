@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, TypeFamilies #-}
+{-# LANGUAGE TemplateHaskell, TypeFamilies, OverloadedStrings #-}
 
 module Daemon.Logging where
 
@@ -84,13 +84,15 @@ reportErrorIO lts loc = logIO lts loc LevelError
 getLoggingSettings :: GlobalConfig -> LoggingSettings
 getLoggingSettings cfg =
     case lcTarget $ dbcLogging cfg of
-      LogSyslog -> LoggingSettings $ Filtering fltr $ defaultSyslogSettings {ssIdent = "batchd"}
-      LogStdout -> LoggingSettings $ Filtering fltr $ defStdoutSettings 
-      LogStderr -> LoggingSettings $ Filtering fltr $ defStderrSettings 
-      LogFile path -> LoggingSettings $ Filtering fltr $ defFileSettings path
+      LogSyslog -> LoggingSettings $ Filtering fltr $ defaultSyslogSettings {ssIdent = "batchd", ssFormat = logFormat}
+      LogStdout -> LoggingSettings $ Filtering fltr $ defStdoutSettings {lsFormat = logFormat}
+      LogStderr -> LoggingSettings $ Filtering fltr $ defStderrSettings {lsFormat = logFormat}
+      LogFile path -> LoggingSettings $ Filtering fltr $ (defFileSettings path) {lsFormat = logFormat}
   where
     fltr :: LogFilter
     fltr = map toFilter (lcFilter $ dbcLogging cfg) ++ [([], lcLevel $ dbcLogging cfg)]
+
+    logFormat = "{time} [{level}] {source}: [{worker}] {message}\n"
 
     toFilter :: (String, LogLevel) -> (LogSource, LogLevel)
     toFilter (src, level) = (splitDots src, level)
