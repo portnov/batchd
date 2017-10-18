@@ -36,19 +36,19 @@ import Common.Types
 import Daemon.Types
 import Common.Data
 
-getPool :: GlobalConfig -> SpecializedLogger -> IO Sql.ConnectionPool
-getPool cfg logger =
+getPool :: GlobalConfig -> LoggingTState -> IO Sql.ConnectionPool
+getPool cfg lts =
   case dbcDriver cfg of
-    Sqlite -> runLoggingT (Sqlite.createSqlitePool (dbcConnectionString cfg) 1) logger
+    Sqlite -> runLoggingT (Sqlite.createSqlitePool (dbcConnectionString cfg) 1) lts
     PostgreSql -> do
         let str = TE.encodeUtf8 (dbcConnectionString cfg)
-        runLoggingT (Postgres.createPostgresqlPool str 10) logger
+        runLoggingT (Postgres.createPostgresqlPool str 10) lts
 
 connectPool :: Daemon Sql.ConnectionPool
 connectPool = do
   cfg <- askConfig
-  logger <- askLoggerM
-  pool <- liftIO $ getPool cfg logger
+  lts <- askLtsM
+  pool <- liftIO $ getPool cfg lts
   Daemon $ lift $ State.modify $ \st -> st {ciPool = Just pool}
   return pool
 

@@ -14,7 +14,7 @@ import Network.HTTP.Types (status401, hAuthorization)
 import Network.Wai
 import qualified Network.Wai.Middleware.HttpAuth as HA
 import qualified Web.Scotty.Trans as Scotty
-import System.Log.Heavy (SpecializedLogger)
+import System.Log.Heavy (LoggingTState)
 import Data.Text.Format.Heavy
 
 import System.IO.Unsafe (unsafePerformIO)
@@ -57,28 +57,28 @@ createSuperUserDb name password staticSalt = do
 
 -- | Create user
 createUser :: GlobalConfig
-           -> SpecializedLogger
+           -> LoggingTState
            -> String -- ^ User name
            -> String -- ^ Password
            -> IO Bool
-createUser gcfg logger name password = do
-  pool <- getPool gcfg logger
+createUser gcfg lts name password = do
+  pool <- getPool gcfg lts
   let staticSalt = authStaticSalt $ dbcAuth gcfg
-  res <- runDBIO gcfg pool logger (createUserDb name password staticSalt)
+  res <- runDBIO gcfg pool lts (createUserDb name password staticSalt)
   case res of
     Left _ -> return False
     Right _ -> return True
 
 -- | Create superuser
 createSuperUser :: GlobalConfig
-                -> SpecializedLogger
+                -> LoggingTState
                 -> String -- ^ User name
                 -> String -- ^ Password
                 -> IO Bool
-createSuperUser gcfg logger name password = do
-  pool <- getPool gcfg logger
+createSuperUser gcfg lts name password = do
+  pool <- getPool gcfg lts
   let staticSalt = authStaticSalt $ dbcAuth gcfg
-  res <- runDBIO gcfg pool logger (createSuperUserDb name password staticSalt)
+  res <- runDBIO gcfg pool lts (createSuperUserDb name password staticSalt)
   case res of
     Left _ -> return False
     Right _ -> return True
@@ -146,22 +146,22 @@ checkUserExistsDb name = do
   mbUser <- get (UserKey name)
   return $ isJust mbUser
 
-checkUser :: GlobalConfig -> SpecializedLogger -> (B.ByteString -> B.ByteString -> IO Bool)
-checkUser gcfg logger nameBstr passwordBstr = do
-  pool <- getPool gcfg logger
+checkUser :: GlobalConfig -> LoggingTState -> (B.ByteString -> B.ByteString -> IO Bool)
+checkUser gcfg lts nameBstr passwordBstr = do
+  pool <- getPool gcfg lts
   let name = bstrToString nameBstr
       password = bstrToString passwordBstr
       salt = authStaticSalt $ dbcAuth gcfg
-  res <- runDBIO gcfg pool logger (checkUserDb name password salt)
+  res <- runDBIO gcfg pool lts (checkUserDb name password salt)
   case res of
     Left _ -> return False
     Right r -> return r
 
-checkUserExists :: GlobalConfig -> SpecializedLogger -> B.ByteString -> IO Bool
-checkUserExists gcfg logger nameBstr = do
-  pool <- getPool gcfg logger
+checkUserExists :: GlobalConfig -> LoggingTState -> B.ByteString -> IO Bool
+checkUserExists gcfg lts nameBstr = do
+  pool <- getPool gcfg lts
   let name = bstrToString nameBstr
-  res <- runDBIO gcfg pool logger (checkUserExistsDb name)
+  res <- runDBIO gcfg pool lts (checkUserExistsDb name)
   case res of
     Left _ -> return False
     Right r -> return r
@@ -179,8 +179,8 @@ isRootOptions :: Request -> Bool
 isRootOptions rq = requestMethod rq == "OPTIONS" && pathInfo rq == []
 
 -- | HTTP basic auth middleware
-basicAuth :: GlobalConfig -> SpecializedLogger -> Middleware
-basicAuth gcfg logger app req sendResponse =
+basicAuth :: GlobalConfig -> LoggingTState -> Middleware
+basicAuth gcfg lts app req sendResponse =
   let settings = "batchd" :: HA.AuthSettings
       username = extractBasicUser req
       -- put user name extracted from header to vault
@@ -189,19 +189,19 @@ basicAuth gcfg logger app req sendResponse =
         then app req sendResponse -- OPTIONS / is available without auth
         else case getAuthUserRq req of
                  Nothing -> do
-                     infoIO logger $(here) "Will try to authenticate user with basic auth: {}" (Single username)
-                     HA.basicAuth (checkUser gcfg logger) settings app req' sendResponse
+                     infoIO lts $(here) "Will try to authenticate user with basic auth: {}" (Single username)
+                     HA.basicAuth (checkUser gcfg lts) settings app req' sendResponse
                  Just _ -> app req sendResponse
 
 -- | Authentication by X-Auth-User HTTP header
-headerAuth :: GlobalConfig -> SpecializedLogger -> Middleware
-headerAuth gcfg logger app req sendResponse = do
+headerAuth :: GlobalConfig -> LoggingTState -> Middleware
+headerAuth gcfg lts app req sendResponse = do
   -- liftIO $ putStrLn $ "X-Auth-User: " ++ show req
   if isRootOptions req
     then app req sendResponse -- OPTIONS / is available without auth
     else case lookup "X-Auth-User" (requestHeaders req) of
             Nothing -> do
-                infoIO logger $(here) "No X-Auth-User header" ()
+                infoIO lts $(here) "No X-Auth-User header" ()
                 app req sendResponse
         --       case getAuthUserRq req of
         --         Nothing -> sendResponse $ responseLBS status401 [] "User name not provided"
@@ -210,22 +210,22 @@ headerAuth gcfg logger app req sendResponse = do
               let username = bstrToString name
                   -- put user name extracted from header to vault
                   req' = req {vault = V.insert usernameKey username $ vault req}
-              ok <- liftIO $ checkUserExists gcfg logger name
-              infoIO logger $(here) "User from X-AUth-User header authenticated: {}" (Single username)
+              ok <- liftIO $ checkUserExists gcfg lts name
+              infoIO lts $(here) "User from X-AUth-User header authenticated: {}" (Single username)
               if ok
                 then app req' sendResponse
                 else sendResponse $ responseLBS status401 [] "Specified user does not exist"
 
 -- | Unconditional authentication
-noAuth :: GlobalConfig -> SpecializedLogger -> Middleware
-noAuth gcfg logger app req sendResponse = do
+noAuth :: GlobalConfig -> LoggingTState -> Middleware
+noAuth gcfg lts app req sendResponse = do
   let username = case lookup "X-Auth-User" (requestHeaders req) of
                    Just n -> bstrToString n
                    Nothing -> extractBasicUser req
       -- if by some condition username appeared in header, put it to vault.
       -- otherwise user name will be anonymous.
       req' = req {vault = V.insert usernameKey username $ vault req}
-  infoIO logger $(here) "Authentication is disabled. User treated as superuser: {}" (Single username)
+  infoIO lts $(here) "Authentication is disabled. User treated as superuser: {}" (Single username)
   app req' sendResponse
 
 -- authentication :: GlobalConfig -> Middleware

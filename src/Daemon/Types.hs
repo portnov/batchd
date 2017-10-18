@@ -32,8 +32,8 @@ throwR ex = lift $ lift $ throwError ex
 dbio :: DB a -> DBIO (Either Error a)
 dbio action = do
   backend <- ask
-  logger <- lift ask
-  x <- liftIO $ runResourceT $ runExceptT $ runLoggingT (runReaderT action backend) logger
+  lts <- lift $ ask
+  x <- liftIO $ runResourceT $ runExceptT $ runLoggingT (runReaderT action backend) lts
   case x of
     Left err -> do
         return $ Left err
@@ -50,12 +50,19 @@ data ConnectionInfo = ConnectionInfo {
 newtype Daemon a = Daemon {
     runDaemonT :: LoggingT (StateT ConnectionInfo IO) a
   }
-  deriving (Applicative,Functor,Monad,MonadIO, MonadReader SpecializedLogger)
+  deriving (Applicative,Functor,Monad,MonadIO, MonadReader LoggingTState)
 
 -- | Run daemon actions within IO monad
-runDaemonIO :: ConnectionInfo -> SpecializedLogger -> Daemon a -> IO a
-runDaemonIO connInfo logger actions =
-  evalStateT (runLoggingT (runDaemonT actions) logger) connInfo
+runDaemonIO' :: ConnectionInfo -> SpecializedLogger -> Daemon a -> IO a
+runDaemonIO' connInfo logger actions =
+  let globalContext = LogContextFrame [] (Include defaultLogFilter)
+      lts = LoggingTState logger [globalContext]
+  in  evalStateT (runLoggingT (runDaemonT actions) lts) connInfo
+
+-- | Run daemon actions within IO monad
+runDaemonIO :: ConnectionInfo -> LoggingTState -> Daemon a -> IO a
+runDaemonIO connInfo lts actions =
+  evalStateT (runLoggingT (runDaemonT actions) lts) connInfo
 
 -- | REST handler monad type
 type Action a = Scotty.ActionT Error Daemon a
@@ -69,10 +76,16 @@ asksConnectionInfo fn = do
   return $ fn ci
 
 askLoggerM :: Daemon SpecializedLogger
-askLoggerM = ask
+askLoggerM = asks ltsLogger
+
+askLtsM :: Daemon LoggingTState
+askLtsM = ask
 
 askLogger :: Action SpecializedLogger
 askLogger = lift $ askLoggerM
+
+askLts :: Action LoggingTState
+askLts = lift $ askLtsM
 
 askPool :: Daemon Sql.ConnectionPool
 askPool = do
@@ -99,8 +112,8 @@ runDBA :: DB a -> Action a
 runDBA qry = do
   pool <- askPoolA
   cfg <- askConfigA
-  logger <- askLogger
-  r <- liftIO $ runResourceT $ runLoggingT (Sql.runSqlPool (dbio qry) pool) logger
+  lts <- askLts
+  r <- liftIO $ runResourceT $ runLoggingT (Sql.runSqlPool (dbio qry) pool) lts
   case r of
     Left err -> Scotty.raise err
     Right x -> return x
@@ -110,8 +123,8 @@ runDBA' :: DB a -> Action (Either Error a)
 runDBA' qry = do
   pool <- askPoolA
   cfg <- asksConnectionInfo ciGlobalConfig
-  logger <- askLogger
-  r <- liftIO $ runResourceT $ runLoggingT (Sql.runSqlPool (dbio qry) pool) logger
+  lts <- askLts
+  r <- liftIO $ runResourceT $ runLoggingT (Sql.runSqlPool (dbio qry) pool) lts
   return r
 
 -- | Run DB action within Daemon monad.
@@ -119,13 +132,13 @@ runDB :: DB a -> Daemon (Either Error a)
 runDB qry = do
   pool <- askPool
   cfg <- askConfig
-  logger <- askLoggerM
-  liftIO $ runResourceT $ runLoggingT (Sql.runSqlPool (dbio qry) pool) logger
+  lts <- askLtsM
+  liftIO $ runResourceT $ runLoggingT (Sql.runSqlPool (dbio qry) pool) lts
 
 -- | Run DB action within IO monad.
-runDBIO :: GlobalConfig -> Sql.ConnectionPool -> SpecializedLogger -> DB a -> IO (Either Error a)
-runDBIO cfg pool logger qry = do
-  runResourceT $ runLoggingT (Sql.runSqlPool (dbio qry) pool) logger
+runDBIO :: GlobalConfig -> Sql.ConnectionPool -> LoggingTState -> DB a -> IO (Either Error a)
+runDBIO cfg pool lts qry = do
+  runResourceT $ runLoggingT (Sql.runSqlPool (dbio qry) pool) lts
 
 -- | Run Daemon action within IO monad.
 runDaemon :: GlobalConfig -> Maybe Sql.ConnectionPool -> LoggingSettings -> Daemon a -> IO a
@@ -140,9 +153,9 @@ wrapDaemon :: ((c -> IO a) -> IO a) -> (c -> Daemon a) -> Daemon a
 wrapDaemon wrapper daemon = do
     cfg <- askConfig
     pool <- askPool
-    logger <- askLoggerM
+    lts <- askLtsM
     let connInfo = ConnectionInfo cfg (Just pool)
-    result <- liftIO $ wrapper $ \c -> runDaemonIO connInfo logger (daemon c)
+    result <- liftIO $ wrapper $ \c -> runDaemonIO connInfo lts (daemon c)
     return result
 
 -- | forkIO for Daemon monad.
@@ -150,10 +163,10 @@ forkDaemon :: Daemon a -> Daemon ()
 forkDaemon daemon = do
     cfg <- askConfig
     pool <- askPool
-    logger <- askLoggerM
+    lts <- askLtsM
     let connInfo = ConnectionInfo cfg (Just pool)
     liftIO $ forkIO $ do
-               runDaemonIO connInfo logger daemon
+               runDaemonIO connInfo lts daemon
                return ()
     return ()
 

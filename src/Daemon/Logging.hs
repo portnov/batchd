@@ -38,12 +38,13 @@ logConnectionM level = [| \msg vars ->
 here :: Q Exp
 here = qLocation >>= liftLoc
 
-logIO :: (F.VarContainer vars, MonadIO m) => SpecializedLogger -> Loc -> LogLevel -> String -> vars -> m ()
-logIO logger loc level msg vars = Trans.liftIO $
+logIO :: (F.VarContainer vars, MonadIO m) => LoggingTState -> Loc -> LogLevel -> String -> vars -> m ()
+logIO lts loc level msg vars = Trans.liftIO $
   do
     let src = splitDots (loc_module loc)
     let message = LogMessage level src loc (TL.pack msg) vars
-    logger message
+    when (checkContextFilter (ltsContext lts) message) $ do
+        ltsLogger lts message
 
 debug :: Q Exp
 debug = logConnectionM LevelDebug
@@ -71,22 +72,22 @@ debugDB = logDB LevelDebug
 reportErrorDB :: Q Exp
 reportErrorDB = logDB LevelError
 
-debugIO :: (F.VarContainer vars, MonadIO m) => SpecializedLogger -> Loc -> String -> vars -> m ()
-debugIO logger loc = logIO logger loc LevelDebug
+debugIO :: (F.VarContainer vars, MonadIO m) => LoggingTState -> Loc -> String -> vars -> m ()
+debugIO lts loc = logIO lts loc LevelDebug
 
-infoIO :: (F.VarContainer vars, MonadIO m) => SpecializedLogger -> Loc -> String -> vars -> m ()
-infoIO logger loc = logIO logger loc LevelInfo
+infoIO :: (F.VarContainer vars, MonadIO m) => LoggingTState -> Loc -> String -> vars -> m ()
+infoIO lts loc = logIO lts loc LevelInfo
 
-reportErrorIO :: (F.VarContainer vars, MonadIO m) => SpecializedLogger -> Loc -> String -> vars -> m ()
-reportErrorIO logger loc = logIO logger loc LevelError
+reportErrorIO :: (F.VarContainer vars, MonadIO m) => LoggingTState -> Loc -> String -> vars -> m ()
+reportErrorIO lts loc = logIO lts loc LevelError
 
 getLoggingSettings :: GlobalConfig -> LoggingSettings
 getLoggingSettings cfg =
     case lcTarget $ dbcLogging cfg of
-      LogSyslog -> LoggingSettings $ defaultSyslogSettings {ssIdent = "batchd", ssFilter = fltr}
-      LogStdout -> LoggingSettings $ defStdoutSettings {lsFilter = fltr}
-      LogStderr -> LoggingSettings $ defStderrSettings {lsFilter = fltr}
-      LogFile path -> LoggingSettings $ (defFileSettings path) {lsFilter = fltr}
+      LogSyslog -> LoggingSettings $ Filtering fltr $ defaultSyslogSettings {ssIdent = "batchd"}
+      LogStdout -> LoggingSettings $ Filtering fltr $ defStdoutSettings 
+      LogStderr -> LoggingSettings $ Filtering fltr $ defStderrSettings 
+      LogFile path -> LoggingSettings $ Filtering fltr $ defFileSettings path
   where
     fltr :: LogFilter
     fltr = map toFilter (lcFilter $ dbcLogging cfg) ++ [([], lcLevel $ dbcLogging cfg)]
