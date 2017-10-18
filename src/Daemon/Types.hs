@@ -143,11 +143,12 @@ runDBIO cfg pool lts qry = do
 -- | Run Daemon action within IO monad.
 runDaemon :: GlobalConfig -> Maybe Sql.ConnectionPool -> LoggingSettings -> Daemon a -> IO a
 runDaemon cfg mbPool backend daemon =
-    runner $ runLoggingT (withLogging backend (runDaemonT daemon)) undefinedLogger
+    runner $ withLoggingT backend $ 
+      withLogContext (LogContextFrame [] (Include defaultLogFilter)) $ runDaemonT daemon
   where
     runner r = evalStateT r initState
     initState = ConnectionInfo cfg mbPool
-    undefinedLogger = error "Internal error: logger is not defined yet"
+    -- undefinedLogger = error "Internal error: logger is not defined yet"
 
 wrapDaemon :: ((c -> IO a) -> IO a) -> (c -> Daemon a) -> Daemon a
 wrapDaemon wrapper daemon = do
