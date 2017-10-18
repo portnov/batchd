@@ -8,10 +8,10 @@ packages:
     extra-dep: true
     subdirs: [libssh2]
   - location: /home/portnov/src/progs/haskell/heavy-logger/
-#   - location:
-#       git: https://github.com/portnov/heavy-logger.git
-#       commit: master
-#    extra-dep: true
+  - location:
+      git: https://github.com/portnov/text-format-heavy.git
+      commit: master
+    extra-dep: true
 
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
@@ -19,7 +19,7 @@ extra-deps:
   - dates-0.2.2.1
   - hsyslog-5
   - select-0.4.0.1
-  - text-format-heavy-0.1.4.0
+    #- text-format-heavy-0.1.4.2
 
 # Override default flag values for local packages and extra-deps
 flags: {}

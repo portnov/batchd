@@ -32,7 +32,7 @@ logConnectionM level = [| \msg vars ->
   do
     let loc = $(qLocation >>= liftLoc)
     let src = splitDots (loc_module loc)
-    let message = LogMessage $(lift level) src loc (TL.pack msg) vars
+    let message = LogMessage $(lift level) src loc (TL.pack msg) vars []
     Daemon $ logMessage message |]
 
 here :: Q Exp
@@ -42,7 +42,7 @@ logIO :: (F.VarContainer vars, MonadIO m) => LoggingTState -> Loc -> LogLevel ->
 logIO lts loc level msg vars = Trans.liftIO $
   do
     let src = splitDots (loc_module loc)
-    let message = LogMessage level src loc (TL.pack msg) vars
+    let message = LogMessage level src loc (TL.pack msg) vars []
     when (checkContextFilter (ltsContext lts) message) $ do
         ltsLogger lts message
 
@@ -60,7 +60,7 @@ logDB level = [| \msg vars ->
   do
     let loc = $(qLocation >>= liftLoc)
     let src = splitDots (loc_module loc)
-    let message = LogMessage $(lift level) src loc (TL.pack msg) vars
+    let message = LogMessage $(lift level) src loc (TL.pack msg) vars []
     Trans.lift $ logMessage message |]
 
 infoDB :: Q Exp
