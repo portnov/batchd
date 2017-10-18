@@ -99,19 +99,11 @@ callbackListener resChan = forever $ do
                       moveToEnd job -- put the job to the end of queue.
                     else setJobStatus job Failed
 
-withWorker idx = withLogContext (LogContextFrame vars NoChange)
-  where
-    vars = [("worker", Variable idx)]
-
-withJob job = withLogContext (LogContextFrame vars NoChange)
-  where
-    vars = [("job", Variable job)]
-
 -- | Worker loop executes jobs themeselves
 worker :: Int -> HostCounters -> Chan (Queue, JobInfo) -> Chan (JobInfo, JobResult, OnFailAction) -> Daemon ()
-worker idx hosts jobsChan resChan = forever $ withWorker idx $ do
+worker idx hosts jobsChan resChan = forever $ withLogVariable "worker" idx $ do
   (queue, job) <- liftIO $ readChan jobsChan
-  withJob (jiId job) $ do
+  withLogVariable "job" (jiId job) $ do
     $info "got job #{}" (Single $ jiId job)
     -- now job is picked up by worker, mark it as Processing
     runDB $ setJobStatus job Processing
