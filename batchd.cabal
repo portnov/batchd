@@ -60,7 +60,7 @@ executable batchd
                        monad-logger >= 0.3,
                        -- monad-logger-syslog >= 0.1,
                        fast-logger >= 2.4.10,
-                       text-format-heavy >= 0.1.4.0,
+                       text-format-heavy >= 0.1.4.2,
                        heavy-logger >= 0.1.0.0,
                        data-default >= 0.5,
                        mtl >=2.2 && <2.3,
@@ -92,7 +92,8 @@ executable batchd
                        libssh2 >= 0.2,
                        cryptonite >= 0.23,
                        template-haskell >= 2.8,
-                       th-lift >= 0.6
+                       th-lift >= 0.6,
+                       th-lift-instances >= 0.1
   -- hs-source-dirs:      
   ghc-options: -fwarn-unused-imports -fwarn-missing-signatures -threaded
   default-language:    Haskell2010
@@ -112,7 +113,7 @@ executable batchd-admin
                        monad-logger-syslog >= 0.1,
                        fast-logger >= 2.4.10,
                        heavy-logger >= 0.1.0.0,
-                       text-format-heavy >= 0.1.3.0,
+                       text-format-heavy >= 0.1.4.2,
                        data-default >= 0.5,
                        mtl >=2.2 && <2.3,
                        transformers >= 0.5,
@@ -141,7 +142,8 @@ executable batchd-admin
                        libssh2 >= 0.2,
                        cryptonite >= 0.23,
                        template-haskell >= 2.8,
-                       th-lift >= 0.6
+                       th-lift >= 0.6,
+                       th-lift-instances >= 0.1
   -- hs-source-dirs:      
   ghc-options: -fwarn-unused-imports -fwarn-missing-signatures -threaded
   default-language:    Haskell2010
@@ -181,6 +183,7 @@ executable batch
                        esqueleto >= 2.4,
                        monad-logger >= 0.3,
                        monad-logger-syslog >= 0.1,
+                       text-format-heavy >= 0.1.4.2,
                        resourcet >= 1.1.7,
                        unix >= 2.7.0,
                        scotty >= 0.10

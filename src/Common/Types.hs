@@ -18,8 +18,11 @@ import qualified Data.Map as M
 import qualified Data.HashMap.Strict as H
 import qualified Data.ByteString as B
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
 import Data.Aeson as Aeson
 import Data.Aeson.Types
+import qualified Data.Text.Format.Heavy as F
+import qualified Data.Text.Format.Heavy.Parse.Braces as PF
 import Data.Yaml (ParseException (..))
 import Data.Dates
 import System.Exit
@@ -371,25 +374,42 @@ instance FromJSON LogTarget where
 
 data LogConfig = LogConfig {
     lcTarget :: LogTarget,
+    lcFormat :: F.Format,
     lcLevel :: LogLevel,
     lcFilter :: [(String, LogLevel)]
   }
-  deriving (Eq, Show, Data, Typeable, Generic)
+  deriving (Eq, Show, Typeable, Generic)
 
 defaultLogConfig :: LogConfig
-defaultLogConfig = LogConfig LogSyslog LevelInfo []
+defaultLogConfig = LogConfig LogSyslog defaultLogFormat LevelInfo []
+
+defaultLogFormat :: F.Format
+defaultLogFormat = "{time} [{level}] {source} ({fullcontext}): {message}\n"
 
 instance ToJSON LogConfig where
   toJSON = genericToJSON (jsonOptions "lc")
 
+instance ToJSON F.Format where
+  toJSON fmt = toJSON (show fmt)
+
 instance FromJSON LogConfig where
   parseJSON (Object v) = LogConfig
     <$> v .:? "target" .!= LogSyslog
+    <*> parseLogFormat (v .:? "format")
     <*> v .:? "level" .!= LevelInfo
     <*> parseFilter (v .:? "filter" .!= M.empty)
     where
       parseFilter :: Parser (M.Map String LogLevel) -> Parser [(String, LogLevel)]
       parseFilter = fmap M.assocs
+
+      parseLogFormat :: Parser (Maybe TL.Text) -> Parser F.Format
+      parseLogFormat p = do
+        mbString <- p
+        case mbString of
+          Nothing -> return defaultLogFormat
+          Just str -> case PF.parseFormat str of
+                        Left err -> fail $ show err
+                        Right fmt -> return fmt
 
 data GlobalConfig = GlobalConfig {
     dbcDaemonMode :: DaemonMode,
@@ -404,7 +424,7 @@ data GlobalConfig = GlobalConfig {
     dbcAllowedOrigin :: Maybe String,
     dbcStoreDone :: Int
   }
-  deriving (Eq, Show, Data, Typeable, Generic)
+  deriving (Eq, Show, Typeable, Generic)
 
 defaultStaticSalt :: String
 defaultStaticSalt = "1234567890abcdef"

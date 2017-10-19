@@ -13,6 +13,7 @@ import Control.Monad.Logger (LogLevel (..), liftLoc)
 import System.Log.Heavy
 import System.Log.Heavy.Types
 import System.Log.Heavy.Backends
+import Instances.TH.Lift
 -- import qualified System.Log.FastLogger as FL
 
 import Common.Types
@@ -24,6 +25,8 @@ deriveLift ''DbDriver
 
 deriveLift ''AuthMode
 deriveLift ''LogTarget
+deriveLift ''F.FormatItem
+deriveLift ''F.Format
 deriveLift ''LogConfig
 deriveLift ''GlobalConfig
 
@@ -92,7 +95,7 @@ getLoggingSettings cfg =
     fltr :: LogFilter
     fltr = map toFilter (lcFilter $ dbcLogging cfg) ++ [([], lcLevel $ dbcLogging cfg)]
 
-    logFormat = "{time} [{level}] {source} ({fullcontext}): {message}\n"
+    logFormat = lcFormat (dbcLogging cfg)
 
     toFilter :: (String, LogLevel) -> (LogSource, LogLevel)
     toFilter (src, level) = (splitDots src, level)
