@@ -47,7 +47,7 @@ runDispatcher = do
 
 -- | Dispatcher main loop itself.
 dispatcher :: Chan (Queue, JobInfo) -> Daemon ()
-dispatcher jobsChan = do
+dispatcher jobsChan = withLogVariable "thread" ("dispatcher" :: String) $ do
   forever $ do
     qesr <- runDB getEnabledQueues
     cfg <- askConfig
@@ -75,39 +75,40 @@ dispatcher jobsChan = do
 -- | This listens for job results Chan and writes results to DB.
 -- It also reschedules failed jobs if needed.
 callbackListener :: Chan (JobInfo, JobResult, OnFailAction) -> Daemon ()
-callbackListener resChan = forever $ do
+callbackListener resChan = withLogVariable "thread" ("job result listener" :: String) $ forever $ do
   (job, result, onFail) <- liftIO $ readChan resChan
-  cfg <- askConfig
-  runDB $ do
-      insert_ result
-      if jobResultExitCode result == ExitSuccess
-        then setJobStatus job Done
-        else case onFail of
-               Continue -> setJobStatus job Failed -- just mark job as Failed
-               RetryNow m -> do
-                  count <- increaseTryCount job
-                  if count <= m
-                    then do
-                      $infoDB "Retry now" ()
-                      setJobStatus job New -- job will be picked up by dispatcher at nearest iteration.
-                    else setJobStatus job Failed
-               RetryLater m -> do
-                  count <- increaseTryCount job
-                  if count <= m
-                    then do
-                      $infoDB "Retry later" ()
-                      moveToEnd job -- put the job to the end of queue.
-                    else setJobStatus job Failed
+  withJobContext job $ do
+    cfg <- askConfig
+    runDB $ do
+        insert_ result
+        if jobResultExitCode result == ExitSuccess
+          then setJobStatus job Done
+          else case onFail of
+                 Continue -> setJobStatus job Failed -- just mark job as Failed
+                 RetryNow m -> do
+                    count <- increaseTryCount job
+                    if count <= m
+                      then do
+                        $infoDB "Retry now" ()
+                        setJobStatus job New -- job will be picked up by dispatcher at nearest iteration.
+                      else setJobStatus job Failed
+                 RetryLater m -> do
+                    count <- increaseTryCount job
+                    if count <= m
+                      then do
+                        $infoDB "Retry later" ()
+                        moveToEnd job -- put the job to the end of queue.
+                      else setJobStatus job Failed
 
 withJobContext job =
     withLogContext (LogContextFrame vars NoChange)
   where
-    vars = [("job", Variable ("job #" ++ show (jiId job) ++ ";")),
-            ("user", Variable ("user " ++ jiUserName job ++ ";"))]
+    vars = [("job", Variable (jiId job)),
+            ("user", Variable (jiUserName job))]
 
 -- | Worker loop executes jobs themeselves
 worker :: Int -> HostCounters -> Chan (Queue, JobInfo) -> Chan (JobInfo, JobResult, OnFailAction) -> Daemon ()
-worker idx hosts jobsChan resChan = forever $ withLogVariable "worker" ("worker #" ++ show idx ++ ";") $ do
+worker idx hosts jobsChan resChan = forever $ withLogVariable "worker" idx $ do
   (queue, job) <- liftIO $ readChan jobsChan
   withJobContext job $ do
     $info "got job #{}" (Single $ jiId job)

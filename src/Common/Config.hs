@@ -58,7 +58,8 @@ loadGlobalConfig = do
       r <- decodeFileEither path
       case r of
         Left err -> return $ Left $ InvalidDbCfg err
-        Right cfg -> return $ Right cfg
+        Right cfg -> do
+          return $ Right cfg
 
 getPassword :: String -> IO String
 getPassword prompt = do

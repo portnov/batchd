@@ -1,14 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 import Data.Semigroup ((<>))
 import Options.Applicative
+import Data.Text.Format.Heavy
 
 import Common.Types
 import Common.Config
 import Daemon.Types (runDaemon, forkDaemon)
-import Daemon.Logging (getLoggingSettings)
+import qualified Daemon.Logging as Log
 import Daemon.Database
 import Daemon.Manager as Manager
 import Daemon.Dispatcher as Dispatcher
@@ -38,8 +40,9 @@ main = do
       let mode = if cmd == Both
                    then dbcDaemonMode cfg
                    else cmd
-      let logSettings = getLoggingSettings cfg
+      let logSettings = Log.getLoggingSettings cfg
       runDaemon cfg Nothing logSettings $ do
+        $(Log.debug) "Loaded global configuration file: {}" (Single $ show cfg)
         connectPool
         case mode of
           Manager    -> Manager.runManager

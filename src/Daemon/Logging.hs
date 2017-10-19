@@ -92,7 +92,7 @@ getLoggingSettings cfg =
     fltr :: LogFilter
     fltr = map toFilter (lcFilter $ dbcLogging cfg) ++ [([], lcLevel $ dbcLogging cfg)]
 
-    logFormat = "{time} [{level}] {source} ({user}{worker}{job}): {message}\n"
+    logFormat = "{time} [{level}] {source} ({fullcontext}): {message}\n"
 
     toFilter :: (String, LogLevel) -> (LogSource, LogLevel)
     toFilter (src, level) = (splitDots src, level)

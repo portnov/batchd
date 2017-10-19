@@ -115,16 +115,20 @@ requestLogger gcfg lts app req sendResponse = do
 
 runManager :: Daemon ()
 runManager = do
-  connInfo <- Daemon $ lift State.get
-  cfg <- askConfig
-  let options = def {Scotty.settings = setPort (dbcManagerPort cfg) defaultSettings}
-  lts <- askLtsM
-  liftIO $ do
-    forkIO $ runDaemonIO connInfo lts maintainer
-    scottyOptsT options (runDaemonIO connInfo lts) $ routes cfg lts
+    connInfo <- Daemon $ lift State.get
+    cfg <- askConfig
+    let options = def {Scotty.settings = setPort (dbcManagerPort cfg) defaultSettings}
+    lts <- askLtsM
+    liftIO $ do
+      forkIO $ runDaemonIO connInfo lts maintainer
+      scottyOptsT options (runService connInfo lts) $ routes cfg lts
+  where
+    runService connInfo lts actions =
+        runDaemonIO connInfo lts $
+          withLogVariable "thread" ("REST service" :: String) $ actions
 
 maintainer :: Daemon ()
-maintainer = forever $ do
+maintainer = withLogVariable "thread" ("maintainer" :: String) $ forever $ do
   cfg <- askConfig
   runDB $ cleanupJobResults (dbcStoreDone cfg)
   liftIO $ threadDelay $ 60 * 1000*1000
@@ -161,7 +165,7 @@ done = Scotty.json ("done" :: String)
 inUserContext :: Action a -> Action a
 inUserContext action = do
   name <- getAuthUserName
-  withLogVariable "user" ("user " ++ fromMaybe "<unauthorized>" name ++ ";") $ do
+  withLogVariable "user" (fromMaybe "<unauthorized>" name) $ do
     -- req <- Scotty.request
     -- context <- getLogContext
     -- liftIO $ putStrLn $ show context

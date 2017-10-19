@@ -7,11 +7,8 @@ packages:
       commit: master
     extra-dep: true
     subdirs: [libssh2]
-  - location: /home/portnov/src/progs/haskell/heavy-logger/
-  - location:
-      git: https://github.com/portnov/text-format-heavy.git
-      commit: master
-    extra-dep: true
+  - /home/portnov/src/heavy-logger
+  - /home/portnov/src/text-format-heavy
 
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
