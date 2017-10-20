@@ -2,6 +2,7 @@
 
 module Daemon.Types where
 
+import Control.Exception (catch)
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Except
@@ -142,7 +143,9 @@ runDBA qry = do
   pool <- askPoolA
   cfg <- askConfigA
   lts <- askLts
-  r <- liftIO $ runResourceT $ runLoggingT (Sql.runSqlPool (dbio qry) pool) lts
+  r <- liftIO $ do
+         (runResourceT $ runLoggingT (Sql.runSqlPool (dbio qry) pool) lts)
+          `catch` (\e -> return $ Left $ SqlError e)
   case r of
     Left err -> Scotty.raise err
     Right x -> return x
@@ -153,7 +156,9 @@ runDBA' qry = do
   pool <- askPoolA
   cfg <- asksConnectionInfo ciGlobalConfig
   lts <- askLts
-  r <- liftIO $ runResourceT $ runLoggingT (Sql.runSqlPool (dbio qry) pool) lts
+  r <- liftIO $ do
+         (runResourceT $ runLoggingT (Sql.runSqlPool (dbio qry) pool) lts)
+          `catch` (\e -> return $ Left $ SqlError e)
   return r
 
 -- | Run DB action within Daemon monad.
@@ -162,12 +167,15 @@ runDB qry = do
   pool <- askPool
   cfg <- askConfig
   lts <- askLtsM
-  liftIO $ runResourceT $ runLoggingT (Sql.runSqlPool (dbio qry) pool) lts
+  liftIO $ do
+    (runResourceT $ runLoggingT (Sql.runSqlPool (dbio qry) pool) lts)
+      `catch` (\e -> return $ Left $ SqlError e)
 
 -- | Run DB action within IO monad.
 runDBIO :: GlobalConfig -> Sql.ConnectionPool -> LoggingTState -> DB a -> IO (Either Error a)
 runDBIO cfg pool lts qry = do
-  runResourceT $ runLoggingT (Sql.runSqlPool (dbio qry) pool) lts
+  (runResourceT $ runLoggingT (Sql.runSqlPool (dbio qry) pool) lts)
+    `catch` (\e -> return $ Left $ SqlError e)
 
 -- | Run Daemon action within IO monad.
 runDaemon :: GlobalConfig -> Maybe Sql.ConnectionPool -> LoggingSettings -> Daemon a -> IO a

@@ -176,6 +176,7 @@ data Error =
   | InvalidJobStatus (Maybe B.ByteString)
   | FileNotExists FilePath
   | InsufficientRights String
+  | SqlError SomeException
   | UnknownError String
 
 instance Show Error where
@@ -193,6 +194,7 @@ instance Show Error where
   show (InvalidJobStatus (Just s)) = "Invalid job status: " ++ show s
   show (FileNotExists path) = "File does not exist: " ++ path
   show (InsufficientRights msg) = "Insufficient privileges: " ++ msg
+  show (SqlError exc) = "SQL exception: " ++ show exc
   show (UnknownError e) = "Unhandled error: " ++ e
 
 instance Exception Error
