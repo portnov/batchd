@@ -174,17 +174,53 @@ viewJob = do
       printf "Exit code:\t%s\nTime:\t%s\n\n" code time
       putStrLn $ T.unpack $ Database.jobResultStdout r
 
+checkIncompatibleOptions :: [(String, Bool)] -> Client ()
+checkIncompatibleOptions opts =
+    when (length (filter snd opts) > 1) $ do
+      throwC $ printf "Only one option of %s can be specified at once" enabled
+  where
+    enabled = intercalate ", " $ map fst $ filter snd opts
+
+checkModes :: [Client (Maybe a)] -> Client a
+checkModes list = go Nothing list
+  where
+    go Nothing [] = throwC "No mode is selected"
+    go (Just m) [] = return m
+    go Nothing (m:ms) = do
+      result <- m
+      go result ms
+    go selected@(Just _) (m:ms) = do
+      result <- m
+      case result of
+        Nothing -> go selected ms
+        Just _ -> throwC "Only one mode can be selected"
+
 updateJob :: Client ()
 updateJob = do
-  baseUrl <- getBaseUrl
-  opts <- gets csCmdline
-  let command = cmdCommand opts
-  let job = object $
-              toList "queue_name" (queueName command) ++
-              toList "status" (status command) ++
-              toList "host_name" (hostName command)
-  let url = baseUrl </> "job" </> show (jobId command)
-  doPut url job
+    baseUrl <- getBaseUrl
+    opts <- gets csCmdline
+    let command = cmdCommand opts
+    job <- checkModes [mMove command, mPrioritize command, mUpdate command]
+    let url = baseUrl </> "job" </> show (jobId command)
+    doPut url job
+
+  where
+    mMove command = do
+      case queueName command of
+        Just qname -> return $ Just $ object ["move" .= qname]
+        Nothing -> return Nothing
+
+    mPrioritize command = do
+      case prioritize command of
+        Just action -> return $ Just $ object ["priority" .= action]
+        Nothing -> return Nothing
+
+    mUpdate command = do
+      if isNothing (queueName command) && isNothing (prioritize command)
+        then return $ Just $ object $
+                                toList "status" (status command) ++
+                                toList "host_name" (hostName command)
+        else return Nothing
 
 deleteJob :: Client ()
 deleteJob = do

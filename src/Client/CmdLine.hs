@@ -8,10 +8,12 @@ import Data.Generics hiding (Generic)
 import qualified Data.Map as M
 import Data.Int
 import Data.Dates
+import Data.Char (toLower)
 import Data.Semigroup ((<>))
 import Options.Applicative
 
 import Common.Types
+import Common.Data (MoveAction (..))
 import Client.Types
 
 data CmdLine = CmdLine {
@@ -51,6 +53,7 @@ data Command =
   | Job {
       jobId :: Int,
       queueName :: Maybe String,
+      prioritize :: Maybe MoveAction,
       status :: Maybe String,
       hostName :: Maybe String,
       viewDescription :: Bool,
@@ -169,6 +172,16 @@ crudMode modes@((dflt,_):_) = foldr1 (<|>) $ map go modes
           <> short shortName
           <> help helpText )
 
+priorityReader :: ReadM MoveAction
+priorityReader = maybeReader (check . map toLower)
+  where
+    check s
+      | s `elem` ["first", "f"] = Just First
+      | s `elem` ["more", "up", "u"] = Just More
+      | s `elem` ["less", "down", "d"] = Just Less
+      | s `elem` ["last", "l"] = Just Last
+      | otherwise = Nothing
+
 queue :: Parser Command
 queue = Queue
   <$> crudMode [(Update, "modify queue"), (Add, "create new queue"), (Delete, "delete queue")]
@@ -184,7 +197,8 @@ queue = Queue
 job :: Parser Command
 job = Job
   <$> argument auto (metavar "ID" <> help "job ID")
-  <*> optionalString "queue" 'q' "QUEUE" "set job queue"
+  <*> optionalString "move" 'm' "QUEUE" "move job to other queue"
+  <*> (optional $ option priorityReader (long "priority" <> short 'p' <> metavar "ACTION" <> help "change job priority. ACTION is one of: up, down, first, last"))
   <*> optionalString "status" 's' "STATUS" "set job status"
   <*> optionalString "host" 'h' "HOST" "set job host"
   <*> switch (long "description" <> help "view job description")

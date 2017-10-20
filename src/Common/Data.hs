@@ -163,6 +163,12 @@ instance FromJSON MoveAction where
   parseJSON (Aeson.String "last") = return Last
   parseJSON invalid = typeMismatch "job priority direction" invalid
 
+instance ToJSON MoveAction where
+  toJSON First = toJSON ("first" :: String)
+  toJSON More = toJSON ("more" :: String)
+  toJSON Less = toJSON ("less" :: String)
+  toJSON Last = toJSON ("last" :: String)
+
 data JobUpdate =
     Prioritize MoveAction
   | Move String
@@ -182,4 +188,8 @@ instance FromJSON JobUpdate where
             return $ UpdateJob upd
   parseJSON invalid = typeMismatch "job update query" invalid
 
+-- instance ToJSON JobUpdate where
+--   toJSON (Prioritize action) = object ["priority" .= action]
+--   toJSON (Move qname) = object ["move" .= qname]
+--   toJSON (UpdateJob lst) = toJSON lst
 
