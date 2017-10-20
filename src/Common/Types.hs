@@ -98,10 +98,13 @@ instance FromJSON JobType where
 instance ToJSON JobType where
   toJSON = genericToJSON (jsonOptions "jt")
 
+-- | What to do if job execution fails
 data OnFailAction =
-    Continue
-  | RetryNow Int
-  | RetryLater Int
+    Continue       -- ^ Continue to the next job
+  | RetryNow Int   -- ^ Leave the job in the queue and retry execution.
+                   --   Not more than @n@ times.
+  | RetryLater Int -- ^ Put the job to the end of queue, to be executed later.
+                   --   Not more than @n@ times.
   deriving (Eq, Show, Read, Data, Typeable, Generic)
 
 instance ToJSON OnFailAction where
@@ -128,13 +131,14 @@ instance FromJSON OnFailAction where
       _ -> typeMismatch "retry" r
   parseJSON invalid = typeMismatch "on fail" invalid
 
+-- | Job execution status
 data JobStatus =
-    New
-  | Waiting
-  | Processing
-  | Done
-  | Failed
-  | Postponed
+    New         -- ^ Just created, waiting for polling process to peek it.
+  | Waiting     -- ^ Waiting for free worker.
+  | Processing  -- ^ Being processed by the worker.
+  | Done        -- ^ Successfully executed.
+  | Failed      -- ^ Execution failed.
+  | Postponed   -- ^ Execution postponed. This status can be set only manually.
   deriving (Eq, Ord, Show, Read, Data, Typeable, Generic)
 
 instance ToJSON JobStatus
@@ -162,6 +166,7 @@ deriving instance Generic WeekDay
 instance ToJSON WeekDay
 instance FromJSON WeekDay
 
+-- | Recognized error types.
 data Error =
     QueueExists String
   | QueueNotExists String
@@ -303,10 +308,11 @@ data DbDriver = Sqlite | PostgreSql
 instance ToJSON DbDriver
 instance FromJSON DbDriver
 
+-- | Daemon execution mode
 data DaemonMode =
-    Manager
-  | Dispatcher
-  | Both
+    Manager     -- ^ Manager thread only
+  | Dispatcher  -- ^ Dispatcher thread only
+  | Both        -- ^ Both manager and dispatcher threads
   deriving (Data, Typeable, Show, Eq, Generic)
 
 instance ToJSON DaemonMode
@@ -413,18 +419,19 @@ instance FromJSON LogConfig where
                         Left err -> fail $ show err
                         Right fmt -> return fmt
 
+-- | Global daemon configuration
 data GlobalConfig = GlobalConfig {
-    dbcDaemonMode :: DaemonMode,
-    dbcManagerPort :: Int,
-    dbcDriver :: DbDriver,
-    dbcConnectionString :: T.Text,
-    dbcWorkers :: Int,
-    dbcPollTimeout :: Int,
-    dbcLogging :: LogConfig,
-    dbcAuth :: AuthMode,
-    dbcWebClientPath :: Maybe String,
-    dbcAllowedOrigin :: Maybe String,
-    dbcStoreDone :: Int
+      dbcDaemonMode :: DaemonMode      -- ^ Daemon execution mode
+    , dbcManagerPort :: Int            -- ^ Network port for manager to listen
+    , dbcDriver :: DbDriver            -- ^ Type of DB backend
+    , dbcConnectionString :: T.Text    -- ^ DB connection string
+    , dbcWorkers :: Int                -- ^ Number of worker threads
+    , dbcPollTimeout :: Int            -- ^ Queue polling timeout, in seconds
+    , dbcLogging :: LogConfig          -- ^ Logging configuration
+    , dbcAuth :: AuthMode              -- ^ Authentication configuration
+    , dbcWebClientPath :: Maybe String -- ^ Path to web client HTML\/JS\/CSS files
+    , dbcAllowedOrigin :: Maybe String -- ^ Allowed Origin for CORS
+    , dbcStoreDone :: Int              -- ^ How long to store executed jobs, in days.
   }
   deriving (Eq, Show, Typeable, Generic)
 
@@ -516,6 +523,7 @@ derivePersistField "WeekDay"
 derivePersistField "JobStatus"
 derivePersistField "ExitCode"
 
+-- | Supported user permissions.
 data Permission =
     SuperUser
   | CreateJobs

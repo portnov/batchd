@@ -47,7 +47,7 @@ getPool cfg lts =
 connectPool :: Daemon Sql.ConnectionPool
 connectPool = do
   cfg <- askConfig
-  lts <- askLtsM
+  lts <- askLoggingStateM
   pool <- liftIO $ getPool cfg lts
   Daemon $ lift $ State.modify $ \st -> st {ciPool = Just pool}
   return pool

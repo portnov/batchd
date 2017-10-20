@@ -66,7 +66,7 @@ withHost :: HostCounters -> Host -> JobType -> Daemon a -> Daemon a
 withHost mvar host jtype actions = do
   cfg <- askConfig
   pool <- askPool
-  lts <- askLtsM
+  lts <- askLoggingStateM
   let connInfo = ConnectionInfo cfg (Just pool)
   liftIO $ bracket_ (acquireHost mvar host jtype) (releaseHost mvar host) $ runDaemonIO connInfo lts actions
 

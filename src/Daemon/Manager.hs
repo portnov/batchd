@@ -118,7 +118,7 @@ runManager = do
     connInfo <- Daemon $ lift State.get
     cfg <- askConfig
     let options = def {Scotty.settings = setPort (dbcManagerPort cfg) defaultSettings}
-    lts <- askLtsM
+    lts <- askLoggingStateM
     liftIO $ do
       forkIO $ runDaemonIO connInfo lts maintainer
       scottyOptsT options (runService connInfo lts) $ routes cfg lts
@@ -360,7 +360,7 @@ deleteJobsA = inUserContext $ do
 getJobTypesA :: Action ()
 getJobTypesA = inUserContext $ do
   cfg <- askConfigA
-  lts <- askLts
+  lts <- askLoggingState
   types <- liftIO $ listJobTypes cfg lts
   Scotty.json types
 
@@ -370,7 +370,7 @@ getAllowedJobTypesA = inUserContext $ do
   qname <- Scotty.param "name"
   let name = userName user
   cfg <- askConfigA
-  lts <- askLts
+  lts <- askLoggingState
   types <- liftIO $ listJobTypes cfg lts
   allowedTypes <- flip filterM types $ \jt -> do
                       runDBA $ hasCreatePermission name qname (Just $ jtName jt) Nothing
@@ -415,7 +415,7 @@ listHosts cfg lts = do
 getHostsA :: Action ()
 getHostsA = inUserContext $ do
   cfg <- askConfigA
-  lts <- askLts
+  lts <- askLoggingState
   hosts <- liftIO $ listHosts cfg lts
   Scotty.json $ map hName hosts
 
@@ -425,7 +425,7 @@ getAllowedHostsA = inUserContext $ do
   qname <- Scotty.param "name"
   let name = userName user
   cfg <- askConfigA
-  lts <- askLts
+  lts <- askLoggingState
   hosts <- liftIO $ listHosts cfg lts
   let allHostNames = defaultHostOfQueue : map hName hosts
   allowedHosts <- flip filterM allHostNames $ \hostname -> do
@@ -442,7 +442,7 @@ getAllowedHostsForTypeA = inUserContext $ do
                     Just list -> return list -- user is restricted to list of hosts
                     Nothing -> do -- user can create jobs on any defined host
                         cfg <- askConfigA
-                        lts <- askLts
+                        lts <- askLoggingState
                         hosts <- liftIO $ listHosts cfg lts
                         return $ defaultHostOfQueue : map hName hosts
   Scotty.json allowedHosts

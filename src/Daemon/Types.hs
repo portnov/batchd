@@ -97,26 +97,37 @@ instance F.VarContainer Request where
   lookupVar "useragent" rq = Just $ F.Variable $ requestHeaderUserAgent rq
   lookupVar _ rq = Nothing
 
+-- | Obtain DB connection
 askConnectionInfo :: Daemon ConnectionInfo
 askConnectionInfo = Daemon $ lift get
 
+-- | Obtain field of DB connection within Action monad
 asksConnectionInfo :: (ConnectionInfo -> a) -> Action a
 asksConnectionInfo fn = do
   ci <- lift askConnectionInfo
   return $ fn ci
 
+-- | Obtain logger function.
+-- Note: if logger is called directly, it does not perform
+-- context-level filter check.
 askLoggerM :: Daemon SpecializedLogger
 askLoggerM = asks ltsLogger
 
-askLtsM :: Daemon LoggingTState
-askLtsM = ask
+-- | Obtain logging state within Daemon monad
+askLoggingStateM :: Daemon LoggingTState
+askLoggingStateM = ask
 
+-- | Obtain logger function.
+-- Note: if logger is called directly, it does not perform
+-- context-level filter check.
 askLogger :: Action SpecializedLogger
 askLogger = lift $ askLoggerM
 
-askLts :: Action LoggingTState
-askLts = lift $ askLtsM
+-- | Obtain logging state within Action monad
+askLoggingState :: Action LoggingTState
+askLoggingState = lift $ askLoggingStateM
 
+-- | Obtain DB connections pool
 askPool :: Daemon Sql.ConnectionPool
 askPool = do
   mbPool <- Daemon $ lift $ gets ciPool
@@ -124,9 +135,11 @@ askPool = do
     Nothing -> fail $ "Database connection is not established yet"
     Just pool -> return pool
 
+-- | Obtain global daemon configuration
 askConfig :: Daemon GlobalConfig
 askConfig = Daemon $ lift $ gets ciGlobalConfig
 
+-- | Obtain DB connections pool within Action monad
 askPoolA :: Action Sql.ConnectionPool
 askPoolA = do
   mbPool <- asksConnectionInfo ciPool
@@ -134,6 +147,7 @@ askPoolA = do
     Nothing -> fail $ "Database connection is not established yet"
     Just pool -> return pool
 
+-- | Obtain global daemon configuration within Action monad
 askConfigA :: Action GlobalConfig
 askConfigA = asksConnectionInfo ciGlobalConfig
 
@@ -142,7 +156,7 @@ runDBA :: DB a -> Action a
 runDBA qry = do
   pool <- askPoolA
   cfg <- askConfigA
-  lts <- askLts
+  lts <- askLoggingState
   r <- liftIO $ do
          (runResourceT $ runLoggingT (Sql.runSqlPool (dbio qry) pool) lts)
           `catch` (\e -> return $ Left $ SqlError e)
@@ -151,11 +165,12 @@ runDBA qry = do
     Right x -> return x
 
 -- | Run DB action within Action monad.
+-- This version does not raise HTTP-level error on DB action fail.
 runDBA' :: DB a -> Action (Either Error a)
 runDBA' qry = do
   pool <- askPoolA
   cfg <- asksConnectionInfo ciGlobalConfig
-  lts <- askLts
+  lts <- askLoggingState
   r <- liftIO $ do
          (runResourceT $ runLoggingT (Sql.runSqlPool (dbio qry) pool) lts)
           `catch` (\e -> return $ Left $ SqlError e)
@@ -166,7 +181,7 @@ runDB :: DB a -> Daemon (Either Error a)
 runDB qry = do
   pool <- askPool
   cfg <- askConfig
-  lts <- askLtsM
+  lts <- askLoggingStateM
   liftIO $ do
     (runResourceT $ runLoggingT (Sql.runSqlPool (dbio qry) pool) lts)
       `catch` (\e -> return $ Left $ SqlError e)
@@ -178,6 +193,7 @@ runDBIO cfg pool lts qry = do
     `catch` (\e -> return $ Left $ SqlError e)
 
 -- | Run Daemon action within IO monad.
+-- This is generally used to spawn main daemon threads.
 runDaemon :: GlobalConfig -> Maybe Sql.ConnectionPool -> LoggingSettings -> Daemon a -> IO a
 runDaemon cfg mbPool backend daemon =
     runner $ withLoggingT backend $ 
@@ -187,11 +203,13 @@ runDaemon cfg mbPool backend daemon =
     initState = ConnectionInfo cfg mbPool
     -- undefinedLogger = error "Internal error: logger is not defined yet"
 
+-- | Wrap Daemon action with some @with@-style function in IO monad.
+-- Example: @wrapDaemon (withResource x) $ \resource -> do ...@.
 wrapDaemon :: ((c -> IO a) -> IO a) -> (c -> Daemon a) -> Daemon a
 wrapDaemon wrapper daemon = do
     cfg <- askConfig
     pool <- askPool
-    lts <- askLtsM
+    lts <- askLoggingStateM
     let connInfo = ConnectionInfo cfg (Just pool)
     result <- liftIO $ wrapper $ \c -> runDaemonIO connInfo lts (daemon c)
     return result
@@ -201,7 +219,7 @@ forkDaemon :: Daemon a -> Daemon ()
 forkDaemon daemon = do
     cfg <- askConfig
     pool <- askPool
-    lts <- askLtsM
+    lts <- askLoggingStateM
     let connInfo = ConnectionInfo cfg (Just pool)
     liftIO $ forkIO $ do
                runDaemonIO connInfo lts daemon
