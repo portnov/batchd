@@ -471,7 +471,7 @@ changePasswordA = inUserContext $ do
   user <- jsonData
   cfg <- askConfigA
   let staticSalt = authStaticSalt $ dbcAuth cfg
-  runDBA $ changePassword name (uiPassword user) staticSalt
+  runDBA $ changePasswordDb name (uiPassword user) staticSalt
   done
 
 createPermissionA :: Action ()

@@ -17,6 +17,7 @@ import Daemon.Auth
 
 data Admin =
     CreateSuperuser {username :: String}
+  | Passwd {username :: String}
   | Migrate
   deriving (Show)
 
@@ -24,10 +25,14 @@ createSuperuser :: Parser Admin
 createSuperuser = CreateSuperuser
   <$> strArgument (metavar "NAME" <> help "name of user to create" <> value "root" <> showDefault)
 
+passwd :: Parser Admin
+passwd = Passwd <$> strArgument (metavar "NAME" <> help "name of user to update" <> value "root" <> showDefault)
+
 parser :: Parser Admin
 parser =
   hsubparser
     (  command "create-superuser" (info createSuperuser (progDesc "create super user"))
+    <> command "passwd" (info passwd (progDesc "change user password"))
     <> command "upgrade-db" (info (pure Migrate) (progDesc "upgrade database to current version of batchd")))
 
 parserInfo :: ParserInfo Admin
@@ -49,6 +54,12 @@ main = do
             withLoggingT logSettings $ do
               logger <- ask
               liftIO $ createSuperUser cfg logger (username cmd) password
+            return ()
+        Passwd name -> do
+            password <- getPassword2
+            withLoggingT logSettings $ do
+              logger <- ask
+              liftIO $ changePassword cfg logger name password
             return ()
         Migrate -> do
           withLoggingT logSettings $ do

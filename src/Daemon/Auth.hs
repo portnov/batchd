@@ -114,15 +114,28 @@ deletePermission id name = do
         else throwR $ UnknownError "Permission does not belong to specified user"
 
 -- | Change user password
-changePassword :: String -- ^ User name
+changePasswordDb :: String -- ^ User name
                -> String -- ^ New password
                -> String -- ^ Static part of salt
                -> DB ()
-changePassword name password staticSalt = do
+changePasswordDb name password staticSalt = do
   dynamicSalt <- liftIO randomSalt
   let hash = calcHash password dynamicSalt staticSalt
       key = UserKey name
   update key [UserPwdHash =. hash, UserSalt =. dynamicSalt]
+
+changePassword :: GlobalConfig
+                -> LoggingTState
+                -> String -- ^ User name
+                -> String -- ^ Password
+                -> IO Bool
+changePassword gcfg lts name password = do
+  pool <- getPool gcfg lts
+  let staticSalt = authStaticSalt $ dbcAuth gcfg
+  res <- runDBIO gcfg pool lts (changePasswordDb name password staticSalt)
+  case res of
+    Left _ -> return False
+    Right _ -> return True
 
 -- | Get list of all users
 getUsers :: DB [String]
