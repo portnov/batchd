@@ -1,0 +1,127 @@
+# Translation file
+
+msgid ""
+msgstr ""
+
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2017-10-21 16:39+0500\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: ../batchd/src/batch.hs:21:59
+msgid "Error: {}"
+msgstr "Ошибка: {}"
+
+#: ../batchd/src/Client/Actions.hs:355:37
+msgid "\tParameters:"
+msgstr "\tПараметры:"
+
+#: ../batchd/src/Client/Actions.hs:44:33
+msgid "Can't load job type description: {}"
+msgstr "Невозможно загрузить описани типа задания: {}"
+
+#: ../batchd/src/Client/Actions.hs:310:33
+msgid "Can't parse period description: {}"
+msgstr "Невозможно разобрать описание периода: {}"
+
+#: ../batchd/src/Client/Actions.hs:360:37
+msgid "Default"
+msgstr "По умолчанию"
+
+#: ../batchd/src/Client/Actions.hs:306:20
+msgid "Exactly one schedule name must be specified when creating a schedule"
+msgstr "При создании расписания должно быть указано ровно одно имя расписания"
+
+#: ../batchd/src/Client/Actions.hs:326:20
+msgid "Exactly one schedule name must be specified when deleting a schedule"
+msgstr "При удалении расписания должно быть указано ровно одно имя расписания"
+
+#: ../batchd/src/Client/Actions.hs:171:30
+msgid "Exit code:\t{}\nTime:\t{}\n\n"
+msgstr "Код возврата:\t{}\nВремя:\t{}\n\n"
+
+#: ../batchd/src/Client/Actions.hs:354:33
+msgid "Host"
+msgstr "Хост"
+
+#: ../batchd/src/Client/Actions.hs:88:61
+msgid "Invalid status"
+msgstr "Неверный статус"
+
+#: ../batchd/src/Client/Actions.hs:357:37
+msgid "Name"
+msgstr "Имя"
+
+#: ../batchd/src/Client/Actions.hs:193:36
+msgid "No mode is selected"
+msgstr "Ни один режим не выбран"
+
+#: ../batchd/src/Client/Actions.hs:353:33
+msgid "On fail"
+msgstr "При неудаче"
+
+#: ../batchd/src/Client/Actions.hs:202:34
+msgid "Only one mode can be selected"
+msgstr "Может быть выбран только один режим"
+
+#: ../batchd/src/Client/Actions.hs:159:30
+msgid "Order:\t{}\nType:\t{}\nQueue:\t{}\nHost:\t{}\nUser:\t{}\nCreated:\t{}\nStatus:\t{}\nTry count:\t{}\n"
+msgstr ""
+
+#: ../batchd/src/Client/Actions.hs:352:33
+msgid "Template"
+msgstr "Шаблон"
+
+#: ../batchd/src/Client/Actions.hs:351:33
+msgid "Title"
+msgstr "Название"
+
+#: ../batchd/src/Client/Actions.hs:358:37
+msgid "Type"
+msgstr "Тип"
+
+#: ../batchd/src/Client/Actions.hs:420:39
+msgid "permission (-p) must be specified"
+msgstr "должно быть укзаано разрешение (-p)"
+
+#: ../batchd/src/Client/Actions.hs:431:38
+msgid "permission ID (-i) must be specified"
+msgstr "должен быть указан идентификатор разрешения (-i)"
+
+#: ../batchd/src/Client/Config.hs:97:59
+msgid "Can't parse client configuration file:\n{}"
+msgstr "Невозможно разобрать конфигурационный файл клиента:\n{}"
+
+#: ../batchd/src/Client/Http.hs:210:33
+msgid "Can't parse server response for GET request: {}"
+msgstr "Невозможно разобрать ответ сервера на запрос GET: {}"
+
+#: ../batchd/src/Client/Http.hs:221:33
+msgid "Can't parse server response for OPTIONS request: {}"
+msgstr "Невозможно разобрать ответ сервера на запрос OPTIONS: {}"
+
+#: ../batchd/src/Client/Shell.hs:71:38
+msgid "This is batch client shell. Type `--help' for list of available commands or `some_command --help' (without quotes) for help message on particular command."
+msgstr "Это оболочка клиента batch. Наберите `--help' для списка доступных команд, или `some_commmand --help' (без кавычек) для справки по конкретной команде."
+
+#: ../batchd/src/Daemon/Manager.hs:159:49
+msgid "File not found: `{}'"
+msgstr "Файл не найден: `{}'"
+
+#: ../batchd/src/Daemon/Manager.hs:157:49
+msgid "Queue not found: `{}'"
+msgstr "Очередь не найдена: `{}'"
+
+#: ../batchd/src/Daemon/Manager.hs:158:42
+msgid "Specified job not found"
+msgstr "Указанное задание не найдено"
+
+#: ../batchd/src/Daemon/Types.hs:168:46
+msgid "Database connection is not established yet"
+msgstr "Соедениение с базой данных ещё не установлено"
+
