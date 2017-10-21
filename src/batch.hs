@@ -3,6 +3,10 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 import Control.Exception
+import qualified Data.Text.Lazy.IO as TLIO
+import Data.Text.Format.Heavy
+import Text.Localize
+import Text.Localize.IO
 
 import Client.Types
 import Client.CmdLine
@@ -15,10 +19,11 @@ main :: IO ()
 main = realMain `catch` errorHandler
 
 errorHandler :: ClientException -> IO ()
-errorHandler (ClientException e) = putStrLn $ "Error: " ++ e
+errorHandler (ClientException e) = TLIO.putStrLn =<< (__f "Error: {}" (Single e))
 
 realMain :: IO ()
 realMain = do
+  setupTranslations $ localLocation "mo"
   opts <- getCmdArgs
   -- print opts
 

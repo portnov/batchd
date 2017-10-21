@@ -11,6 +11,9 @@ import Data.Generics hiding (Generic)
 import Data.Maybe
 import Data.Monoid ((<>))
 import qualified Data.Text.Lazy as TL
+import Data.Text.Format.Heavy
+import Text.Localize
+import Text.Localize.IO
 import System.Environment
 import System.Posix.User (getLoginName)
 
@@ -91,7 +94,7 @@ loadClientConfig = do
     Just path -> do
       r <- decodeFileEither path
       case r of
-        Left err -> throw $ ClientException $ "Can't parse client config:\n" <> show err
+        Left err -> throw =<< ClientException `fmap` (__f "Can't parse client configuration file:\n{}" (Single $ show err))
         Right cfg -> return cfg
     
 getManagerUrl :: CmdLine -> ClientConfig -> IO String

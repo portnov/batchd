@@ -9,6 +9,9 @@ import Control.Monad.State
 import qualified Data.ByteString.Lazy as L
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TLE
+import Data.Text.Format.Heavy
+import Text.Localize
+import Text.Localize.IO
 import Data.Char
 import Data.Default
 import Data.List
@@ -147,7 +150,7 @@ handleStatus :: Response L.ByteString -> IO L.ByteString
 handleStatus rs =
   if responseStatus rs == ok200
     then return $ responseBody rs
-    else throw $ ClientException $ TL.unpack $ TLE.decodeUtf8 $ responseBody rs
+    else throw $ ClientException $ TLE.decodeUtf8 $ responseBody rs
 
 allowAny :: Request -> Response BodyReader -> IO ()
 allowAny _ _ = return ()
@@ -204,7 +207,7 @@ doGet urlStr = do
   -- print request
   responseLbs <- doHttp request manager
   case Aeson.eitherDecode responseLbs of
-    Left err -> throwC err
+    Left err -> throwC =<< (__f "Can't parse server response for GET request: {}" (Single err))
     Right res -> return res
 
 -- OPTIONS request
@@ -215,6 +218,6 @@ doOptions urlStr = do
   let request = url {checkResponse = allowAny, method = "OPTIONS"}
   responseLbs <- doHttp request manager
   case Aeson.eitherDecode responseLbs of
-    Left err -> throwC $ "Cant do OPTIONS: " <> err
+    Left err -> throwC =<< (__f "Can't parse server response for OPTIONS request: {}" (Single err))
     Right res -> return res
 

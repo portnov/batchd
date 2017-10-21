@@ -13,11 +13,15 @@ import Data.Monoid ((<>))
 import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.IO as TLIO
+import Data.Text.Format.Heavy
 import Data.Char
 import Data.List (intercalate)
 import Data.Aeson
 import System.FilePath
 import Text.Printf
+import Text.Localize
+import Text.Localize.IO
 
 import Common.Types
 import qualified Common.Data as Database
@@ -37,7 +41,7 @@ doEnqueue = do
   t <- liftIO $ getTypeName opts cfg
   jtr <- liftIO $ loadTemplate t
   case jtr of
-    Left err -> throwC $ show err
+    Left err -> throwC =<< (__f "Can't load job type description: {}" (Single $ Shown err))
     Right jtype -> do
       qname <- liftIO $ getQueueName opts cfg
       host <- liftIO $ getHostName opts cfg
@@ -81,7 +85,7 @@ doList = do
 
     qnames ->
       forM_ qnames $ \qname -> do
-        statusOpt <- parseStatus (Just New) (throwC "Invalid status") (status command)
+        statusOpt <- parseStatus (Just New) (throwC =<< (__ "Invalid status")) (status command)
         let statusStr = case statusOpt of
                           Nothing -> "?status=all"
                           Just st -> case status command of
@@ -152,9 +156,9 @@ viewJob = do
     printJob :: JobInfo -> IO ()
     printJob job = do
       let host = fromMaybe "*" $ jiHostName job
-      printf "Order:\t%d\nType:\t%s\nQueue:\t%s\nHost:\t%s\nUser:\t%s\nCreated:\t%s\nStatus:\t%s\nTry count:\t%d\n"
-        (jiSeq job) (jiType job) (jiQueue job) host (jiUserName job) (show $ jiCreateTime job)
-        (show $ jiStatus job) (jiTryCount job)
+      TLIO.putStrLn =<< (__f "Order:\t{}\nType:\t{}\nQueue:\t{}\nHost:\t{}\nUser:\t{}\nCreated:\t{}\nStatus:\t{}\nTry count:\t{}\n"
+                          (jiSeq job, jiType job, jiQueue job, host, (jiUserName job), show $ jiCreateTime job,
+                           show $ jiStatus job, jiTryCount job))
       forM_ (M.assocs $ jiParams job) $ \(name, value) -> do
           printf "%s:\t%s\n" name value
 
@@ -164,7 +168,7 @@ viewJob = do
                    Nothing -> "-"
                    Just t -> show t
       let code = show (jiExitCode job)
-      printf "Exit code:\t%s\nTime:\t%s\n\n" code time
+      TLIO.putStrLn =<< (__f "Exit code:\t{}\nTime:\t{}\n\n" (code, time))
       case jiStdout job of
         Nothing -> return ()
         Just text -> putStrLn $ T.unpack text
@@ -173,20 +177,20 @@ viewJob = do
     printResult r = do
       let time = show (Database.jobResultTime r)
       let code = show (Database.jobResultExitCode r)
-      printf "Exit code:\t%s\nTime:\t%s\n\n" code time
+      TLIO.putStrLn =<< (__f "Exit code:\t{}\nTime:\t{}\n\n" (code, time))
       putStrLn $ T.unpack $ Database.jobResultStdout r
 
-checkIncompatibleOptions :: [(String, Bool)] -> Client ()
-checkIncompatibleOptions opts =
-    when (length (filter snd opts) > 1) $ do
-      throwC $ printf "Only one option of %s can be specified at once" enabled
-  where
-    enabled = intercalate ", " $ map fst $ filter snd opts
+-- checkIncompatibleOptions :: [(String, Bool)] -> Client ()
+-- checkIncompatibleOptions opts =
+--     when (length (filter snd opts) > 1) $ do
+--       throwC $ printf "Only one option of %s can be specified at once" enabled
+--   where
+--     enabled = intercalate ", " $ map fst $ filter snd opts
 
 checkModes :: [Client (Maybe a)] -> Client a
 checkModes list = go Nothing list
   where
-    go Nothing [] = throwC "No mode is selected"
+    go Nothing [] = throwC =<< (__ "No mode is selected")
     go (Just m) [] = return m
     go Nothing (m:ms) = do
       result <- m
@@ -195,7 +199,7 @@ checkModes list = go Nothing list
       result <- m
       case result of
         Nothing -> go selected ms
-        Just _ -> throwC "Only one mode can be selected"
+        Just _ -> throwC =<< (__ "Only one mode can be selected")
 
 updateJob :: Client ()
 updateJob = do
@@ -299,11 +303,11 @@ doAddSchedule = do
   opts <- gets csCmdline
   let command = cmdCommand opts
   when (length (scheduleNames command) /= 1) $
-    throwC $ "Exactly one schedule name must be specified when creating a schedule"
+    throwC =<< (__ "Exactly one schedule name must be specified when creating a schedule")
   let ts = forM (periods command) $ \str -> do
              parsePeriod str
   case ts of
-    Left err -> throwC $ "Can't parse period description: " <> show err
+    Left err -> throwC =<< (__f "Can't parse period description: {}" (Single $ show err))
     Right times -> do
       let url = baseUrl </> "schedule"
       let schedule = ScheduleInfo {
@@ -319,11 +323,16 @@ doDeleteSchedule = do
   opts <- gets csCmdline
   let command = cmdCommand opts
   when (length (scheduleNames command) /= 1) $
-    throwC $ "Exactly one schedule name must be specified when deleting a schedule"
+    throwC =<< (__ "Exactly one schedule name must be specified when deleting a schedule")
   let sname = head (scheduleNames command)
   let forceStr = if force command then "?forced=true" else ""
   let url = baseUrl </> "schedule" </> sname ++ forceStr
   doDelete url
+
+printField :: Formatable value => TL.Text -> IO TL.Text -> value -> IO ()
+printField sep ioName value = do
+  name <- ioName
+  TLIO.putStrLn $ format "\t{}{}:\t{}" (sep, name, value)
 
 doType :: Client ()
 doType = do
@@ -339,16 +348,16 @@ doType = do
             when (check jt) $ do
               let title = fromMaybe (jtName jt) (jtTitle jt)
               putStrLn $ jtName jt ++ ":"
-              putStrLn $ "\tTitle:\t" ++ title
-              putStrLn $ "\tTemplate:\t" ++ jtTemplate jt
-              putStrLn $ "\tOn fail:\t" ++ show (jtOnFail jt)
-              putStrLn $ "\tHost:\t" ++ fromMaybe "*" (jtHostName jt)
-              putStrLn $ "\tParameters:"
+              printField "" (__ "Title") title
+              printField "" (__ "Template") (jtTemplate jt)
+              printField "" (__ "On fail") (Shown (jtOnFail jt))
+              printField "" (__ "Host") (fromMaybe "*" (jtHostName jt))
+              TLIO.putStrLn =<< (__ "\tParameters:")
               forM_ (jtParams jt) $ \desc -> do
-                putStrLn $ "\t* Name:\t" ++ piName desc
-                putStrLn $ "\t  Type:\t" ++ show (piType desc)
-                putStrLn $ "\t  Title:\t" ++ piTitle desc
-                putStrLn $ "\t  Default:\t" ++ piDefault desc
+                printField "* " (__ "Name") (piName desc)
+                printField "  " (__ "Type") (Shown (piType desc))
+                printField "  " (__ "Title") (piTitle desc)
+                printField "  " (__ "Default") (piDefault desc)
 
 doListUsers :: Client ()
 doListUsers = do
@@ -408,7 +417,7 @@ doAddPermission = do
       url = baseUrl </> "user" </> name </> "permissions"
   perm <- case permission command of
             Just p -> return $ Database.UserPermission name p (queueName command) (typeName command) (hostName command)
-            Nothing -> throwC "permission (-p) must be specified"
+            Nothing -> throwC =<< (__ "permission (-p) must be specified")
   doPost url perm
 
 doRevokePermission :: Client ()
@@ -419,7 +428,7 @@ doRevokePermission = do
   let name = grantUserName command
   url <- case grantPermissionId command of
            Just permId -> return $ baseUrl </> "user" </> name </> "permissions" </> show permId
-           Nothing -> throwC "permission ID (-i) must be specified"
+           Nothing -> throwC =<< (__ "permission ID (-i) must be specified")
   -- liftIO $ print url
   doDelete url
 

@@ -7,9 +7,13 @@ module Client.Shell (commandHandler) where
 
 import Control.Monad.State
 import Data.Maybe
+import qualified Data.Text.Lazy.IO as TLIO
+import Data.Text.Format.Heavy
 import Options.Applicative
 import System.Console.Readline
 import System.Environment (getProgName)
+import Text.Localize
+import Text.Localize.IO
 
 import Client.Types
 import Client.Actions
@@ -64,12 +68,12 @@ commandHandler = do
         Delete -> doRevokePermission
     Shell {} -> do
       obtainCredentials
-      liftIO $ putStrLn "This is batch client shell. Type `--help' for list of available commands or `some_command --help' (without quotes) for help message on particular command."
+      liftIO $ TLIO.putStrLn =<< (__ "This is batch client shell. Type `--help' for list of available commands or `some_command --help' (without quotes) for help message on particular command.")
       runShell
 
 errorHandler :: ClientException -> Client ()
 errorHandler (ClientException e) =
-  liftIO $ putStrLn $ "Error: " ++ e
+  liftIO $ TLIO.putStrLn =<< (__f "Error: {}" (Single e))
 
 runShell :: Client ()
 runShell = do

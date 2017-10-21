@@ -185,6 +185,7 @@ executable batch
                        monad-logger >= 0.3,
                        monad-logger-syslog >= 0.1,
                        text-format-heavy >= 0.1.4.2,
+                       localize >= 0.2,
                        resourcet >= 1.1.7,
                        unix >= 2.7.0,
                        scotty >= 0.10
