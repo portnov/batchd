@@ -9,8 +9,10 @@ import Control.Monad
 import Control.Monad.State
 import Data.Int
 import Data.Maybe
+import Data.Monoid ((<>))
 import qualified Data.Map as M
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
 import Data.Char
 import Data.List (intercalate)
 import Data.Aeson
@@ -301,7 +303,7 @@ doAddSchedule = do
   let ts = forM (periods command) $ \str -> do
              parsePeriod str
   case ts of
-    Left err -> throwC $ "Can't parse period description: " ++ show err
+    Left err -> throwC $ "Can't parse period description: " <> show err
     Right times -> do
       let url = baseUrl </> "schedule"
       let schedule = ScheduleInfo {

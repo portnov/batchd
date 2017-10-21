@@ -7,6 +7,7 @@ module Client.Types where
 import GHC.Generics
 import Control.Exception
 import Data.Generics hiding (Generic)
+import qualified Data.Text.Lazy as TL
 
 data ClientException = ClientException String
   deriving (Data, Typeable, Generic)

@@ -9,6 +9,8 @@ import Control.Exception
 import Data.Yaml
 import Data.Generics hiding (Generic)
 import Data.Maybe
+import Data.Monoid ((<>))
+import qualified Data.Text.Lazy as TL
 import System.Environment
 import System.Posix.User (getLoginName)
 
@@ -89,7 +91,7 @@ loadClientConfig = do
     Just path -> do
       r <- decodeFileEither path
       case r of
-        Left err -> throw $ ClientException $ "Can't parse client config:\n" ++ show err
+        Left err -> throw $ ClientException $ "Can't parse client config:\n" <> show err
         Right cfg -> return cfg
     
 getManagerUrl :: CmdLine -> ClientConfig -> IO String

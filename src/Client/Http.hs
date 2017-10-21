@@ -7,9 +7,12 @@ module Client.Http where
 import Control.Exception
 import Control.Monad.State
 import qualified Data.ByteString.Lazy as L
+import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.Encoding as TLE
 import Data.Char
 import Data.Default
 import Data.List
+import Data.Monoid ((<>))
 import Data.Aeson as Aeson
 import Data.X509.CertificateStore
 import Network.HTTP.Client
@@ -144,7 +147,7 @@ handleStatus :: Response L.ByteString -> IO L.ByteString
 handleStatus rs =
   if responseStatus rs == ok200
     then return $ responseBody rs
-    else throw $ ClientException $ map (chr . fromIntegral) $ L.unpack $ responseBody rs
+    else throw $ ClientException $ TL.unpack $ TLE.decodeUtf8 $ responseBody rs
 
 allowAny :: Request -> Response BodyReader -> IO ()
 allowAny _ _ = return ()
@@ -212,6 +215,6 @@ doOptions urlStr = do
   let request = url {checkResponse = allowAny, method = "OPTIONS"}
   responseLbs <- doHttp request manager
   case Aeson.eitherDecode responseLbs of
-    Left err -> throwC $ "Cant do OPTIONS: " ++ err
+    Left err -> throwC $ "Cant do OPTIONS: " <> err
     Right res -> return res
 

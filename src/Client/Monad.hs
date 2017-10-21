@@ -7,6 +7,7 @@ module Client.Monad where
 
 import Control.Monad.State
 import Control.Exception
+import qualified Data.Text.Lazy as TL
 import Network.HTTP.Client
 
 import Common.Types

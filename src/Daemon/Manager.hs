@@ -11,6 +11,7 @@ import Control.Monad.Reader
 import qualified Control.Monad.State as State
 import qualified Data.ByteString as B
 import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.IO as TLIO
 import Data.Text.Format.Heavy
 import Data.Text.Format.Heavy.Parse
 import Data.Maybe
@@ -148,7 +149,9 @@ raise404 message mbs = do
   Scotty.status status404
   case mbs of
     Nothing -> Scotty.text localizedMessage
-    Just name -> Scotty.text $ format (parseFormat' localizedMessage) (Single name)
+    Just name -> do
+      let msg' = format (parseFormat' localizedMessage) (Single name)
+      Scotty.text msg'
 
 raiseError :: Error -> Action ()
 raiseError (QueueNotExists name) = raise404 (__ "Queue not found: `{}'") (Just name)
