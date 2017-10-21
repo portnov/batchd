@@ -12,6 +12,7 @@ import qualified Control.Monad.State as State
 import qualified Data.ByteString as B
 import qualified Data.Text.Lazy as TL
 import Data.Text.Format.Heavy
+import Data.Text.Format.Heavy.Parse
 import Data.Maybe
 import Data.Default
 import Data.Yaml
@@ -25,6 +26,7 @@ import System.FilePath
 import System.FilePath.Glob
 import System.Log.Heavy.Types
 import System.Log.Heavy
+import Text.Localize (__)
 
 import Common.Types
 import Common.Config
@@ -140,17 +142,18 @@ getUrlParam key = do
   let qry = Wai.queryString rq
   return $ join $ lookup key qry
 
-raise404 :: String -> Maybe String -> Action ()
-raise404 t mbs = do
+raise404 :: Action TL.Text -> Maybe String -> Action ()
+raise404 message mbs = do
+  localizedMessage <- message
   Scotty.status status404
   case mbs of
-    Nothing -> Scotty.text $ TL.pack $ "Specified " ++ t ++ " not found."
-    Just name -> Scotty.text $ TL.pack $ "Specified " ++ t ++ " not found: " ++ name
+    Nothing -> Scotty.text localizedMessage
+    Just name -> Scotty.text $ format (parseFormat' localizedMessage) (Single name)
 
 raiseError :: Error -> Action ()
-raiseError (QueueNotExists name) = raise404 "queue" (Just name)
-raiseError JobNotExists   = raise404 "job" Nothing
-raiseError (FileNotExists name)  = raise404 "file" (Just name)
+raiseError (QueueNotExists name) = raise404 (__ "Queue not found: `{}'") (Just name)
+raiseError JobNotExists   = raise404 (__ "Specified job not found") Nothing
+raiseError (FileNotExists name)  = raise404 (__ "File not found: `{}'") (Just name)
 raiseError QueueNotEmpty  = Scotty.status status403
 raiseError (InsufficientRights msg) = do
   Scotty.status status403

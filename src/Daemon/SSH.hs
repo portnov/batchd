@@ -1,5 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Daemon.SSH where
 
@@ -16,6 +17,7 @@ import Network.SSH.Client.LibSSH2
 import System.FilePath
 import System.Environment
 import System.Exit
+import Text.Localize (__)
 
 import Common.Types
 import Daemon.Types

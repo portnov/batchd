@@ -16,6 +16,7 @@ import qualified Network.Wai.Middleware.HttpAuth as HA
 import qualified Web.Scotty.Trans as Scotty
 import System.Log.Heavy (LoggingTState)
 import Data.Text.Format.Heavy
+import Text.Localize (__)
 
 import System.IO.Unsafe (unsafePerformIO)
 

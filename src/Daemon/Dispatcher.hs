@@ -16,6 +16,7 @@ import qualified Database.Persist.Sql as Sql hiding (Single)
 import System.Exit
 import Data.Text.Format.Heavy
 import System.Log.Heavy
+import Text.Localize (__)
 
 import Common.Types
 import Daemon.Types
@@ -78,7 +79,6 @@ callbackListener :: Chan (JobInfo, JobResult, OnFailAction) -> Daemon ()
 callbackListener resChan = withLogVariable "thread" ("job result listener" :: String) $ forever $ do
   (job, result, onFail) <- liftIO $ readChan resChan
   withJobContext job $ do
-    cfg <- askConfig
     runDB $ do
         insert_ result
         if jobResultExitCode result == ExitSuccess

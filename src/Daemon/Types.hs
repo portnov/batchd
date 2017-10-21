@@ -15,6 +15,8 @@ import Network.Wai
 import qualified Web.Scotty.Trans as Scotty
 import qualified Web.Scotty.Internal.Types as SI
 import System.Log.Heavy
+import Text.Localize
+import Text.Localize.IO
 
 import Common.Types
 
@@ -47,6 +49,7 @@ dbio action = do
 data ConnectionInfo = ConnectionInfo {
     ciGlobalConfig :: GlobalConfig     -- ^ Global configuration
   , ciPool :: Maybe Sql.ConnectionPool -- ^ DB connection pool
+  , ciTranslations :: Maybe Translations
   }
 
 -- | Main monad for daemon actions (both Manager and Dispatcher). This handles logging
@@ -55,6 +58,24 @@ newtype Daemon a = Daemon {
     runDaemonT :: LoggingT (StateT ConnectionInfo IO) a
   }
   deriving (Applicative,Functor,Monad,MonadIO, MonadReader LoggingTState, HasLogContext, HasLogger)
+
+instance Localized Daemon where
+  getLanguage = liftIO $ languageFromLocale
+
+  getTranslations = do
+    ci <- askConnectionInfo
+    case ciTranslations ci of
+      Just tr -> return tr
+      Nothing -> fail $ "Translations are not loaded yet"
+
+  getContext = return Nothing
+
+instance Localized (ReaderT Sql.SqlBackend (LoggingT (ExceptT Error (ResourceT IO)))) where
+  getLanguage = liftIO $ languageFromLocale
+
+  getTranslations = liftIO getTranslations
+
+  getContext = return Nothing
 
 -- | Run daemon actions within IO monad
 runDaemonIO' :: ConnectionInfo -> SpecializedLogger -> Daemon a -> IO a
@@ -70,6 +91,12 @@ runDaemonIO connInfo lts actions =
 
 -- | REST handler monad type
 type Action a = Scotty.ActionT Error Daemon a
+
+-- TODO: this should respect Accept-Language HTTP header
+instance Localized (Scotty.ActionT Error Daemon) where
+  getLanguage = lift getLanguage
+  getTranslations = lift getTranslations
+  getContext = lift getContext
 
 instance HasLogContext (Scotty.ActionT Error Daemon) where
   getLogContext = lift getLogContext
@@ -96,6 +123,12 @@ instance F.VarContainer Request where
   lookupVar "referer" rq = Just $ F.Variable $ requestHeaderReferer rq
   lookupVar "useragent" rq = Just $ F.Variable $ requestHeaderUserAgent rq
   lookupVar _ rq = Nothing
+
+setupTranslations :: LocatePolicy -> Daemon ()
+setupTranslations p = do
+  liftIO $ Text.Localize.IO.setupTranslations p
+  translations <- liftIO $ locateTranslations p
+  Daemon $ lift $ modify $ \st -> st {ciTranslations = Just translations}
 
 -- | Obtain DB connection
 askConnectionInfo :: Daemon ConnectionInfo
@@ -132,7 +165,7 @@ askPool :: Daemon Sql.ConnectionPool
 askPool = do
   mbPool <- Daemon $ lift $ gets ciPool
   case mbPool of
-    Nothing -> fail $ "Database connection is not established yet"
+    Nothing -> fail =<< TL.unpack `fmap` (__ "Database connection is not established yet")
     Just pool -> return pool
 
 -- | Obtain global daemon configuration
@@ -144,7 +177,7 @@ askPoolA :: Action Sql.ConnectionPool
 askPoolA = do
   mbPool <- asksConnectionInfo ciPool
   case mbPool of
-    Nothing -> fail $ "Database connection is not established yet"
+    Nothing -> fail =<< TL.unpack `fmap` (__ "Database connection is not established yet")
     Just pool -> return pool
 
 -- | Obtain global daemon configuration within Action monad
@@ -200,7 +233,7 @@ runDaemon cfg mbPool backend daemon =
       withLogContext (LogContextFrame [] NoChange) $ runDaemonT daemon
   where
     runner r = evalStateT r initState
-    initState = ConnectionInfo cfg mbPool
+    initState = ConnectionInfo cfg mbPool Nothing
     -- undefinedLogger = error "Internal error: logger is not defined yet"
 
 -- | Wrap Daemon action with some @with@-style function in IO monad.
@@ -209,8 +242,9 @@ wrapDaemon :: ((c -> IO a) -> IO a) -> (c -> Daemon a) -> Daemon a
 wrapDaemon wrapper daemon = do
     cfg <- askConfig
     pool <- askPool
+    translations <- getTranslations
     lts <- askLoggingStateM
-    let connInfo = ConnectionInfo cfg (Just pool)
+    let connInfo = ConnectionInfo cfg (Just pool) (Just translations)
     result <- liftIO $ wrapper $ \c -> runDaemonIO connInfo lts (daemon c)
     return result
 
@@ -219,8 +253,9 @@ forkDaemon :: Daemon a -> Daemon ()
 forkDaemon daemon = do
     cfg <- askConfig
     pool <- askPool
+    translations <- getTranslations
     lts <- askLoggingStateM
-    let connInfo = ConnectionInfo cfg (Just pool)
+    let connInfo = ConnectionInfo cfg (Just pool) (Just translations)
     liftIO $ forkIO $ do
                runDaemonIO connInfo lts daemon
                return ()

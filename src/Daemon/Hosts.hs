@@ -8,6 +8,7 @@ import Control.Concurrent
 import Control.Exception
 import Control.Monad.Trans
 import qualified Data.Map as M
+import Text.Localize
 
 import Common.Types
 import Daemon.Types
@@ -66,7 +67,8 @@ withHost :: HostCounters -> Host -> JobType -> Daemon a -> Daemon a
 withHost mvar host jtype actions = do
   cfg <- askConfig
   pool <- askPool
+  translations <- getTranslations
   lts <- askLoggingStateM
-  let connInfo = ConnectionInfo cfg (Just pool)
+  let connInfo = ConnectionInfo cfg (Just pool) (Just translations)
   liftIO $ bracket_ (acquireHost mvar host jtype) (releaseHost mvar host) $ runDaemonIO connInfo lts actions
 

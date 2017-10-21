@@ -6,10 +6,11 @@
 import Data.Semigroup ((<>))
 import Options.Applicative
 import Data.Text.Format.Heavy
+import Text.Localize
 
 import Common.Types
 import Common.Config
-import Daemon.Types (runDaemon, forkDaemon)
+import Daemon.Types (runDaemon, forkDaemon, setupTranslations)
 import qualified Daemon.Logging as Log
 import Daemon.Database
 import Daemon.Manager as Manager
@@ -42,6 +43,9 @@ main = do
                    else cmd
       let logSettings = Log.getLoggingSettings cfg
       runDaemon cfg Nothing logSettings $ do
+        setupTranslations $ localLocation "mo"
+        tr <- getTranslations
+        $(Log.debug) "Loaded translations: {}" (Single $ show tr)
         $(Log.debug) "Loaded global configuration file: {}" (Single $ show cfg)
         connectPool
         case mode of
