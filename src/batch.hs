@@ -26,9 +26,9 @@ realMain = do
   opts <- getCmdArgs
   -- print opts
 
-  manager <- makeClientManager opts
+  -- manager <- makeClientManager opts
   cfg <- loadClientConfig
-  let state = ClientState opts cfg Nothing Nothing manager
+  let state = ClientState opts cfg Nothing Nothing Normal Nothing
 
   runClient state $ commandHandler
 

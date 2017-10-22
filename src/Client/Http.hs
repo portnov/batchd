@@ -30,34 +30,38 @@ import Client.Types as C
 import Client.Config
 import Client.CmdLine
 import Client.Monad
+import Client.Logging
 
 -- | Create a Manager - a structure which contains all required information to
 -- maintain HTTP connection, over TLS if required.
-makeClientManager :: CmdLine -> IO Manager
+makeClientManager :: CmdLine -> Client Manager
 makeClientManager opts = do
-    cfg <- loadClientConfig
-    url <- getManagerUrl opts cfg
+    cfg <- liftIO loadClientConfig
+    url <- liftIO $ getManagerUrl opts cfg
     if "https" `isPrefixOf` url
       then mkMngr (ccDisableServerCertificateCheck cfg) (ccCertificate cfg) (ccKey cfg) (ccCertificate cfg)
-      else newManager defaultManagerSettings -- for HTTP everything is easy
+      else liftIO $ newManager defaultManagerSettings -- for HTTP everything is easy
   where
-    mkMngr :: Bool -> Maybe FilePath -> Maybe FilePath -> Maybe FilePath -> IO Manager
+    mkMngr :: Bool -> Maybe FilePath -> Maybe FilePath -> Maybe FilePath -> Client Manager
     mkMngr disableServerCertCheck mbCertFile mbKeyFile mbCaFile = do
+     when disableServerCertCheck $ do
+         verbose (__ "Server certificate check disabled") ()
      -- load Credentials from certificate and private key file (.pem and .key usually)
      creds <- case (mbCertFile, mbKeyFile) of
                 (Just certFile, Just keyFile) -> do
-                    r <- credentialLoadX509 certFile keyFile
+                    verbose (__ "Loading HTTPS certificate: {}, key: {}") (certFile, keyFile)
+                    r <- liftIO $ credentialLoadX509 certFile keyFile
                     case r of
                       Right cr -> return $ Just cr
                       Left err -> fail =<< (__sf "Can't load certificate/key: {}" (Single $ show err))
                 _ -> do
-                     putStrLn =<< (__s "Certificate or key file is not specified, try to access HTTPS without them")
+                     message (__ "Certificate or key file is not specified, try to access HTTPS without them") ()
                      return Nothing
      -- load trusted CA store if specified
      mbStore <- case mbCaFile of
                        Nothing -> return Nothing
                        Just caFile -> do
-                          r <- readCertificateStore caFile
+                          r <- liftIO $ readCertificateStore caFile
                           case r of
                             Just store -> return $ Just store
                             Nothing -> fail =<< (__s "cannot read specified CA store")
@@ -67,17 +71,17 @@ makeClientManager opts = do
                 
      let clientCertHook _ = return creds
          skip _ _ _ _ = do
-                putStrLn =<< (__s "Server certificate check disabled")
                 return []
+
          -- handlers for TLS protocol events on client side
-         hooks = if disableServerCertCheck
-                   then def {
-                          onCertificateRequest = clientCertHook, -- return loaded client certificate
-                          onServerCertificate = skip
-                        }
-                   else def {
-                          onCertificateRequest = clientCertHook
-                        }
+         hooks =
+            if disableServerCertCheck
+              then def {
+                         onCertificateRequest = clientCertHook, -- return loaded client certificate
+                         onServerCertificate = skip
+                       }
+              else def { onCertificateRequest = clientCertHook }
+
          clientParams = (defaultParamsClient "" "")
                         { clientHooks = hooks,
                           clientUseServerNameIndication = True, -- SNI
@@ -87,7 +91,7 @@ makeClientManager opts = do
                         }
          tlsSettings = TLSSettings clientParams
 
-     newManager $ mkManagerSettings tlsSettings Nothing
+     liftIO $ newManager $ mkManagerSettings tlsSettings Nothing
 
 -- | Obtain list of authentication methods supported by server.
 -- This is done by requesting OPTIONS /.
@@ -108,10 +112,13 @@ obtainCredentials = do
   cfg <- gets csConfig
   opts@(CmdLine o _) <- gets csCmdline
   methods <- getAuthMethods
+  verbose (__ "Supported authentication methods: {}") (Single $ show methods)
   let needPassword = BasicAuth `elem` methods -- only basic auth of currently supported methods requires a password.
   name <- liftIO $ getUserName opts cfg
   pass <- if ccDisableAuth cfg || not needPassword
-            then return ""
+            then do
+                 debug (__ "Password is not required") ()
+                 return ""
             else do
                  mbPassword <- liftIO $ getConfigParam' (password o) "BATCH_PASSWORD" (ccPassword cfg)
                  case mbPassword of
@@ -145,25 +152,39 @@ applyAuth rq = do
                 return $ rq {requestHeaders = ("X-Auth-User", stringToBstr name) : requestHeaders rq}
            else return rq
 
-handleStatus :: Response L.ByteString -> IO L.ByteString
-handleStatus rs =
+handleStatus :: Response L.ByteString -> Client L.ByteString
+handleStatus rs = do
+  debug (__ "Received response: {}") (Single $ Shown rs)
+  verbose (__ "Server response code is {}") (Single $ Shown $ responseStatus rs)
   if responseStatus rs == ok200
     then return $ responseBody rs
-    else throw $ ClientException $ TLE.decodeUtf8 $ responseBody rs
+    else do
+         liftIO $ throw $ ClientException $ TLE.decodeUtf8 $ responseBody rs
 
 allowAny :: Request -> Response BodyReader -> IO ()
 allowAny _ _ = return ()
 
+getManager :: Client Manager
+getManager = do
+  mbManager <- gets csManager
+  case mbManager of
+    Just manager -> return manager
+    Nothing -> do
+               cmdline <- gets csCmdline
+               manager <- makeClientManager cmdline
+               modify $ \st -> st {csManager = Just manager}
+               return manager
+
 -- Generic HTTP request wrapper, useful mostly for debugging
 doHttp :: Request -> Manager -> Client L.ByteString
 doHttp request manager = do
-  -- liftIO $ print request
-  liftIO $ handleStatus =<< httpLbs request manager
+  debug (__ "Sending request: {}") (Single $ Shown request)
+  handleStatus =<< (liftIO $ httpLbs request manager)
 
 -- PUT request
 doPut :: ToJSON a => String -> a -> Client ()
 doPut urlStr object = do
-  manager <- gets csManager
+  manager <- getManager
   url <- liftIO $ parseUrl urlStr
   request <- applyAuth $ url {
                   method="PUT",
@@ -176,7 +197,7 @@ doPut urlStr object = do
 -- POST request
 doPost :: ToJSON a => String -> a -> Client ()
 doPost urlStr object = do
-  manager <- gets csManager
+  manager <- getManager
   url <- liftIO $ parseUrl urlStr
   request <- applyAuth $ url {
                   method="POST",
@@ -189,7 +210,7 @@ doPost urlStr object = do
 -- DELETE request
 doDelete :: String -> Client ()
 doDelete urlStr = do
-  manager <- gets csManager
+  manager <- getManager
   url <- liftIO $ parseUrl urlStr
   request <- applyAuth $ url { method="DELETE",
                       checkResponse = allowAny
@@ -200,10 +221,9 @@ doDelete urlStr = do
 -- GET request
 doGet :: FromJSON a => String -> Client a
 doGet urlStr = do
-  manager <- gets csManager
+  manager <- getManager
   url <- liftIO $  parseUrl urlStr
   request <- applyAuth $ url {checkResponse = allowAny}
-  -- print request
   responseLbs <- doHttp request manager
   case Aeson.eitherDecode responseLbs of
     Left err -> throwC =<< (__f "Can't parse server response for GET request: {}" (Single err))
@@ -212,7 +232,7 @@ doGet urlStr = do
 -- OPTIONS request
 doOptions :: FromJSON a => String -> Client a
 doOptions urlStr = do
-  manager <- gets csManager
+  manager <- getManager
   url <- liftIO $ parseUrl urlStr
   let request = url {checkResponse = allowAny, method = "OPTIONS"}
   responseLbs <- doHttp request manager

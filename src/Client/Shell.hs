@@ -10,12 +10,12 @@ import Data.Maybe
 import qualified Data.Text.Lazy.IO as TLIO
 import Data.Text.Format.Heavy
 import Options.Applicative
-import System.Console.Readline
+import System.Console.Readline (readline, addHistory)
 import System.Environment (getProgName)
-import Text.Localize
-import Text.Localize.IO
 
+import Common.Localize
 import Client.Types
+import Client.Logging
 import Client.Actions
 import Client.CmdLine
 import Client.Monad
@@ -68,7 +68,7 @@ commandHandler = do
         Delete -> doRevokePermission
     Shell {} -> do
       obtainCredentials
-      liftIO $ TLIO.putStrLn =<< (__ "This is batch client shell. Type `--help' for list of available commands or `some_command --help' (without quotes) for help message on particular command.")
+      message (__ "This is batch client shell. Type `--help' for list of available commands or `some_command --help' (without quotes) for help message on particular command.") ()
       runShell
 
 errorHandler :: ClientException -> Client ()

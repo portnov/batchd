@@ -26,3 +26,10 @@ data CrudMode =
 
 type Credentials = (String, String)
 
+data Verbosity =
+    Normal
+  | Verbose
+  | Debug
+  | Quiet
+  deriving (Eq, Show, Ord)
+

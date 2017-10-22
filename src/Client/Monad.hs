@@ -23,7 +23,8 @@ data ClientState = ClientState {
     csConfig :: ClientConfig,
     csCredentials :: Maybe Credentials,
     csAuthMethods :: Maybe [AuthMethod],
-    csManager :: Manager
+    csVerbosity :: Verbosity,
+    csManager :: Maybe Manager
   }
 
 type Client a = StateT ClientState IO a
