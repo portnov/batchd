@@ -54,7 +54,7 @@ runClient st action =
     evalStateT (withLogging (LoggingSettings logSettings) action) st
   where
     logSettings =
-      Filtering [([], verbosity)] $
+      filtering [([], verbosity)] $
         FastLoggerSettings logFormat (FL.LogStderr 0)
     verbosity = logLevel $ cmdCommon $ csCmdline st
     logFormat = "{level}: {message}\n"

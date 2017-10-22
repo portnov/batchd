@@ -12,7 +12,6 @@ import Data.Char (toLower)
 import Data.Semigroup ((<>))
 import Options.Applicative
 import System.Log.Heavy
-import Control.Monad.Logger (LogLevel (..))
 
 import Common.Types
 import Common.Data (MoveAction (..))
@@ -27,7 +26,7 @@ data CommonOpts = CommonOpts {
       managerUrl :: Maybe String,
       username :: Maybe String,
       password :: Maybe String,
-      logLevel :: LogLevel
+      logLevel :: Level
     }
   deriving (Eq, Show)
     
@@ -130,10 +129,10 @@ commonOpts = CommonOpts
         <> help "batchd user password"))
     <*> verbosity
 
-verbosity :: Parser LogLevel
+verbosity :: Parser Level
 verbosity =
-      flag' LevelDebug (short 'v' <> long "verbose" <> help "be verbose")
-  <|> flag LevelInfo LevelError (short 'q' <> long "quiet" <> help "be quiet")
+      flag' debug_level (short 'v' <> long "verbose" <> help "be verbose")
+  <|> flag event_level disable_logging (short 'q' <> long "quiet" <> help "be quiet")
 
 required :: Read a => String -> Char -> String -> String -> Parser a
 required longName shortName meta helpText =

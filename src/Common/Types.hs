@@ -25,6 +25,8 @@ import qualified Data.Text.Format.Heavy as F
 import qualified Data.Text.Format.Heavy.Parse.Braces as PF
 import Data.Yaml (ParseException (..))
 import Data.Dates
+import qualified System.Posix.Syslog as Syslog
+import System.Log.Heavy
 import System.Exit
 
 defaultManagerPort :: Int
@@ -383,13 +385,13 @@ instance FromJSON LogTarget where
 data LogConfig = LogConfig {
     lcTarget :: LogTarget,
     lcFormat :: F.Format,
-    lcLevel :: LogLevel,
-    lcFilter :: [(String, LogLevel)]
+    lcLevel :: Level,
+    lcFilter :: [(String, Level)]
   }
   deriving (Eq, Show, Typeable, Generic)
 
 defaultLogConfig :: LogConfig
-defaultLogConfig = LogConfig LogSyslog defaultLogFormat LevelInfo []
+defaultLogConfig = LogConfig LogSyslog defaultLogFormat info_level []
 
 defaultLogFormat :: F.Format
 defaultLogFormat = "{time} [{level}] {source} ({fullcontext}): {message}\n"
@@ -404,10 +406,10 @@ instance FromJSON LogConfig where
   parseJSON (Object v) = LogConfig
     <$> v .:? "target" .!= LogSyslog
     <*> parseLogFormat (v .:? "format")
-    <*> v .:? "level" .!= LevelInfo
+    <*> v .:? "level" .!= info_level
     <*> parseFilter (v .:? "filter" .!= M.empty)
     where
-      parseFilter :: Parser (M.Map String LogLevel) -> Parser [(String, LogLevel)]
+      parseFilter :: Parser (M.Map String Level) -> Parser [(String, Level)]
       parseFilter = fmap M.assocs
 
       parseLogFormat :: Parser (Maybe TL.Text) -> Parser F.Format
@@ -457,23 +459,35 @@ instance FromJSON GlobalConfig where
       <*> v .:? "store_done" .!= 2
   parseJSON invalid = typeMismatch "global configuration" invalid
 
-instance FromJSON LogLevel where
-  parseJSON (Aeson.String "debug") = return LevelDebug
-  parseJSON (Aeson.String "info") = return LevelInfo
-  parseJSON (Aeson.String "warning") = return LevelWarn
-  parseJSON (Aeson.String "error") = return LevelError
+event_level :: Level
+event_level = Level "EVENT" 350 Syslog.Info
+
+verbose_level :: Level
+verbose_level = Level "VERBOSE" 450 Syslog.Info
+
+instance FromJSON Level where
+  parseJSON (Aeson.String "debug") = return debug_level
+  parseJSON (Aeson.String "verbose") = return verbose_level
+  parseJSON (Aeson.String "info") = return info_level
+  parseJSON (Aeson.String "warning") = return warn_level
+  parseJSON (Aeson.String "error") = return error_level
   parseJSON invalid = typeMismatch "logging level" invalid
 
-instance ToJSON LogLevel where
-  toJSON LevelDebug = Aeson.String "debug"
-  toJSON LevelInfo  = Aeson.String "info"
-  toJSON LevelWarn  = Aeson.String "warning"
-  toJSON LevelError = Aeson.String "error"
-  toJSON (LevelOther x) = Aeson.String x
-  
+instance ToJSON Level where
+  toJSON l =
+    case levelName l of
+      "DEBUG" -> Aeson.String "debug"
+      "VERBOSE" -> Aeson.String "verbose"
+      "INFO" -> Aeson.String "info"
+      "WARN" -> Aeson.String "warning"
+      "ERROR" -> Aeson.String "error"
+      name -> Aeson.String name
 
-deriving instance Data LogLevel
-deriving instance Typeable LogLevel
+deriving instance Data Syslog.Priority
+deriving instance Typeable Syslog.Priority
+
+deriving instance Data Level
+deriving instance Typeable Level
 
 parseStatus :: (Eq s, IsString s, Monad m) => Maybe JobStatus -> m (Maybe JobStatus) -> Maybe s -> m (Maybe JobStatus)
 parseStatus dflt _ Nothing = return dflt
