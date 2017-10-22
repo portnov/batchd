@@ -155,7 +155,7 @@ applyAuth rq = do
 handleStatus :: Response L.ByteString -> Client L.ByteString
 handleStatus rs = do
   debug (__ "Received response: {}") (Single $ Shown rs)
-  verbose (__ "Server response code is {}") (Single $ Shown $ responseStatus rs)
+  verbose (__ "Server response code is {} {}") (statusCode $ responseStatus rs, statusMessage $ responseStatus rs)
   if responseStatus rs == ok200
     then return $ responseBody rs
     else do

@@ -10,10 +10,11 @@ import Control.Monad.State
 import Control.Exception
 import qualified Data.Text.Lazy as TL
 import Network.HTTP.Client
-import Text.Localize
-import Text.Localize.IO
+import System.Log.Heavy
+import qualified System.Log.FastLogger as FL
 
 import Common.Types
+import Common.Localize
 import Client.Config
 import Client.Types
 import Client.CmdLine
@@ -23,7 +24,7 @@ data ClientState = ClientState {
     csConfig :: ClientConfig,
     csCredentials :: Maybe Credentials,
     csAuthMethods :: Maybe [AuthMethod],
-    csVerbosity :: Verbosity,
+    csLogger :: Maybe SpecializedLogger,
     csManager :: Maybe Manager
   }
 
@@ -34,8 +35,29 @@ instance Localized (StateT ClientState IO) where
   getTranslations = lift getTranslations
   getContext = lift getContext
 
+instance HasLogger (StateT ClientState IO) where
+  getLogger = do
+    mbLogger <- gets csLogger
+    case mbLogger of
+      Just logger -> return logger
+      Nothing -> fail "Logger is not initialized yet"
+
+  localLogger logger actions = do
+    oldLogger <- gets csLogger
+    modify $ \st -> st {csLogger = Just logger}
+    result <- actions
+    modify $ \st -> st {csLogger = oldLogger}
+    return result
+
 runClient :: ClientState -> Client a -> IO a
-runClient st action = evalStateT action st
+runClient st action =
+    evalStateT (withLogging (LoggingSettings logSettings) action) st
+  where
+    logSettings =
+      Filtering [([], verbosity)] $
+        FastLoggerSettings logFormat (FL.LogStderr 0)
+    verbosity = logLevel $ cmdCommon $ csCmdline st
+    logFormat = "{level}: {message}\n"
 
 getBaseUrl :: Client String
 getBaseUrl = do

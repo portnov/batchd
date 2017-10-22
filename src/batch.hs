@@ -28,7 +28,7 @@ realMain = do
 
   -- manager <- makeClientManager opts
   cfg <- loadClientConfig
-  let state = ClientState opts cfg Nothing Nothing Normal Nothing
+  let state = ClientState opts cfg Nothing Nothing Nothing Nothing
 
   runClient state $ commandHandler
 
