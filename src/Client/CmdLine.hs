@@ -131,8 +131,9 @@ commonOpts = CommonOpts
 
 verbosity :: Parser Level
 verbosity =
-      flag' debug_level (short 'v' <> long "verbose" <> help "be verbose")
-  <|> flag event_level disable_logging (short 'q' <> long "quiet" <> help "be quiet")
+      flag' debug_level (short 'd' <> long "debug" <> help "enable client debug output")
+  <|> flag' verbose_level (short 'v' <> long "verbose" <> help "be verbose")
+  <|> flag info_level disable_logging (short 'q' <> long "quiet" <> help "be quiet")
 
 required :: Read a => String -> Char -> String -> String -> Parser a
 required longName shortName meta helpText =
