@@ -10,8 +10,6 @@ import qualified Data.ByteString.Lazy as L
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TLE
 import Data.Text.Format.Heavy
-import Text.Localize
-import Text.Localize.IO
 import Data.Char
 import Data.Default
 import Data.List
@@ -26,6 +24,7 @@ import Network.TLS.Extra.Cipher
 import Network.Connection
 
 import Common.Types
+import Common.Localize
 import Common.Config (getPassword)
 import Client.Types as C
 import Client.Config
@@ -50,9 +49,9 @@ makeClientManager opts = do
                     r <- credentialLoadX509 certFile keyFile
                     case r of
                       Right cr -> return $ Just cr
-                      Left err -> fail $ "cant load certificate/key: " ++ show err
+                      Left err -> fail =<< (__sf "Can't load certificate/key: {}" (Single $ show err))
                 _ -> do
-                     putStrLn "certificate or key file is not specified, try to access HTTPS without them"
+                     putStrLn =<< (__s "Certificate or key file is not specified, try to access HTTPS without them")
                      return Nothing
      -- load trusted CA store if specified
      mbStore <- case mbCaFile of
@@ -61,14 +60,14 @@ makeClientManager opts = do
                           r <- readCertificateStore caFile
                           case r of
                             Just store -> return $ Just store
-                            Nothing -> fail $ "cannot read specified CA store"
+                            Nothing -> fail =<< (__s "cannot read specified CA store")
      let shared = case mbStore of
                     Nothing -> def
                     Just store -> def { sharedCAStore = store }
                 
      let clientCertHook _ = return creds
          skip _ _ _ _ = do
-                putStrLn "server certificate check disabled"
+                putStrLn =<< (__s "Server certificate check disabled")
                 return []
          -- handlers for TLS protocol events on client side
          hooks = if disableServerCertCheck
@@ -117,7 +116,7 @@ obtainCredentials = do
                  mbPassword <- liftIO $ getConfigParam' (password o) "BATCH_PASSWORD" (ccPassword cfg)
                  case mbPassword of
                    Just p -> return p
-                   Nothing -> liftIO $ getPassword $ name ++ " password: "
+                   Nothing -> liftIO $ getPassword =<< (__sf "{} password: " (Single name))
   let creds = (name, pass)
   -- remember credentials in client state
   modify $ \st -> st {csCredentials = Just creds}

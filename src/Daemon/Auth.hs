@@ -16,11 +16,11 @@ import qualified Network.Wai.Middleware.HttpAuth as HA
 import qualified Web.Scotty.Trans as Scotty
 import System.Log.Heavy (LoggingTState)
 import Data.Text.Format.Heavy
-import Text.Localize (__)
 
 import System.IO.Unsafe (unsafePerformIO)
 
 import Common.Types
+import Common.Localize
 import Common.Data
 import Daemon.Types
 import Daemon.Crypto

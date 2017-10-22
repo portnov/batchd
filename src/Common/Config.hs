@@ -1,4 +1,4 @@
-
+{-# LANGUAGE OverloadedStrings #-}
 module Common.Config where
 
 import Control.Monad
@@ -10,6 +10,7 @@ import System.Directory
 import System.IO
 
 import Common.Types
+import Common.Localize
 
 getConfigDirs :: String -> IO [FilePath]
 getConfigDirs t = do
@@ -71,10 +72,10 @@ getPassword prompt = do
 
 getPassword2 :: IO String
 getPassword2 = do
-  pwd1 <- getPassword "Password: "
-  pwd2 <- getPassword "Password again: "
+  pwd1 <- getPassword =<< (__s "Password: ")
+  pwd2 <- getPassword =<< (__s "Password again: ")
   if pwd1 /= pwd2
-    then fail "passwords do not match"
+    then fail =<< (__s "passwords do not match")
     else return pwd1
 
 withEcho :: Bool -> IO a -> IO a

@@ -27,9 +27,9 @@ import System.FilePath
 import System.FilePath.Glob
 import System.Log.Heavy.Types
 import System.Log.Heavy
-import Text.Localize (__)
 
 import Common.Types
+import Common.Localize
 import Common.Config
 import Common.Data
 import Daemon.Types

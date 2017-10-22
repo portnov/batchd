@@ -20,10 +20,9 @@ import Data.List (intercalate)
 import Data.Aeson
 import System.FilePath
 import Text.Printf
-import Text.Localize
-import Text.Localize.IO
 
 import Common.Types
+import Common.Localize
 import qualified Common.Data as Database
 import Common.Schedule
 import Common.Config
@@ -124,6 +123,11 @@ doStats = do
       forM_ (M.assocs stat) $ \(st, cnt) ->
           printf "\t%s:\t%d\n" (show st) cnt
 
+printField :: Formatable value => TL.Text -> IO TL.Text -> value -> IO ()
+printField sep ioName value = do
+  name <- ioName
+  TLIO.putStrLn $ format "{}{}:\t{}" (sep, name, value)
+
 viewJob :: Client ()
 viewJob = do
     baseUrl <- getBaseUrl
@@ -156,9 +160,14 @@ viewJob = do
     printJob :: JobInfo -> IO ()
     printJob job = do
       let host = fromMaybe "*" $ jiHostName job
-      TLIO.putStrLn =<< (__f "Order:\t{}\nType:\t{}\nQueue:\t{}\nHost:\t{}\nUser:\t{}\nCreated:\t{}\nStatus:\t{}\nTry count:\t{}\n"
-                          (jiSeq job, jiType job, jiQueue job, host, (jiUserName job), show $ jiCreateTime job,
-                           show $ jiStatus job, jiTryCount job))
+      printField "" (__ "Order") (jiSeq job)
+      printField "" (__ "Type") (jiType job)
+      printField "" (__ "Queue") (jiQueue job)
+      printField "" (__ "Host") host
+      printField "" (__ "User") (jiUserName job)
+      printField "" (__ "Created") (show $ jiCreateTime job)
+      printField "" (__ "Status") (show $ jiStatus job)
+      printField "" (__ "Try count") (jiTryCount job)
       forM_ (M.assocs $ jiParams job) $ \(name, value) -> do
           printf "%s:\t%s\n" name value
 
@@ -329,11 +338,6 @@ doDeleteSchedule = do
   let url = baseUrl </> "schedule" </> sname ++ forceStr
   doDelete url
 
-printField :: Formatable value => TL.Text -> IO TL.Text -> value -> IO ()
-printField sep ioName value = do
-  name <- ioName
-  TLIO.putStrLn $ format "\t{}{}:\t{}" (sep, name, value)
-
 doType :: Client ()
 doType = do
   baseUrl <- getBaseUrl
@@ -348,16 +352,16 @@ doType = do
             when (check jt) $ do
               let title = fromMaybe (jtName jt) (jtTitle jt)
               putStrLn $ jtName jt ++ ":"
-              printField "" (__ "Title") title
-              printField "" (__ "Template") (jtTemplate jt)
-              printField "" (__ "On fail") (Shown (jtOnFail jt))
-              printField "" (__ "Host") (fromMaybe "*" (jtHostName jt))
+              printField "\t" (__ "Title") title
+              printField "\t" (__ "Template") (jtTemplate jt)
+              printField "\t" (__ "On fail") (Shown (jtOnFail jt))
+              printField "\t" (__ "Host") (fromMaybe "*" (jtHostName jt))
               TLIO.putStrLn =<< (__ "\tParameters:")
               forM_ (jtParams jt) $ \desc -> do
-                printField "* " (__ "Name") (piName desc)
-                printField "  " (__ "Type") (Shown (piType desc))
-                printField "  " (__ "Title") (piTitle desc)
-                printField "  " (__ "Default") (piDefault desc)
+                printField "\t* " (__ "Name") (piName desc)
+                printField "\t  " (__ "Type") (Shown (piType desc))
+                printField "\t  " (__ "Title") (piTitle desc)
+                printField "\t  " (__ "Default") (piDefault desc)
 
 doListUsers :: Client ()
 doListUsers = do

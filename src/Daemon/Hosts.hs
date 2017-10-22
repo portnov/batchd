@@ -8,9 +8,9 @@ import Control.Concurrent
 import Control.Exception
 import Control.Monad.Trans
 import qualified Data.Map as M
-import Text.Localize
 
 import Common.Types
+import Common.Localize
 import Daemon.Types
 
 type HostName = String

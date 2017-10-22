@@ -16,9 +16,9 @@ import qualified Database.Persist.Sql as Sql hiding (Single)
 import System.Exit
 import Data.Text.Format.Heavy
 import System.Log.Heavy
-import Text.Localize (__)
 
 import Common.Types
+import Common.Localize
 import Daemon.Types
 import Common.Config as Config
 import Common.Data

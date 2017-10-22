@@ -17,9 +17,9 @@ import Network.SSH.Client.LibSSH2
 import System.FilePath
 import System.Environment
 import System.Exit
-import Text.Localize (__)
 
 import Common.Types
+import Common.Localize
 import Daemon.Types
 import Daemon.Logging
 import Daemon.Hosts
