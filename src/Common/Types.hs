@@ -394,7 +394,7 @@ defaultLogConfig :: LogConfig
 defaultLogConfig = LogConfig LogSyslog defaultLogFormat info_level []
 
 defaultLogFormat :: F.Format
-defaultLogFormat = "{time} [{level}] {source} ({fullcontext}): {message}\n"
+defaultLogFormat = "{time} [{level:~l}] {source} ({fullcontext}): {message}\n"
 
 instance ToJSON LogConfig where
   toJSON = genericToJSON (jsonOptions "lc")

@@ -57,7 +57,7 @@ runClient st action =
       filtering [([], verbosity)] $
         FastLoggerSettings logFormat (FL.LogStderr 0)
     verbosity = logLevel $ cmdCommon $ csCmdline st
-    logFormat = "{level}: {message}\n"
+    logFormat = "{level:~l}: {message}\n"
 
 getBaseUrl :: Client String
 getBaseUrl = do
