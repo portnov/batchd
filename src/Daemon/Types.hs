@@ -116,6 +116,18 @@ instance HasLogger (Scotty.ActionT Error Daemon) where
     where
       runExcept (ExceptT m) = m
 
+instance HasLogContext (ReaderT Sql.SqlBackend (LoggingT (ExceptT Error (ResourceT IO)))) where
+  getLogContext = lift getLogContext
+
+  withLogContext frame actions =
+      ReaderT $ \backend -> withLogContext frame $ runReaderT actions backend
+
+instance HasLogger (ReaderT Sql.SqlBackend (LoggingT (ExceptT Error (ResourceT IO)))) where
+  getLogger = lift getLogger
+
+  localLogger logger actions = 
+      ReaderT $ \backend -> localLogger logger $ runReaderT actions backend
+
 instance F.VarContainer Request where
   lookupVar "method" rq = Just $ F.Variable $ show $ httpVersion rq
   lookupVar "path" rq = Just $ F.Variable $ rawPathInfo rq

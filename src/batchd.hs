@@ -6,6 +6,7 @@
 import Data.Semigroup ((<>))
 import Options.Applicative
 import Data.Text.Format.Heavy
+import System.Log.Heavy.Backends
 
 import Common.Types
 import Common.Localize

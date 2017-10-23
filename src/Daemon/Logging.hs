@@ -1,18 +1,29 @@
 {-# LANGUAGE TemplateHaskell, TypeFamilies, OverloadedStrings #-}
 
-module Daemon.Logging where
+module Daemon.Logging
+  (
+    translateString,
+    logIO, debugIO, infoIO, reportErrorIO,
+    logDB, debugDB, infoDB, reportErrorDB,
+    getLoggingSettings,
+    module System.Log.Heavy.Types,
+    module System.Log.Heavy.Level,
+    module System.Log.Heavy.TH,
+    module System.Log.Heavy.Backends
+  ) where
 
 import qualified Control.Monad.Trans as Trans
 import Control.Monad.Reader hiding (lift)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Format.Heavy as F
-import Language.Haskell.TH
-import Language.Haskell.TH.Syntax
+import Language.Haskell.TH hiding (reportError)
 import Language.Haskell.TH.Lift
 import Control.Monad.Logger (LogLevel (..), liftLoc)
 import System.Log.Heavy
 import System.Log.Heavy.Types
+import System.Log.Heavy.Level
+import System.Log.Heavy.TH
 import System.Log.Heavy.Backends
 import qualified System.Posix.Syslog as Syslog
 import Text.Localize (translate, Localized)
@@ -25,8 +36,6 @@ deriveLift ''DaemonMode
 
 deriveLift ''DbDriver
 
-deriveLift ''Syslog.Priority
-deriveLift ''Level
 deriveLift ''AuthMode
 deriveLift ''LogTarget
 deriveLift ''F.FormatItem
@@ -37,17 +46,6 @@ deriveLift ''GlobalConfig
 translateString :: Localized m => String -> m TL.Text
 translateString str = translate $ stringToBstr str
 
-logConnectionM :: Level -> Q Exp
-logConnectionM level = [| \msg vars ->
-  do
-    let loc = $(qLocation >>= liftLoc)
-    let src = splitDots (loc_module loc)
-    let message = LogMessage $(lift level) src loc msg vars []
-    logMessage message |]
-
-here :: Q Exp
-here = qLocation >>= liftLoc
-
 logIO :: (F.VarContainer vars, MonadIO m) => LoggingTState -> Loc -> Level -> TL.Text -> vars -> m ()
 logIO lts loc level msg vars = Trans.liftIO $
   do
@@ -56,31 +54,17 @@ logIO lts loc level msg vars = Trans.liftIO $
     when (checkContextFilter (ltsContext lts) message) $ do
         ltsLogger lts message
 
-debug :: Q Exp
-debug = logConnectionM debug_level
-
-info :: Q Exp
-info = logConnectionM info_level
-
-reportError :: Q Exp
-reportError = logConnectionM error_level
-
 logDB :: Level -> Q Exp
-logDB level = [| \msg vars ->
-  do
-    let loc = $(qLocation >>= liftLoc)
-    let src = splitDots (loc_module loc)
-    let message = LogMessage $(lift level) src loc msg vars []
-    Trans.lift $ logMessage message |]
+logDB = putMessage
 
 infoDB :: Q Exp
-infoDB = logDB info_level
+infoDB = info
 
 debugDB :: Q Exp
-debugDB = logDB debug_level
+debugDB = debug
 
 reportErrorDB :: Q Exp
-reportErrorDB = logDB error_level
+reportErrorDB = reportError
 
 debugIO :: (F.VarContainer vars, MonadIO m) => LoggingTState -> Loc -> TL.Text -> vars -> m ()
 debugIO lts loc = logIO lts loc debug_level
