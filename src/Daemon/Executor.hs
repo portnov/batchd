@@ -9,7 +9,6 @@ import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import Data.Text.Format.Heavy
-import Data.Text.Format.Heavy.Instances
 import Data.Text.Format.Heavy.Parse.Shell
 import qualified Database.Persist.Sql as Sql hiding (Single)
 import Data.Time
@@ -18,7 +17,6 @@ import System.FilePath
 import System.Exit
 
 import Common.Types
-import Common.Localize
 import Common.Config
 import Daemon.Logging
 import Common.Data

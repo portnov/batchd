@@ -19,7 +19,6 @@ import System.Environment
 import System.Exit
 
 import Common.Types
-import Common.Localize
 import Daemon.Types
 import Daemon.Logging
 import Daemon.Hosts

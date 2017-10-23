@@ -18,7 +18,6 @@ import Data.Text.Format.Heavy
 import System.Log.Heavy
 
 import Common.Types
-import Common.Localize
 import Daemon.Types
 import Common.Config as Config
 import Common.Data

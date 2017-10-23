@@ -5,7 +5,6 @@ module Common.Types where
 import GHC.Generics
 import Control.Exception
 import Control.Monad
-import Control.Monad.Logger
 import Data.Generics hiding (Generic)
 import Data.Int
 import Data.Char

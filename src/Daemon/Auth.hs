@@ -20,7 +20,6 @@ import Data.Text.Format.Heavy
 import System.IO.Unsafe (unsafePerformIO)
 
 import Common.Types
-import Common.Localize
 import Common.Data
 import Daemon.Types
 import Daemon.Crypto

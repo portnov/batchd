@@ -12,25 +12,21 @@ module Daemon.Logging
     module System.Log.Heavy.Backends
   ) where
 
+import Control.Monad (when)
 import qualified Control.Monad.Trans as Trans
-import Control.Monad.Reader hiding (lift)
-import qualified Data.Text as T
+import Control.Monad.Trans (MonadIO)
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Format.Heavy as F
 import Language.Haskell.TH hiding (reportError)
 import Language.Haskell.TH.Lift
-import Control.Monad.Logger (LogLevel (..), liftLoc)
 import System.Log.Heavy
 import System.Log.Heavy.Types
 import System.Log.Heavy.Level
 import System.Log.Heavy.TH
 import System.Log.Heavy.Backends
-import qualified System.Posix.Syslog as Syslog
 import Text.Localize (translate, Localized)
-import Instances.TH.Lift
 
 import Common.Types
-import Daemon.Types
 
 deriveLift ''DaemonMode
 

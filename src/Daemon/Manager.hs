@@ -11,7 +11,6 @@ import Control.Monad.Reader
 import qualified Control.Monad.State as State
 import qualified Data.ByteString as B
 import qualified Data.Text.Lazy as TL
-import qualified Data.Text.Lazy.IO as TLIO
 import Data.Text.Format.Heavy
 import Data.Text.Format.Heavy.Parse
 import Data.Maybe
