@@ -80,7 +80,7 @@ instance Localized (ReaderT Sql.SqlBackend (LoggingT (ExceptT Error (ResourceT I
 -- | Run daemon actions within IO monad
 runDaemonIO' :: ConnectionInfo -> SpecializedLogger -> Daemon a -> IO a
 runDaemonIO' connInfo logger actions =
-  let globalContext = LogContextFrame [] NoChange
+  let globalContext = LogContextFrame [] noChange
       lts = LoggingTState logger [globalContext]
   in  evalStateT (runLoggingT (runDaemonT actions) lts) connInfo
 
@@ -242,7 +242,7 @@ runDBIO cfg pool lts qry = do
 runDaemon :: GlobalConfig -> Maybe Sql.ConnectionPool -> LoggingSettings -> Daemon a -> IO a
 runDaemon cfg mbPool backend daemon =
     runner $ withLoggingT backend $ 
-      withLogContext (LogContextFrame [] NoChange) $ runDaemonT daemon
+      withLogContext (LogContextFrame [] noChange) $ runDaemonT daemon
   where
     runner r = evalStateT r initState
     initState = ConnectionInfo cfg mbPool Nothing

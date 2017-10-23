@@ -101,7 +101,7 @@ callbackListener resChan = withLogVariable "thread" ("job result listener" :: St
                       else setJobStatus job Failed
 
 withJobContext job =
-    withLogContext (LogContextFrame vars NoChange)
+    withLogContext (LogContextFrame vars noChange)
   where
     vars = [("job", Variable (jiId job)),
             ("user", Variable (jiUserName job))]
