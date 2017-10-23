@@ -78,13 +78,6 @@ instance Localized (ReaderT Sql.SqlBackend (LoggingT (ExceptT Error (ResourceT I
   getContext = return Nothing
 
 -- | Run daemon actions within IO monad
-runDaemonIO' :: ConnectionInfo -> SpecializedLogger -> Daemon a -> IO a
-runDaemonIO' connInfo logger actions =
-  let globalContext = LogContextFrame [] noChange
-      lts = LoggingTState logger [globalContext]
-  in  evalStateT (runLoggingT (runDaemonT actions) lts) connInfo
-
--- | Run daemon actions within IO monad
 runDaemonIO :: ConnectionInfo -> LoggingTState -> Daemon a -> IO a
 runDaemonIO connInfo lts actions =
   evalStateT (runLoggingT (runDaemonT actions) lts) connInfo
