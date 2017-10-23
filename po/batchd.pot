@@ -5,7 +5,7 @@ msgstr ""
 
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-10-22 12:36+0500\n"
+"POT-Creation-Date: 2017-10-23 11:57+0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -113,31 +113,55 @@ msgstr ""
 msgid "Can't parse client configuration file:\n{}"
 msgstr ""
 
-#: src/Client/Http.hs:52:50
+#: src/Client/Http.hs:56:50
 msgid "Can't load certificate/key: {}"
 msgstr ""
 
-#: src/Client/Http.hs:209:33
+#: src/Client/Http.hs:229:33
 msgid "Can't parse server response for GET request: {}"
 msgstr ""
 
-#: src/Client/Http.hs:220:33
+#: src/Client/Http.hs:240:33
 msgid "Can't parse server response for OPTIONS request: {}"
 msgstr ""
 
-#: src/Client/Http.hs:54:40
+#: src/Client/Http.hs:58:34
 msgid "Certificate or key file is not specified, try to access HTTPS without them"
 msgstr ""
 
-#: src/Client/Http.hs:70:35
+#: src/Client/Http.hs:52:33
+msgid "Loading HTTPS certificate: {}, key: {}"
+msgstr ""
+
+#: src/Client/Http.hs:120:28
+msgid "Password is not required"
+msgstr ""
+
+#: src/Client/Http.hs:157:13
+msgid "Received response: {}"
+msgstr ""
+
+#: src/Client/Http.hs:181:13
+msgid "Sending request: {}"
+msgstr ""
+
+#: src/Client/Http.hs:48:22
 msgid "Server certificate check disabled"
 msgstr ""
 
-#: src/Client/Http.hs:63:54
+#: src/Client/Http.hs:158:15
+msgid "Server response code is {} {}"
+msgstr ""
+
+#: src/Client/Http.hs:115:15
+msgid "Supported authentication methods: {}"
+msgstr ""
+
+#: src/Client/Http.hs:67:54
 msgid "cannot read specified CA store"
 msgstr ""
 
-#: src/Client/Http.hs:119:62
+#: src/Client/Http.hs:126:62
 msgid "{} password: "
 msgstr ""
 
@@ -145,7 +169,7 @@ msgstr ""
 msgid "Error: {}"
 msgstr ""
 
-#: src/Client/Shell.hs:71:38
+#: src/Client/Shell.hs:71:19
 msgid "This is batch client shell. Type `--help' for list of available commands or `some_command --help' (without quotes) for help message on particular command."
 msgstr ""
 
@@ -173,7 +197,7 @@ msgstr ""
 msgid "Specified job not found"
 msgstr ""
 
-#: src/Daemon/Types.hs:168:46
+#: src/Daemon/Types.hs:180:46
 msgid "Database connection is not established yet"
 msgstr ""
 
