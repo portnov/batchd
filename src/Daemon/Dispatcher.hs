@@ -63,7 +63,7 @@ dispatcher jobsChan = withLogVariable "thread" ("dispatcher" :: String) $ do
               -- pick next job from the queue
               mbJob <- getNextJob (entityKey qe)
               case mbJob of
-                Nothing -> $debugDB "Queue `{}' exhaused." (Single qname)
+                Nothing -> $debug "Queue `{}' exhaused." (Single qname)
                 Just job -> do
                     -- Waiting means that Dispatcher saw job and put it to Chan to be
                     -- picked by some of workers.
@@ -88,14 +88,14 @@ callbackListener resChan = withLogVariable "thread" ("job result listener" :: St
                     count <- increaseTryCount job
                     if count <= m
                       then do
-                        $infoDB "Retry now" ()
+                        $info "Retry now" ()
                         setJobStatus job New -- job will be picked up by dispatcher at nearest iteration.
                       else setJobStatus job Failed
                  RetryLater m -> do
                     count <- increaseTryCount job
                     if count <= m
                       then do
-                        $infoDB "Retry later" ()
+                        $info "Retry later" ()
                         moveToEnd job -- put the job to the end of queue.
                       else setJobStatus job Failed
 

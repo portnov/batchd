@@ -4,7 +4,6 @@ module Daemon.Logging
   (
     translateString,
     logIO, debugIO, infoIO, reportErrorIO,
-    logDB, debugDB, infoDB, reportErrorDB,
     getLoggingSettings,
     module System.Log.Heavy.Types,
     module System.Log.Heavy.Level,
@@ -49,18 +48,6 @@ logIO lts loc level msg vars = Trans.liftIO $
     let message = LogMessage level src loc msg vars []
     when (checkContextFilter (ltsContext lts) message) $ do
         ltsLogger lts message
-
-logDB :: Level -> Q Exp
-logDB = putMessage
-
-infoDB :: Q Exp
-infoDB = info
-
-debugDB :: Q Exp
-debugDB = debug
-
-reportErrorDB :: Q Exp
-reportErrorDB = reportError
 
 debugIO :: (F.VarContainer vars, MonadIO m) => LoggingTState -> Loc -> TL.Text -> vars -> m ()
 debugIO lts loc = logIO lts loc debug_level
