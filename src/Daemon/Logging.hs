@@ -7,6 +7,7 @@ module Daemon.Logging
     getLoggingSettings,
     module System.Log.Heavy.Types,
     module System.Log.Heavy.Level,
+    module System.Log.Heavy.Util,
     module System.Log.Heavy.TH,
     module System.Log.Heavy.Backends
   ) where
@@ -21,6 +22,7 @@ import Language.Haskell.TH.Lift
 import System.Log.Heavy
 import System.Log.Heavy.Types
 import System.Log.Heavy.Level
+import System.Log.Heavy.Util
 import System.Log.Heavy.TH
 import System.Log.Heavy.Backends
 import Text.Localize (translate, Localized)
