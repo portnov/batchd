@@ -7,8 +7,10 @@ packages:
       commit: master
     extra-dep: true
     subdirs: [libssh2]
-  - /home/portnov/src/heavy-logger
-  - /home/portnov/src/text-format-heavy
+  - location:
+      git: https://github.com/portnov/heavy-logger.git
+      commit: 8a67789
+    extra-dep: true
   - location:
       git: https://github.com/portnov/localize.git
       commit: master
@@ -21,7 +23,7 @@ extra-deps:
   - hsyslog-5
   - select-0.4.0.1
   - haskell-gettext-0.1.1.0
-    #- text-format-heavy-0.1.4.2
+  - text-format-heavy-0.1.5.0
 
 # Override default flag values for local packages and extra-deps
 flags: {}
