@@ -182,6 +182,7 @@ data Error =
   | InvalidJobStatus (Maybe B.ByteString)
   | FileNotExists FilePath
   | InsufficientRights String
+  | InvalidStartTime
   | SqlError SomeException
   | UnknownError String
 
@@ -200,6 +201,7 @@ instance Show Error where
   show (InvalidJobStatus (Just s)) = "Invalid job status: " ++ show s
   show (FileNotExists path) = "File does not exist: " ++ path
   show (InsufficientRights msg) = "Insufficient privileges: " ++ msg
+  show InvalidStartTime = "Job start time does not match queue schedule"
   show (SqlError exc) = "SQL exception: " ++ show exc
   show (UnknownError e) = "Unhandled error: " ++ e
 
@@ -214,6 +216,7 @@ data JobInfo = JobInfo {
     jiSeq :: Int,
     jiUserName :: String,
     jiCreateTime :: UTCTime,
+    jiStartTime :: Maybe UTCTime,
     jiStatus :: JobStatus,
     jiTryCount :: Int,
     jiHostName :: Maybe String,
@@ -239,7 +242,8 @@ instance FromJSON JobInfo where
       <*> v .: "type"
       <*> v .:? "seq" .!= 0
       <*> v .:? "user_name" .!= "<unknown>"
-      <*> v .:? "time" .!= zeroUtcTime
+      <*> v .:? "create_time" .!= zeroUtcTime
+      <*> v .:? "start_time"
       <*> v .:? "status" .!= New
       <*> v .:? "try_count" .!= 0
       <*> v .:? "host_name"

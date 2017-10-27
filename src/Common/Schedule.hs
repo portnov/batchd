@@ -3,6 +3,8 @@
 module Common.Schedule where
 
 import GHC.Generics
+import Data.Time.Clock
+import Data.Time.LocalTime
 import Data.Dates
 import Data.Dates.Formats
 import Data.Time
@@ -78,3 +80,21 @@ allows (ScheduleInfo {..}) dt = weekdayOk && timeOk
 
     goodTime (Period {..}) = 
                   getTime dt > periodBegin && getTime dt <= periodEnd
+
+allowsU :: ScheduleInfo -> UTCTime -> Bool
+allowsU (ScheduleInfo {..}) dt = weekdayOk && timeOk
+  where
+    date = dayToDateTime (utctDay dt)
+    time = timeToTimeOfDay (utctDayTime dt)
+
+    weekdayOk = case sWeekdays of
+                  Nothing -> True
+                  Just weekdays -> dateWeekDay date `elem` weekdays
+
+    timeOk = case sTime of
+               Nothing -> True
+               Just lst -> any goodTime lst
+
+    goodTime (Period {..}) = 
+                  time > periodBegin && time <= periodEnd
+

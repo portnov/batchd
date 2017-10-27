@@ -4,14 +4,20 @@
 
 module Client.CmdLine where
 
+import Control.Monad
 import Data.Generics hiding (Generic)
 import qualified Data.Map as M
 import Data.Int
+import Data.Time.Clock
+import Data.Time.LocalTime
 import Data.Dates
 import Data.Char (toLower)
 import Data.Semigroup ((<>))
 import Options.Applicative
 import System.Log.Heavy
+import qualified Text.Parsec as Parsec 
+
+import System.IO.Unsafe (unsafePerformIO)
 
 import Common.Types
 import Common.Data (MoveAction (..))
@@ -36,6 +42,7 @@ data Command =
       queueName :: Maybe String,
       typeName :: Maybe String,
       hostName :: Maybe String,
+      startTime :: Maybe (Maybe LocalTime),
       jobCommand :: [String],
       parameters :: [String]
     }
@@ -56,6 +63,7 @@ data Command =
       jobId :: Int,
       queueName :: Maybe String,
       prioritize :: Maybe MoveAction,
+      startTime :: Maybe (Maybe LocalTime),
       status :: Maybe String,
       hostName :: Maybe String,
       viewDescription :: Bool,
@@ -156,6 +164,7 @@ enqueue = Enqueue
   <$> optionalString "queue" 'q' "QUEUE" "queue name"
   <*> optionalString "type"  't' "TYPE"  "job type name"
   <*> optionalString "host"  'h' "HOST"  "worker host name"
+  <*> (optional $ option timeReader (long "at" <> long "start" <> metavar "YYYY-MM-DD HH:MM:SS" <> help "set job start time"))
   <*> many (strArgument  (metavar "COMMAND"))
   <*> many (requiredString "parameter" 'p' "NAME=VALUE" "job parameters specified by name")
 
@@ -190,6 +199,29 @@ priorityReader = maybeReader (check . map toLower)
       | s `elem` ["last", "l"] = Just Last
       | otherwise = Nothing
 
+startupTime :: DateTime
+startupTime = unsafePerformIO $ getCurrentDateTime
+{-# NOINLINE startupTime #-}
+
+timeReader :: ReadM (Maybe LocalTime)
+timeReader = (Just <$> toUtc <$> eitherReader readDateTime) <|> (maybeReader nothing)
+  where
+    toUtc :: DateTime -> LocalTime
+    toUtc dt = LocalTime day time
+      where
+        day = dateTimeToDay dt
+        time = TimeOfDay (hour dt) (minute dt) (fromIntegral $ second dt)
+
+    nothing :: String -> Maybe (Maybe LocalTime)
+    nothing "any" = Just Nothing
+    nothing "anytime" = Just Nothing
+    nothing _ = Nothing
+
+    readDateTime :: String -> Either String DateTime
+    readDateTime str = case Parsec.runParser (do {t <- pDateTime startupTime; Parsec.eof; return t}) () "<start time>" str of
+                         Left err -> Left (show err)
+                         Right time -> Right time
+
 queue :: Parser Command
 queue = Queue
   <$> crudMode [(Update, "modify queue"), (Add, "create new queue"), (Delete, "delete queue")]
@@ -207,6 +239,7 @@ job = Job
   <$> argument auto (metavar "ID" <> help "job ID")
   <*> optionalString "move" 'm' "QUEUE" "move job to other queue"
   <*> (optional $ option priorityReader (long "priority" <> short 'p' <> metavar "ACTION" <> help "change job priority. ACTION is one of: up, down, first, last"))
+  <*> (optional $ option timeReader (long "at" <> long "start" <> metavar "YYYY-MM-DD HH:MM:SS" <> help "set job start time"))
   <*> optionalString "status" 's' "STATUS" "set job status"
   <*> optionalString "host" 'h' "HOST" "set job host"
   <*> switch (long "description" <> help "view job description")

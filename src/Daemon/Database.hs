@@ -15,6 +15,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 module Daemon.Database where
 
+import Control.Monad
 import Control.Monad.Reader
 import qualified Control.Monad.State as State
 
@@ -35,6 +36,8 @@ import System.Log.Heavy
 import Common.Types
 import Daemon.Types
 import Common.Data
+import Common.Schedule
+import Daemon.Schedule
 
 getPool :: GlobalConfig -> LoggingTState -> IO Sql.ConnectionPool
 getPool cfg lts =
@@ -59,6 +62,7 @@ buildJobInfo jid j mbr params =
       jiQueue = jobQueueName j,
       jiType = jobTypeName j,
       jiCreateTime = jobCreateTime j,
+      jiStartTime = jobStartTime j,
       jiSeq = jobSeq j,
       jiUserName = jobUserName j,
       jiStatus = jobStatus j,
@@ -264,6 +268,9 @@ getJobResults jid = do
 equals = (E.==.)
 infix 4 `equals`
 
+leq = (E.<=.)
+infix 4 `leq`
+
 eand = (E.&&.)
 infixr 3 `eand`
 
@@ -309,9 +316,12 @@ getAdjJob next qname seq = do
 
 getNextJob :: Key Queue -> DB (Maybe JobInfo)
 getNextJob (QueueKey qname) = do
+  now <- liftIO $ getCurrentTime
   lst <- E.select $
          E.from $ \job -> do
-         E.where_ $ (job ^. JobQueueName `equals` E.val qname) `eand` (job ^. JobStatus `equals` E.val New)
+         E.where_ $ (job ^. JobQueueName `equals` E.val qname)
+             `eand` (job ^. JobStatus `equals` E.val New)
+             `eand` ((E.isNothing (job ^. JobStartTime)) `eor` ((job ^. JobStartTime) `leq` (E.val (Just now))))
          return $ E.min_ (job ^. JobSeq)
   case map E.unValue lst of
     (Just seq:_) -> do
@@ -378,12 +388,20 @@ enqueue username qname jinfo = do
     Just qe -> do
       seq <- getLastJobSeq qname
       now <- liftIO getCurrentTime
-      let job = Job (jiType jinfo) qname (seq+1) username now (jiStatus jinfo) (jiTryCount jinfo) (jiHostName jinfo)
+      checkStartTime (jiStartTime jinfo) (queueSchedule qe)
+      let job = Job (jiType jinfo) qname (seq+1) username now (jiStartTime jinfo) (jiStatus jinfo) (jiTryCount jinfo) (jiHostName jinfo)
       jid <- insert job
       forM_ (M.assocs $ jiParams jinfo) $ \(name,value) -> do
         let param = JobParam jid name value
         insert_ param
       return jid
+
+checkStartTime :: Maybe UTCTime -> Key Schedule -> DB ()
+checkStartTime Nothing _ = return ()
+checkStartTime (Just startTime) scheduleId = do
+  schedule <- loadSchedule scheduleId
+  when (not (schedule `allowsU` startTime)) $
+    throwR InvalidStartTime
 
 removeJob :: String -> Int -> DB ()
 removeJob qname jseq = do

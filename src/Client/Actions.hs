@@ -10,6 +10,8 @@ import Control.Monad.State
 import Data.Int
 import Data.Maybe
 import Data.Monoid ((<>))
+import Data.Time.Clock
+import Data.Time.LocalTime
 import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
@@ -30,6 +32,13 @@ import Client.CmdLine
 import Client.Config
 import Client.Http
 import Client.Monad
+import Client.Logging
+
+localTimeToUTC' :: Maybe LocalTime -> Client (Maybe UTCTime)
+localTimeToUTC' Nothing = return Nothing
+localTimeToUTC' (Just local) = do
+    tz <- liftIO $ getCurrentTimeZone
+    return $ Just $ localTimeToUTC tz local
 
 doEnqueue :: Client ()
 doEnqueue = do
@@ -44,6 +53,7 @@ doEnqueue = do
     Right jtype -> do
       qname <- liftIO $ getQueueName opts cfg
       host <- liftIO $ getHostName opts cfg
+      jobStartTime <- localTimeToUTC' (join $ startTime $ cmdCommand opts)
 
       let job = JobInfo {
           jiId = 0,
@@ -52,6 +62,7 @@ doEnqueue = do
           jiSeq = 0,
           jiUserName = fst creds,
           jiCreateTime = zeroUtcTime,
+          jiStartTime = jobStartTime,
           jiStatus = New,
           jiTryCount = 0,
           jiHostName = host,
@@ -61,6 +72,7 @@ doEnqueue = do
           jiStderr = Nothing,
           jiParams = parseParams (jtParams jtype) (cmdCommand opts)
         }
+      debug (__ "Job to be queued: {}") (Single $ show job)
 
       let url = baseUrl </> "queue" </> qname
       doPost url job
@@ -166,6 +178,7 @@ viewJob = do
       printField "" (__ "Host") host
       printField "" (__ "User") (jiUserName job)
       printField "" (__ "Created") (show $ jiCreateTime job)
+      printField "" (__ "Start") (show $ jiStartTime job)
       printField "" (__ "Status") (show $ jiStatus job)
       printField "" (__ "Try count") (jiTryCount job)
       forM_ (M.assocs $ jiParams job) $ \(name, value) -> do
@@ -232,9 +245,12 @@ updateJob = do
 
     mUpdate command = do
       if isNothing (queueName command) && isNothing (prioritize command)
-        then return $ Just $ object $
+        then do
+             jobStartTime <- localTimeToUTC' (join $ startTime command)
+             return $ Just $ object $
                                 toList "status" (status command) ++
-                                toList "host_name" (hostName command)
+                                toList "host_name" (hostName command) ++
+                                toList "start_time" jobStartTime
         else return Nothing
 
 deleteJob :: Client ()
