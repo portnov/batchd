@@ -179,7 +179,7 @@ viewJob = do
       printField "" (__ "Host") host
       printField "" (__ "User") (jiUserName job)
       printField "" (__ "Created") (show $ jiCreateTime job)
-      printField "" (__ "Start") (show $ jiStartTime job)
+      printField "" (__ "Start") (maybe "*" show $ jiStartTime job)
       printField "" (__ "Status") (show $ jiStatus job)
       printField "" (__ "Try count") (jiTryCount job)
       forM_ (M.assocs $ jiParams job) $ \(name, value) -> do
