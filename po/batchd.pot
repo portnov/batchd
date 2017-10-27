@@ -5,7 +5,7 @@ msgstr ""
 
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-10-27 15:26+0500\n"
+"POT-Creation-Date: 2017-10-27 17:46+0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -13,107 +13,103 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: src/Client/Actions.hs:375:37
+#: src/Client/Actions.hs:376:37
 msgid "\tParameters:"
 msgstr ""
 
-#: src/Client/Actions.hs:52:33
+#: src/Client/Actions.hs:53:33
 msgid "Can't load job type description: {}"
 msgstr ""
 
-#: src/Client/Actions.hs:335:33
+#: src/Client/Actions.hs:336:33
 msgid "Can't parse period description: {}"
 msgstr ""
 
-#: src/Client/Actions.hs:180:25
+#: src/Client/Actions.hs:181:25
 msgid "Created"
 msgstr ""
 
-#: src/Client/Actions.hs:380:39
+#: src/Client/Actions.hs:381:39
 msgid "Default"
 msgstr ""
 
-#: src/Client/Actions.hs:331:20
+#: src/Client/Actions.hs:332:20
 msgid "Exactly one schedule name must be specified when creating a schedule"
 msgstr ""
 
-#: src/Client/Actions.hs:351:20
+#: src/Client/Actions.hs:352:20
 msgid "Exactly one schedule name must be specified when deleting a schedule"
 msgstr ""
 
-#: src/Client/Actions.hs:193:30
+#: src/Client/Actions.hs:194:30
 msgid "Exit code:\t{}\nTime:\t{}\n\n"
 msgstr ""
 
-#: src/Client/Actions.hs:178:25
+#: src/Client/Actions.hs:179:25
 msgid "Host"
 msgstr ""
 
-#: src/Client/Actions.hs:99:61
+#: src/Client/Actions.hs:100:61
 msgid "Invalid status"
 msgstr ""
 
-#: src/Client/Actions.hs:75:17
-msgid "Job to be queued: {}"
-msgstr ""
-
-#: src/Client/Actions.hs:377:39
+#: src/Client/Actions.hs:378:39
 msgid "Name"
 msgstr ""
 
-#: src/Client/Actions.hs:215:36
+#: src/Client/Actions.hs:216:36
 msgid "No mode is selected"
 msgstr ""
 
-#: src/Client/Actions.hs:373:35
+#: src/Client/Actions.hs:374:35
 msgid "On fail"
 msgstr ""
 
-#: src/Client/Actions.hs:224:34
+#: src/Client/Actions.hs:225:34
 msgid "Only one mode can be selected"
 msgstr ""
 
-#: src/Client/Actions.hs:175:25
+#: src/Client/Actions.hs:176:25
 msgid "Order"
 msgstr ""
 
-#: src/Client/Actions.hs:177:25
+#: src/Client/Actions.hs:178:25
 msgid "Queue"
 msgstr ""
 
-#: src/Client/Actions.hs:181:25
+#: src/Client/Actions.hs:182:25
 msgid "Start"
 msgstr ""
 
-#: src/Client/Actions.hs:182:25
+#: src/Client/Actions.hs:183:25
 msgid "Status"
 msgstr ""
 
-#: src/Client/Actions.hs:372:35
+#: src/Client/Actions.hs:373:35
 msgid "Template"
 msgstr ""
 
-#: src/Client/Actions.hs:371:35
+#: src/Client/Actions.hs:372:35
 msgid "Title"
 msgstr ""
 
-#: src/Client/Actions.hs:183:25
+#: src/Client/Actions.hs:184:25
 msgid "Try count"
 msgstr ""
 
-#: src/Client/Actions.hs:176:25
+#: src/Client/Actions.hs:177:25
 msgid "Type"
 msgstr ""
 
-#: src/Client/Actions.hs:179:25
+#: src/Client/Actions.hs:180:25
 msgid "User"
 msgstr ""
 
-#: src/Client/Actions.hs:440:39
+#: src/Client/Actions.hs:441:39
 msgid "permission (-p) must be specified"
 msgstr ""
 
-#: src/Client/Actions.hs:451:38
+#: src/Client/Actions.hs:452:38
 msgid "permission ID (-i) must be specified"
 msgstr ""
 
@@ -125,11 +121,11 @@ msgstr ""
 msgid "Can't load certificate/key: {}"
 msgstr ""
 
-#: src/Client/Http.hs:229:33
+#: src/Client/Http.hs:233:33
 msgid "Can't parse server response for GET request: {}"
 msgstr ""
 
-#: src/Client/Http.hs:240:33
+#: src/Client/Http.hs:244:33
 msgid "Can't parse server response for OPTIONS request: {}"
 msgstr ""
 
@@ -147,6 +143,10 @@ msgstr ""
 
 #: src/Client/Http.hs:157:13
 msgid "Received response: {}"
+msgstr ""
+
+#: src/Client/Http.hs:190:13
+msgid "Request JSON: {}"
 msgstr ""
 
 #: src/Client/Http.hs:181:13
