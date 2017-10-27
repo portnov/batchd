@@ -214,6 +214,7 @@ timeReader = (Just <$> toUtc <$> eitherReader readDateTime) <|> (maybeReader not
 
     nothing :: String -> Maybe (Maybe LocalTime)
     nothing "any" = Just Nothing
+    nothing "now" = Just Nothing
     nothing "anytime" = Just Nothing
     nothing _ = Nothing
 
@@ -239,7 +240,7 @@ job = Job
   <$> argument auto (metavar "ID" <> help "job ID")
   <*> optionalString "move" 'm' "QUEUE" "move job to other queue"
   <*> (optional $ option priorityReader (long "priority" <> short 'p' <> metavar "ACTION" <> help "change job priority. ACTION is one of: up, down, first, last"))
-  <*> (optional $ option timeReader (long "at" <> long "start" <> metavar "YYYY-MM-DD HH:MM:SS" <> help "set job start time"))
+  <*> (optional $ option timeReader (long "at" <> long "start" <> metavar "YYYY-MM-DD HH:MM:SS" <> help "set job start time. Use `any' to specify that job can be run at any time."))
   <*> optionalString "status" 's' "STATUS" "set job status"
   <*> optionalString "host" 'h' "HOST" "set job host"
   <*> switch (long "description" <> help "view job description")

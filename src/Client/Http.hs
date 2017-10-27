@@ -186,10 +186,12 @@ doPut :: ToJSON a => String -> a -> Client ()
 doPut urlStr object = do
   manager <- getManager
   url <- liftIO $ parseUrl urlStr
+  let json = Aeson.encode object
+  debug (__ "Request JSON: {}") (Single json)
   request <- applyAuth $ url {
                   method="PUT",
                   checkResponse = allowAny,
-                  requestBody = RequestBodyLBS $ Aeson.encode object
+                  requestBody = RequestBodyLBS json
                 }
   doHttp request manager
   return ()
@@ -199,10 +201,12 @@ doPost :: ToJSON a => String -> a -> Client ()
 doPost urlStr object = do
   manager <- getManager
   url <- liftIO $ parseUrl urlStr
+  let json = Aeson.encode object
+  debug (__ "Request JSON: {}") (Single json)
   request <- applyAuth $ url {
                   method="POST",
                   checkResponse = allowAny,
-                  requestBody = RequestBodyLBS $ Aeson.encode object
+                  requestBody = RequestBodyLBS json
                 }
   doHttp request manager
   return ()

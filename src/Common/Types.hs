@@ -568,9 +568,17 @@ parseUpdate field label (Object v) = do
               Just value -> Just (field =. value)
   return upd
 
-parseUpdate' :: (PersistField t, FromJSON t, IsString t, Eq t)
+parseUpdateMaybe :: (PersistField t, FromJSON t) => EntityField v (Maybe t) -> T.Text -> Value -> Parser (Maybe (Update v))
+parseUpdateMaybe field label (Object v) = do
+  if label `H.member` v
+    then do
+      mbValue <- v .:? label
+      return $ Just $ field =. mbValue
+    else return Nothing
+
+parseUpdateStar :: (PersistField t, FromJSON t, IsString t, Eq t)
              => EntityField v (Maybe t) -> T.Text -> Value -> Parser (Maybe (Update v))
-parseUpdate' field label (Object v) = do
+parseUpdateStar field label (Object v) = do
   mbValue <- v .:? label
   let upd = case mbValue of
               Nothing -> Nothing

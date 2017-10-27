@@ -34,11 +34,12 @@ import Client.Http
 import Client.Monad
 import Client.Logging
 
-localTimeToUTC' :: Maybe LocalTime -> Client (Maybe UTCTime)
+localTimeToUTC' :: Maybe (Maybe LocalTime) -> Client (Maybe (Maybe UTCTime))
 localTimeToUTC' Nothing = return Nothing
-localTimeToUTC' (Just local) = do
+localTimeToUTC' (Just Nothing) = return (Just Nothing)
+localTimeToUTC' (Just (Just local)) = do
     tz <- liftIO $ getCurrentTimeZone
-    return $ Just $ localTimeToUTC tz local
+    return $ Just $ Just $ localTimeToUTC tz local
 
 doEnqueue :: Client ()
 doEnqueue = do
@@ -53,7 +54,7 @@ doEnqueue = do
     Right jtype -> do
       qname <- liftIO $ getQueueName opts cfg
       host <- liftIO $ getHostName opts cfg
-      jobStartTime <- localTimeToUTC' (join $ startTime $ cmdCommand opts)
+      jobStartTime <- join `fmap` localTimeToUTC' (startTime $ cmdCommand opts)
 
       let job = JobInfo {
           jiId = 0,
@@ -72,7 +73,7 @@ doEnqueue = do
           jiStderr = Nothing,
           jiParams = parseParams (jtParams jtype) (cmdCommand opts)
         }
-      debug (__ "Job to be queued: {}") (Single $ show job)
+      -- debug (__ "Job to be queued: {}") (Single $ show job)
 
       let url = baseUrl </> "queue" </> qname
       doPost url job
@@ -246,7 +247,7 @@ updateJob = do
     mUpdate command = do
       if isNothing (queueName command) && isNothing (prioritize command)
         then do
-             jobStartTime <- localTimeToUTC' (join $ startTime command)
+             jobStartTime <- localTimeToUTC' (startTime command)
              return $ Just $ object $
                                 toList "status" (status command) ++
                                 toList "host_name" (hostName command) ++

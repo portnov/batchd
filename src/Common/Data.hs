@@ -124,15 +124,16 @@ instance FromJSON (UpdateList Queue) where
     uSchedule <- parseUpdate QueueScheduleName "schedule_name" o
     uTitle    <- parseUpdate QueueTitle "title" o
     uEnable   <- parseUpdate QueueEnabled "enabled" o
-    uHostName <- parseUpdate' QueueHostName "host_name" o
+    uHostName <- parseUpdateStar QueueHostName "host_name" o
     return $ UpdateList $ catMaybes [uEnable, uTitle, uSchedule, uHostName]
 
 instance FromJSON (UpdateList Job) where
   parseJSON o = do
     uQueue <- parseUpdate JobQueueName "queue_name" o
     uStatus <- parseUpdate JobStatus "status" o
-    uHost   <- parseUpdate' JobHostName "host_name" o
-    return $ UpdateList $ catMaybes [uQueue, uStatus, uHost]
+    uHost   <- parseUpdateStar JobHostName "host_name" o
+    uStart  <- parseUpdateMaybe JobStartTime "start_time" o
+    return $ UpdateList $ catMaybes [uQueue, uStatus, uHost, uStart]
 
 deriving instance Generic JobResult
 deriving instance Generic UserPermission
