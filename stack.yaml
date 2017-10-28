@@ -2,6 +2,9 @@ resolver: lts-9.10
 
 packages: 
   - .
+  - batchd-docker/
+  - batchd-libvirt/
+  - batchd-amazonka/
   - location:
       git: https://github.com/portnov/libssh2-hs.git
       commit: master
@@ -9,7 +12,8 @@ packages:
     subdirs: [libssh2]
   - location:
       git: https://github.com/portnov/heavy-logger.git
-      commit: 8a67789
+      commit: 67b86f4
+    subdirs: [., heavy-logger-amazon]
     extra-dep: true
   - location:
       git: https://github.com/portnov/localize.git
@@ -20,6 +24,8 @@ packages:
 # (e.g., acme-missiles-0.3)
 extra-deps: 
   - dates-0.2.2.1
+  - docker-0.4.1.1
+  - libvirt-hs-0.2.1
   - hsyslog-5
   - select-0.4.0.1
   - haskell-gettext-0.1.1.0
