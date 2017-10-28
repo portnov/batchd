@@ -16,12 +16,12 @@ import System.Process
 import System.FilePath
 import System.Exit
 
-import Common.Types
-import Common.Config
+import System.Batchd.Common.Types
+import System.Batchd.Common.Config
 import Daemon.Logging
 import Common.Data
-import Daemon.Types
-import Daemon.Hosts
+import System.Batchd.Daemon.Types
+import System.Batchd.Daemon.Hosts
 import Daemon.SSH
 
 getCommand :: Maybe Host -> JobType -> JobInfo -> String

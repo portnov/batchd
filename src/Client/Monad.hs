@@ -13,8 +13,8 @@ import Network.HTTP.Client
 import System.Log.Heavy
 import qualified System.Log.FastLogger as FL
 
-import Common.Types
-import Common.Localize
+import System.Batchd.Common.Types
+import System.Batchd.Common.Localize
 import Client.Config
 import Client.Types
 import Client.CmdLine

@@ -23,9 +23,9 @@ import Network.TLS as TLS
 import Network.TLS.Extra.Cipher
 import Network.Connection
 
-import Common.Types
-import Common.Localize
-import Common.Config (getPassword)
+import System.Batchd.Common.Types
+import System.Batchd.Common.Localize
+import System.Batchd.Common.Config (getPassword)
 import Client.Types as C
 import Client.Config
 import Client.CmdLine

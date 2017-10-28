@@ -23,11 +23,11 @@ import Data.Aeson
 import System.FilePath
 import Text.Printf
 
-import Common.Types
-import Common.Localize
+import System.Batchd.Common.Types
+import System.Batchd.Common.Localize
 import qualified Common.Data as Database
 import Common.Schedule
-import Common.Config
+import System.Batchd.Common.Config
 import Client.CmdLine
 import Client.Config
 import Client.Http

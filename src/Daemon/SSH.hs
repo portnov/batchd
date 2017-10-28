@@ -18,8 +18,9 @@ import System.FilePath
 import System.Environment
 import System.Exit
 
-import Common.Types
-import Daemon.Types
+import System.Batchd.Common.Types
+import System.Batchd.Daemon.Types
+import System.Batchd.Daemon.Hosts
 import Daemon.Logging
 import Daemon.Hosts
 

@@ -12,7 +12,7 @@ import Data.Aeson
 import Text.Parsec
 import Text.Parsec.String
 
-import Common.Types
+import System.Batchd.Common.Types
 import Common.Data
 
 data Period =

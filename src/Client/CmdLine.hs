@@ -19,7 +19,7 @@ import qualified Text.Parsec as Parsec
 
 import System.IO.Unsafe (unsafePerformIO)
 
-import Common.Types
+import System.Batchd.Common.Types
 import Common.Data (MoveAction (..))
 import Client.Types
 

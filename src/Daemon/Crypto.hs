@@ -6,7 +6,7 @@ import Data.Monoid
 import Crypto.Hash
 import Crypto.Random
 
-import Common.Types
+import System.Batchd.Common.Types
 
 -- for generating the salt
 randomString :: Int -> IO String

@@ -17,7 +17,7 @@ import Text.Localize.IO
 import System.Environment
 import System.Posix.User (getLoginName)
 
-import Common.Config
+import System.Batchd.Common.Config
 import Client.Types
 import Client.CmdLine
 

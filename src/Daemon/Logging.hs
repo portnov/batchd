@@ -27,7 +27,7 @@ import System.Log.Heavy.TH
 import System.Log.Heavy.Backends
 import Text.Localize (translate, Localized)
 
-import Common.Types
+import System.Batchd.Common.Types
 
 deriveLift ''DaemonMode
 

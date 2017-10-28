@@ -6,8 +6,8 @@ import Control.Monad.Reader
 import Data.Maybe
 import Database.Persist
 
-import Common.Types
-import Daemon.Types
+import System.Batchd.Common.Types
+import System.Batchd.Daemon.Types
 import Common.Data
 import Common.Schedule
 

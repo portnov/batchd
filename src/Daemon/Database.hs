@@ -33,8 +33,8 @@ import qualified Database.Esqueleto as E
 import Database.Esqueleto ((^.))
 import System.Log.Heavy
 
-import Common.Types
-import Daemon.Types
+import System.Batchd.Common.Types
+import System.Batchd.Daemon.Types
 import Common.Data
 import Common.Schedule
 import Daemon.Schedule

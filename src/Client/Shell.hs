@@ -13,7 +13,7 @@ import Options.Applicative
 import System.Console.Readline (readline, addHistory)
 import System.Environment (getProgName)
 
-import Common.Localize
+import System.Batchd.Common.Localize
 import Client.Types
 import Client.Logging
 import Client.Actions

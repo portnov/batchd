@@ -19,9 +19,9 @@ import Data.Text.Format.Heavy
 
 import System.IO.Unsafe (unsafePerformIO)
 
-import Common.Types
+import System.Batchd.Common.Types
 import Common.Data
-import Daemon.Types
+import System.Batchd.Daemon.Types
 import Daemon.Crypto
 import Daemon.Database
 import Daemon.Logging

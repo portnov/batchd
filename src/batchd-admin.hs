@@ -9,7 +9,7 @@ import Options.Applicative
 import qualified Database.Persist.Sql as Sql
 import System.Log.Heavy
 
-import Common.Config
+import System.Batchd.Common.Config
 import Common.Data (migrateAll)
 import Daemon.Logging (getLoggingSettings)
 import Daemon.Database

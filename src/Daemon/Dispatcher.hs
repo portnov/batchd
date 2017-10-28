@@ -17,16 +17,16 @@ import System.Exit
 import Data.Text.Format.Heavy
 import System.Log.Heavy
 
-import Common.Types
-import Daemon.Types
-import Common.Config as Config
+import System.Batchd.Common.Types
+import System.Batchd.Daemon.Types
+import System.Batchd.Common.Config as Config
 import Common.Data
 import Daemon.Database
 import Common.Schedule
 import Daemon.Schedule
 import Daemon.Executor
 import Daemon.Logging
-import Daemon.Hosts
+import System.Batchd.Daemon.Hosts
 
 -- | Set up workers, callback listener and dispatcher itself.
 runDispatcher :: Daemon ()

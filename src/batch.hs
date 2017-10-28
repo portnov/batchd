@@ -6,7 +6,7 @@ import Control.Exception
 import qualified Data.Text.Lazy.IO as TLIO
 import Data.Text.Format.Heavy
 
-import Common.Localize
+import System.Batchd.Common.Localize
 import Client.Types
 import Client.CmdLine
 import Client.Config

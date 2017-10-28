@@ -27,11 +27,11 @@ import System.FilePath.Glob
 import System.Log.Heavy.Types
 import System.Log.Heavy
 
-import Common.Types
-import Common.Localize
-import Common.Config
+import System.Batchd.Common.Types
+import System.Batchd.Common.Localize
+import System.Batchd.Common.Config
 import Common.Data
-import Daemon.Types
+import System.Batchd.Daemon.Types
 import Daemon.Database
 import Daemon.Schedule
 import Daemon.Auth

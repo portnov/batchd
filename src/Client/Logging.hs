@@ -10,8 +10,8 @@ import Data.Text.Format.Heavy
 import Data.Text.Format.Heavy.Parse
 import System.Log.Heavy
 
-import Common.Types
-import Common.Localize
+import System.Batchd.Common.Types
+import System.Batchd.Common.Localize
 import Client.Types
 import Client.CmdLine
 import Client.Monad

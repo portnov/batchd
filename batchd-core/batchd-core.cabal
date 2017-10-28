@@ -18,8 +18,7 @@ library
   hs-source-dirs:      src
 
   exposed-modules:     System.Batchd
-
-  other-modules:       System.Batchd.Common.Types
+                       System.Batchd.Common.Types
                        System.Batchd.Common.Config
                        System.Batchd.Common.Localize
                        System.Batchd.Daemon.Types

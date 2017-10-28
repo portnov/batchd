@@ -8,10 +8,10 @@ import Options.Applicative
 import Data.Text.Format.Heavy
 import System.Log.Heavy
 
-import Common.Types
-import Common.Localize
-import Common.Config
-import Daemon.Types (runDaemon, forkDaemon, setupTranslations)
+import System.Batchd.Common.Types
+import System.Batchd.Common.Localize
+import System.Batchd.Common.Config
+import System.Batchd.Daemon.Types (runDaemon, forkDaemon, setupTranslations)
 import qualified Daemon.Logging as Log
 import Daemon.Database
 import Daemon.Manager as Manager
@@ -44,7 +44,7 @@ main = do
                    else cmd
       let logSettings = Log.getLoggingSettings cfg
       runDaemon cfg Nothing logSettings $ do
-        Daemon.Types.setupTranslations translationPolicy
+        System.Batchd.Daemon.Types.setupTranslations translationPolicy
         tr <- getTranslations
         $(Log.debug) "Loaded translations: {}" (Single $ show tr)
         $(Log.debug) "Loaded global configuration file: {}" (Single $ show cfg)

@@ -30,7 +30,7 @@ import Data.Generics hiding (Generic)
 import Database.Persist.TH
 import System.Exit
 
-import Common.Types
+import System.Batchd.Common.Types
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll", mkDeleteCascade sqlSettings] [persistLowerCase|
 JobParam
