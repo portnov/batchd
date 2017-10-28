@@ -45,13 +45,12 @@ packages:
     subdirs: [libssh2]
   - location:
       git: https://github.com/portnov/heavy-logger.git
-      commit: master
+      commit: 67b86f4
+    subdirs: [., heavy-logger-amazon]
     extra-dep: true
-  - /home/portnov/src/progs/haskell/heavy-logger/heavy-logger-amazon/
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 extra-deps:
-  - libvirt-hs-0.2.1
   - dates-0.2.2.1
   - libssh2-0.2.0.4
   - localize-0.2.0.0

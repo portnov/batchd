@@ -1,0 +1,32 @@
+name:                batchd-amazonka
+version:             0.1.0.0
+synopsis:            batchd host controller for AWS EC2 hosts
+-- description:
+homepage:            https://github.com/githubuser/batchd-amazonka#readme
+license:             BSD3
+license-file:        LICENSE
+author:              IlyaPortnov
+maintainer:          portnov84@rambler.ru
+copyright:           2017 Ilya Portnov
+category:            SYstem
+build-type:          Simple
+extra-source-files:  README.md
+cabal-version:       >=1.10
+
+library
+  hs-source-dirs:      src
+  exposed-modules:     System.Batchd.AWS
+  build-depends:       base >= 4.7 && < 5,
+                       text >= 1.2.2.2,
+                       lens >= 4.15.4,
+                       batchd >= 0.1.0.0,
+                       amazonka-core >= 1.4.5,
+                       amazonka >= 1.4.5,
+                       amazonka-ec2 >= 1.4.5,
+                       heavy-logger >= 0.3.0.0,
+                       heavy-logger-amazon >= 0.1.0.0
+  default-language:    Haskell2010
+
+source-repository head
+  type:     git
+  location: https://github.com/githubuser/batchd-amazonka
