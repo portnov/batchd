@@ -49,7 +49,23 @@ cabal-version:       >=1.10
 executable batchd
   main-is:             batchd.hs
   hs-source-dirs:      src/
-  -- other-modules:       
+  other-modules:       
+        Common.Config
+        Common.Data
+        Common.Localize
+        Common.Schedule
+        Common.Types
+        Daemon.Auth
+        Daemon.Crypto
+        Daemon.Database
+        Daemon.Dispatcher
+        Daemon.Executor
+        Daemon.Hosts
+        Daemon.Logging
+        Daemon.Manager
+        Daemon.SSH
+        Daemon.Schedule
+        Daemon.Types
   other-extensions:    TypeFamilies, DeriveDataTypeable, TemplateHaskell, StandaloneDeriving, RecordWildCards
   build-depends:       base >=4.7 && <5.0,
                        persistent >= 2.2,
@@ -103,7 +119,18 @@ executable batchd
 executable batchd-admin
   main-is:             batchd-admin.hs
   hs-source-dirs:      src/
-  -- other-modules:       
+  other-modules:       
+        Common.Config
+        Common.Data
+        Common.Localize
+        Common.Schedule
+        Common.Types
+        Daemon.Auth
+        Daemon.Crypto
+        Daemon.Database
+        Daemon.Logging
+        Daemon.Schedule
+        Daemon.Types
   other-extensions:    TypeFamilies, DeriveDataTypeable, TemplateHaskell, StandaloneDeriving, RecordWildCards
   build-depends:       base >=4.7 && <5.0,
                        persistent >= 2.2,
@@ -154,7 +181,20 @@ executable batchd-admin
 executable batch
   main-is:             batch.hs
   hs-source-dirs:      src/
-  -- other-modules:       
+  other-modules:       
+        Client.Actions
+        Client.CmdLine
+        Client.Config
+        Client.Http
+        Client.Logging
+        Client.Monad
+        Client.Shell
+        Client.Types
+        Common.Config
+        Common.Data
+        Common.Localize
+        Common.Schedule
+        Common.Types
   build-depends:       base >=4.7 && <5.0,
                        data-default >= 0.5,
                        mtl >=2.2 && <2.3,
