@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Common.Config where
+module System.Batchd.Common.Config where
 
 import Control.Monad
 import Control.Exception
@@ -9,8 +9,8 @@ import System.Environment
 import System.Directory
 import System.IO
 
-import Common.Types
-import Common.Localize
+import System.Batchd.Common.Types
+import System.Batchd.Common.Localize
 
 getConfigDirs :: String -> IO [FilePath]
 getConfigDirs t = do

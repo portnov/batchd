@@ -2,6 +2,7 @@ resolver: lts-9.10
 
 packages: 
   - .
+  - batchd-core/
   - batchd-docker/
   - batchd-libvirt/
   - batchd-amazonka/

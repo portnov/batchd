@@ -1,5 +1,5 @@
 
-module Common.Localize
+module System.Batchd.Common.Localize
   (
     translationPolicy,
     __, __f,

@@ -5,7 +5,7 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Daemon.Hosts where
+module System.Batchd.Daemon.Hosts where
 
 import Control.Concurrent
 import Control.Exception
@@ -13,9 +13,9 @@ import Control.Monad.Trans
 import qualified Data.Map as M
 import System.Log.Heavy
 
-import Common.Types
-import Common.Localize
-import Daemon.Types
+import System.Batchd.Common.Types
+import System.Batchd.Common.Localize
+import System.Batchd.Daemon.Types
 
 #ifdef LIBVIRT
 import System.Batchd.LibVirt
