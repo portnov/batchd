@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -15,6 +16,16 @@ import System.Log.Heavy
 import Common.Types
 import Common.Localize
 import Daemon.Types
+
+#ifdef LIBVIRT
+import System.Batchd.LibVirt
+#endif
+#ifdef DOCKER
+import System.Batchd.Docker
+#endif
+#ifdef AWSEC2
+import System.Batchd.AWS
+#endif
 
 type HostName = String
 type HostCounters = MVar (M.Map HostName (MVar Int))
@@ -45,7 +56,19 @@ instance HostController Local where
   stopHost _ _ = return ()
 
 supportedControllers :: [(String, FilePath -> AnyHostControllerSelector)]
-supportedControllers = [("local", const $ AnyHostControllerSelector LocalSelector)]
+supportedControllers =
+  [
+#ifdef LIBVIRT
+   ("libvirt", \name -> AnyHostControllerSelector (LibVirtSelector name)),
+#endif
+#ifdef DOCKER
+   ("docker", \name -> AnyHostControllerSelector (DockerSelector name)),
+#endif
+#ifdef AWSEC2
+   ("ec2", \name -> AnyHostControllerSelector (AWSEC2Selector name)),
+#endif
+   ("local", const $ AnyHostControllerSelector LocalSelector)
+  ]
 
 getMaxJobs :: Host -> JobType -> Maybe Int
 getMaxJobs host jtype =

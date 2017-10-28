@@ -45,6 +45,18 @@ build-type:          Simple
 -- extra-source-files:  
 cabal-version:       >=1.10
 
+flag libvirt
+  description: Enable support of libvirt host controller
+  default: False
+
+flag docker
+  description: Enable support of docker host controller
+  default: False
+
+flag ec2
+  description: Enable support of AWS EC2 host controller
+  default: False
+
 library
   hs-source-dirs:      src/
   exposed-modules:
@@ -182,7 +194,18 @@ executable batchd
                        template-haskell >= 2.8,
                        th-lift >= 0.6,
                        th-lift-instances >= 0.1
-  -- hs-source-dirs:      
+  if flag(libvirt)
+    cpp-options: -DLIBVIRT
+    build-depends: batchd-libvirt
+
+  if flag(docker)
+    cpp-options: -DDOCKER
+    build-depends: batchd-docker
+
+  if flag(ec2)
+    cpp-options: -DAWSEC2
+    build-depends: batchd-amazonka
+
   ghc-options: -fwarn-unused-imports -fwarn-missing-signatures -threaded
   default-language:    Haskell2010
 
