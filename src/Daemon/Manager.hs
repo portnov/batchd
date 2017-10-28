@@ -174,7 +174,7 @@ inUserContext action = do
     -- req <- Scotty.request
     -- context <- getLogContext
     -- liftIO $ putStrLn $ show context
-    -- $debug "Request: {method} {path}. User-Agent: {useragent}" req
+    -- \$debug "Request: {method} {path}. User-Agent: {useragent}" req
     action
 
 getQueuesA :: Action ()

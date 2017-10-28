@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Daemon.Hosts where
@@ -15,6 +16,26 @@ import Daemon.Types
 
 type HostName = String
 type HostCounters = MVar (M.Map HostName (MVar Int))
+
+class HostController c where
+  doesSupportStartStop :: c -> Bool
+
+  startHost :: c -> HostName -> IO ()
+
+  stopHost :: c -> HostName -> IO ()
+
+data AnyHostController = forall c. HostController c => AnyHostController c
+
+data Local = Local
+  deriving (Show)
+
+instance HostController Local where
+  doesSupportStartStop _ = False
+  startHost _ _ = return ()
+  stopHost _ _ = return ()
+
+supportedControllers :: [(String, AnyHostController)]
+supportedControllers = [("local", AnyHostController Local)]
 
 getMaxJobs :: Host -> JobType -> Maybe Int
 getMaxJobs host jtype =

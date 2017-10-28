@@ -13,3 +13,6 @@ cabal.sandbox.config
 *.jpg
 *.png
 SourceGraph/
+.stack-work/
+Test
+credentials
