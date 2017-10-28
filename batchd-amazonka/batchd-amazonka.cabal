@@ -19,6 +19,7 @@ library
   build-depends:       base >= 4.7 && < 5,
                        text >= 1.2.2.2,
                        lens >= 4.15.4,
+                       aeson >= 1.1.2.0,
                        batchd >= 0.1.0.0,
                        amazonka-core >= 1.4.5,
                        amazonka >= 1.4.5,

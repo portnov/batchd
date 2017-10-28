@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -5,12 +6,14 @@
 
 module System.Batchd.LibVirt
   (
-    LibVirt (..)
+    LibVirt (..),
+    Selector (..)
   ) where
 
 import Control.Exception
 import Control.Concurrent
 import Data.Time
+import Data.Aeson
 import System.Batchd
 import System.LibVirt as V
 
@@ -20,8 +23,22 @@ data LibVirt = LibVirt {
   }
   deriving (Show)
 
+instance FromJSON LibVirt where
+  parseJSON (Object v) =
+    LibVirt
+    <$> v .:? "enable_start_stop" .!= True
+    <*> v .:? "connection_string" .!= "qemu:///system"
+
 instance HostController LibVirt where
+  data Selector LibVirt = LibVirtSelector FilePath
+
   doesSupportStartStop l = lvEnableStartStop l
+
+  initController (LibVirtSelector name) _ = do
+    r <- loadHostControllerConfig name
+    case r of
+      Left err -> throw err
+      Right lib -> return lib
 
   startHost l name = do
     withConnection (lvConnectionString l) $ \conn -> do

@@ -44,6 +44,9 @@ loadConfig t name exc = do
         Left err -> return $ Left $ exc err
         Right cfg -> return $ Right cfg
 
+loadHostControllerConfig :: FromJSON config => String -> IO (Either Error config)
+loadHostControllerConfig name = loadConfig "controllers" name InvalidHostControllerConfig
+
 loadHost :: String -> IO (Either Error Host)
 loadHost name = loadConfig "hosts" name InvalidHost
 

@@ -1,8 +1,10 @@
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE StandaloneDeriving #-}
 module System.Batchd.Docker
   (Docker (..),
+   Selector (..),
    defaultDockerUrl
   ) where
 
@@ -43,7 +45,15 @@ getHttpHandler d = do
     Just path -> unixHttpHandler path
 
 instance HostController Docker where
+  data Selector Docker = DockerSelector FilePath
+
   doesSupportStartStop d = dEnableStartStop d
+
+  initController (DockerSelector name) _ = do
+    r <- loadHostControllerConfig name
+    case r of
+      Left err -> throw err
+      Right docker -> return docker
 
   startHost d name = do
     handler <- getHttpHandler d

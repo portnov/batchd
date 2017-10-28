@@ -178,6 +178,7 @@ data Error =
   | InvalidJobType ParseException
   | InvalidHost ParseException
   | InvalidDbCfg ParseException
+  | InvalidHostControllerConfig ParseException
   | InvalidConfig ParseException
   | InvalidJobStatus (Maybe B.ByteString)
   | FileNotExists FilePath
@@ -196,6 +197,7 @@ instance Show Error where
   show (InvalidJobType e) = "Invalid job type: " ++ show e
   show (InvalidHost e) = "Invalid host description: " ++ show e
   show (InvalidDbCfg e) = "Invalid database config: " ++ show e
+  show (InvalidHostControllerConfig e) = "Invalid host controller config: " ++ show e
   show (InvalidConfig e) = "Invalid config: " ++ show e
   show (InvalidJobStatus Nothing) = "Invalid job status"
   show (InvalidJobStatus (Just s)) = "Invalid job status: " ++ show s
