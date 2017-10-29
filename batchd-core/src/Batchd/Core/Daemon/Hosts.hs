@@ -24,7 +24,7 @@ class Show c => HostController c where
 
   controllerName :: Selector c -> String
 
-  tryInitController :: Selector c -> SpecializedLogger -> FilePath -> IO (Either Error c)
+  tryInitController :: Selector c -> LoggingTState -> FilePath -> IO (Either Error c)
 
   doesSupportStartStop :: c -> Bool
 

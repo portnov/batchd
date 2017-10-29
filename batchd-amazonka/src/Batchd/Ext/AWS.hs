@@ -26,7 +26,7 @@ data AWSEC2 = AWSEC2 {
     awsEnableStartStop :: Bool
   , awsCredentials :: Credentials
   , awsRegion :: Region
-  , awsLogger :: SpecializedLogger
+  , awsLogging :: LoggingTState
   }
 
 instance FromJSON AWSEC2 where
@@ -37,7 +37,7 @@ instance FromJSON AWSEC2 where
     enable <- v .:? "enable_start_stop" .!= True
     creds <- v .:? "credentials" .!= Discover
     region <- read <$> v .: "region"
-    return $ AWSEC2 enable creds region (const $ return ())
+    return $ AWSEC2 enable creds region undefined
 
 instance FromJSON Credentials where
   parseJSON (Aeson.String "discover") = return Discover
@@ -71,7 +71,7 @@ instance HostController AWSEC2 where
     loadHostControllerConfig name
 
   startHost aws name = do
-      env <- newEnv (awsCredentials aws) <&> set envLogger (toAwsLogger $ awsLogger aws)
+      env <- newEnv (awsCredentials aws) <&> set envLogger (toAwsLogger $ ltsLogger $ awsLogging aws)
       let instanceId = T.pack name
 
       rs <- runResourceT . runAWST env . within (awsRegion aws) $ do
@@ -81,7 +81,7 @@ instance HostController AWSEC2 where
         fail $ "Cannot start instance: " ++ show rs
 
   stopHost aws name = do
-      env <- newEnv (awsCredentials aws) <&> set envLogger (toAwsLogger $ awsLogger aws)
+      env <- newEnv (awsCredentials aws) <&> set envLogger (toAwsLogger $ ltsLogger $ awsLogging aws)
       let instanceId = T.pack name
       rs <- runResourceT . runAWST env . within (awsRegion aws) $ do
                 send $ stopInstances & (siInstanceIds .~ [instanceId])

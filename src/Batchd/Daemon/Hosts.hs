@@ -50,7 +50,7 @@ loadHostController lts name = do
   where
     go lastError [] = throw lastError
     go _ (AnyHostControllerSelector selector : rest) = do
-        r <- tryInitController selector (ltsLogger lts) name
+        r <- tryInitController selector lts name
         case r of
           Right controller -> return $ AnyHostController controller
           Left err -> do
