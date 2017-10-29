@@ -10,7 +10,7 @@ module Batchd.Ext.LibVirt
     Selector (..)
   ) where
 
-import Control.Monad (guard)
+import Control.Monad (when)
 import Control.Exception
 import Control.Concurrent
 import Data.Time
@@ -28,10 +28,14 @@ data LibVirt = LibVirt {
 instance FromJSON LibVirt where
   parseJSON (Object v) = do
     driver <- v .: "driver"
-    guard $ driver == ("libvirt" :: T.Text)
+    when (driver /= ("libvirt" :: T.Text)) $
+      fail $ "incorrect driver specification"
     enable <- v .:? "enable_start_stop" .!= True
     conn <- v .:? "connection_string" .!= "qemu:///system"
     return $ LibVirt enable conn
+
+-- instance Show LibVirt where
+--   show _ = "<LibVirt host controller>"
 
 instance HostController LibVirt where
   data Selector LibVirt = LibVirtSelector

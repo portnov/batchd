@@ -8,7 +8,7 @@ module Batchd.Ext.Docker
    defaultDockerUrl
   ) where
 
-import Control.Monad (guard)
+import Control.Monad (when)
 import Control.Monad.Trans
 import Control.Monad.Catch
 import Control.Exception
@@ -32,7 +32,8 @@ data Docker = Docker {
 instance FromJSON Docker where
   parseJSON (Object v) = do
     driver <- v .: "driver"
-    guard $ driver == ("docker" :: T.Text)
+    when (driver /= ("docker" :: T.Text)) $
+      fail $ "incorrect driver specification"
     enable <- v .:? "enable_start_stop" .!= True
     socket <- v .:? "unix_socket"
     url <- v .:? "base_url" .!= defaultDockerUrl
@@ -46,6 +47,9 @@ getHttpHandler d = do
   case dUnixSocket d of
     Nothing -> defaultHttpHandler
     Just path -> unixHttpHandler path
+
+-- instance Show Docker where
+--   show _ = "<Docker host controller>"
 
 instance HostController Docker where
   data Selector Docker = DockerSelector

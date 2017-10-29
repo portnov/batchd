@@ -7,7 +7,7 @@ module Batchd.Ext.AWS
   ) where
 
 import Control.Applicative
-import Control.Monad (when, guard)
+import Control.Monad (when)
 import Control.Monad.Trans.AWS
 import Control.Lens
 import Control.Exception
@@ -32,7 +32,8 @@ data AWSEC2 = AWSEC2 {
 instance FromJSON AWSEC2 where
   parseJSON (Object v) = do
     driver <- v .: "driver"
-    guard $ driver == ("awsec2" :: T.Text)
+    when (driver /= ("awsec2" :: T.Text)) $
+      fail $ "incorrect driver specification"
     enable <- v .:? "enable_start_stop" .!= True
     creds <- v .:? "credentials" .!= Discover
     region <- read <$> v .: "region"
@@ -55,6 +56,9 @@ instance FromJSON Credentials where
 
 describe instanceId =
   describeInstances & (diiInstanceIds .~ [instanceId])
+
+instance Show AWSEC2 where
+  show _ = "<AWS EC2 host controller>"
 
 instance HostController AWSEC2 where
   data Selector AWSEC2 = AWSEC2Selector

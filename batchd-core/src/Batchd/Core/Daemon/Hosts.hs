@@ -19,7 +19,7 @@ import Batchd.Core.Daemon.Types
 type HostName = String
 type HostCounters = MVar (M.Map HostName (MVar Int))
 
-class HostController c where
+class Show c => HostController c where
   data Selector c
 
   controllerName :: Selector c -> String
@@ -34,10 +34,18 @@ class HostController c where
 
 data AnyHostController = forall c. HostController c => AnyHostController c
 
+instance Show AnyHostController where
+  show (AnyHostController c) = show c
+
 data AnyHostControllerSelector = forall c. HostController c => AnyHostControllerSelector (Selector c)
 
+instance Show AnyHostControllerSelector where
+  show (AnyHostControllerSelector s) = controllerName s
+
 data Local = Local
-  deriving (Show)
+
+instance Show Local where
+  show Local = "<local host controller>"
 
 instance HostController Local where
   data Selector Local = LocalSelector
