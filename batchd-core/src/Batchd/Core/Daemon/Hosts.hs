@@ -44,9 +44,9 @@ class Show c => HostController c where
 
   doesSupportStartStop :: c -> Bool
 
-  startHost :: c -> HostName -> IO ()
+  startHost :: c -> HostName -> IO (Either Error ())
 
-  stopHost :: c -> HostName -> IO ()
+  stopHost :: c -> HostName -> IO (Either Error ())
 
 data AnyHostController = forall c. HostController c => AnyHostController c
 
@@ -72,6 +72,6 @@ instance HostController Local where
   tryInitController _ _ "local" = return $ Right Local
   tryInitController _ _ name = return $ Left $ UnknownError "Invalid name for local host controller"
 
-  startHost _ _ = return ()
-  stopHost _ _ = return ()
+  startHost _ _ = return $ Right ()
+  stopHost _ _ = return $ Right ()
 

@@ -125,10 +125,14 @@ ensureHostStarted lts host = do
       if doesSupportStartStop controller
         then do
           debugIO lts $(here) "Starting host `{}'" (Single name)
-          startHost controller (hControllerId host)
-          debugIO lts $(here) "Waiting for host `{}' to initialize for {} seconds..." 
-                              (name, hStartupTime host)
-          threadDelay $ 1000 * 1000 * hStartupTime host
+          r <- startHost controller (hControllerId host)
+          case r of
+            Right _ -> do
+                debugIO lts $(here) "Waiting for host `{}' to initialize for {} seconds..." 
+                                    (name, hStartupTime host)
+                threadDelay $ 1000 * 1000 * hStartupTime host
+            Left err -> do
+                throw err
         else debugIO lts $(here) "Controller does not support starting hosts" ()
 
 ensureHostStopped :: LoggingTState -> Host -> IO ()
@@ -141,7 +145,10 @@ ensureHostStopped lts host = do
       if doesSupportStartStop controller
         then do
           debugIO lts $(here) "Stopping host `{}'" (Single name)
-          stopHost controller (hControllerId host)
+          r <- stopHost controller (hControllerId host)
+          case r of
+            Right _ -> return ()
+            Left err -> throw err
         else debugIO lts $(here) "Controller does not support stopping hosts" ()
 
 acquireHost :: LoggingTState -> HostCounters -> Host -> JobType -> IO ()
@@ -175,14 +182,14 @@ releaseHost lts mvar host = do
     decreaseJobCount lts st
   return ()
 
-withHost :: HostCounters -> Host -> JobType -> Daemon a -> Daemon a
+withHost :: HostCounters -> Host -> JobType -> Daemon a -> Daemon (Either SomeException a)
 withHost mvar host jtype actions = withLogVariable "host" (hName host) $ do
   cfg <- askConfig
   pool <- askPool
   translations <- getTranslations
   lts <- askLoggingStateM
   let connInfo = ConnectionInfo cfg (Just pool) (Just translations)
-  liftIO $ bracket_ (acquireHost lts mvar host jtype) (releaseHost lts mvar host) $ runDaemonIO connInfo lts actions
+  liftIO $ try $ bracket_ (acquireHost lts mvar host jtype) (releaseHost lts mvar host) $ runDaemonIO connInfo lts actions
 
 hostCleaner :: LoggingTState -> HostCounters -> IO ()
 hostCleaner lts mvar = forever $ do

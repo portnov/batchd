@@ -66,13 +66,16 @@ instance HostController Docker where
     let opts = defaultClientOpts {baseUrl = dBaseUrl d}
     r <- runDockerT (opts, handler) $ do
            startContainer defaultStartOpts $ fromJust $ toContainerID (T.pack name)
-    print r
-    return ()
+    case r of
+      Right _ -> return $ Right ()
+      Left err -> return $ Left $ UnknownError $ show err
 
   stopHost d name = do
     handler <- getHttpHandler d
     let opts = defaultClientOpts {baseUrl = dBaseUrl d}
     r <- runDockerT (opts, handler) $ do
            stopContainer DefaultTimeout $ fromJust $ toContainerID (T.pack name)
-    print r
-    return ()
+    case r of
+      Right _ -> return $ Right ()
+      Left err -> return $ Left $ UnknownError $ show err
+

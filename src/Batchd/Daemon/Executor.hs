@@ -5,6 +5,7 @@ module Batchd.Daemon.Executor where
 
 import Control.Monad
 import Control.Monad.Trans
+import Control.Exception
 import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
@@ -62,7 +63,7 @@ executeJob counters q jt job = do
         Right host -> do
           let command = getCommand (Just host) jt job
           (ec, stdout) <- processOnHost counters host jt job command
-          now <- liftIO getCurrentTime
+          now <- liftIO $ getCurrentTime
           return $ JobResult jid now ec stdout T.empty
         Left err -> do
           $reportError "Error while executing job: {}" (Single $ Shown err)

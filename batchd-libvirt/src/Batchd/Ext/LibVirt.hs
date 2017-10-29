@@ -63,13 +63,13 @@ instance HostController LibVirt where
             di <- getDomainInfo dom
             putStrLn $ "domain got ok: " ++ show di
             case diState di of
-              DomainRunning -> return ()
-              DomainPaused -> resumeDomain dom >> return ()
+              DomainRunning -> return $ Right ()
+              DomainPaused -> resumeDomain dom >> (return $ Right ())
               DomainShutoff -> do
                        createDomain dom
-                       return ()
-              st -> fail $ "Don't know what to do with virtual domain " ++ name ++ " in state " ++ show st
-          Nothing -> fail $ "Domain is not defined in hypervisor: " ++ name
+                       return $ Right ()
+              st -> return $ Left $ UnknownError $ "Don't know what to do with virtual domain " ++ name ++ " in state " ++ show st
+          Nothing -> return $ Left $ UnknownError $ "Domain is not defined in hypervisor: " ++ name
 
   stopHost l name = do
     withConnection (lvConnectionString l) $ \conn -> do
@@ -81,9 +81,9 @@ instance HostController LibVirt where
                                           return Nothing
                    Right dom -> return (Just dom)
         case mbdom of
-          Nothing -> fail $ "No such domain on hypervisor: " ++ name
+          Nothing -> return $ Left $ UnknownError $ "No such domain on hypervisor: " ++ name
           Just dom -> do
             shutdownDomain dom
-            return ()
+            return $ Right ()
 
 

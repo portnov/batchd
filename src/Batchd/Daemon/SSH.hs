@@ -54,26 +54,26 @@ processOnHost counters h jtype job command = do
 
   $info "CONNECTING TO {}:{}" (hostname, port)
   $debug "Target host settings: {}" (Single $ Shown h)
-  withHost counters h jtype $ do
-    wrapDaemon (withSSH2 known_hosts public_key private_key passphrase user hostname port) $ \session -> do
-        $info "Connected." ()
-        liftIO $ execCommands session (hStartupCommands h)
-                   `catch` (\(e :: SomeException) -> throw (ExecException e))
-        uploadFiles (getInputFiles jtype job) (hInputDirectory h) session
-        $info "EXECUTING: {}" (Single command)
-        (ec,out) <- liftIO $ execCommands session [command]
-        $info "Done." ()
-        downloadFiles (hOutputDirectory h) (getOutputFiles jtype job) session
-        let outText = TL.toStrict $ TLE.decodeUtf8 (head out)
-            ec' = if ec == 0
-                    then ExitSuccess
-                    else ExitFailure ec
-        return (ec', outText)
---           `catch`
---             (\(e :: SomeException) -> do
---                                       reportErrorIO logger $(here) $ show e
---                                       return (ExitFailure (-1), T.pack (show e))
---                                       )
+  r <- withHost counters h jtype $ do
+          wrapDaemon (withSSH2 known_hosts public_key private_key passphrase user hostname port) $ \session -> do
+              $info "Connected." ()
+              liftIO $ execCommands session (hStartupCommands h)
+                         `catch` (\(e :: SomeException) -> throw (ExecException e))
+              uploadFiles (getInputFiles jtype job) (hInputDirectory h) session
+              $info "EXECUTING: {}" (Single command)
+              (ec,out) <- liftIO $ execCommands session [command]
+              $info "Done." ()
+              downloadFiles (hOutputDirectory h) (getOutputFiles jtype job) session
+              let outText = TL.toStrict $ TLE.decodeUtf8 (head out)
+                  ec' = if ec == 0
+                          then ExitSuccess
+                          else ExitFailure ec
+              return (ec', outText)
+  case r of
+    Left e -> do
+      $reportError "Error while executing job at host `{}': {}" (hName h, show e)
+      return (ExitFailure (-1), T.pack (show e))
+    Right result -> return result
 
 getInputFiles :: JobType -> JobInfo -> [FilePath]
 getInputFiles jt job =

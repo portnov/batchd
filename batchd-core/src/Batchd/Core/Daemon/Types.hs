@@ -2,7 +2,7 @@
 
 module Batchd.Core.Daemon.Types where
 
-import Control.Exception (catch)
+import Control.Exception (catch, try, SomeException)
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Except
