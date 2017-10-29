@@ -7,10 +7,12 @@
 
 module Batchd.Daemon.Hosts where
 
+import Control.Monad
 import Control.Concurrent
 import Control.Exception
 import Control.Monad.Trans
 import qualified Data.Map as M
+import Data.Text.Format.Heavy
 import System.Log.Heavy
 
 import Batchd.Core.Common.Types
@@ -66,8 +68,37 @@ getMaxJobs host jtype =
     (Nothing, Just m) -> Just m
     (Just x, Just y) -> Just $ max x y
 
-acquireHost :: HostCounters -> Host -> JobType -> IO ()
-acquireHost mvar host jtype = do
+ensureHostStarted :: LoggingTState -> Host -> IO ()
+ensureHostStarted lts host = do
+    c <- loadHostController lts (hController host)
+    debugIO lts $(here) "Host `{}' is controlled by `{}'" (hName host, show c)
+    start c (hName host)
+  where
+    start (AnyHostController controller) name = do
+      if doesSupportStartStop controller
+        then do
+          debugIO lts $(here) "Starting host `{}'" (Single name)
+          startHost controller name
+          debugIO lts $(here) "Waiting for host `{}' to initialize for {} seconds..." 
+                              (name, hStartupTime host)
+          threadDelay $ 1000 * 1000 * hStartupTime host
+        else debugIO lts $(here) "Controller does not support starting hosts" ()
+
+ensureHostStopped :: LoggingTState -> Host -> IO ()
+ensureHostStopped lts host = do
+    c <- loadHostController lts (hController host)
+    debugIO lts $(here) "Host `{}' is controlled by `{}'" (hName host, show c)
+    stop c (hName host)
+  where
+    stop (AnyHostController controller) name = do
+      if doesSupportStartStop controller
+        then do
+          debugIO lts $(here) "Stopping host `{}'" (Single name)
+          stopHost controller name
+        else debugIO lts $(here) "Controller does not support stopping hosts" ()
+
+acquireHost :: LoggingTState -> HostCounters -> Host -> JobType -> IO ()
+acquireHost lts mvar host jtype = do
     check (hName host)
     return ()
   where
@@ -76,6 +107,11 @@ acquireHost mvar host jtype = do
               counter <- case M.lookup name m of
                            Just c -> return c
                            Nothing -> newMVar 0
+
+              oldCount <- readMVar counter
+              when (oldCount == 0) $ do
+                ensureHostStarted lts host
+
               let m' = M.insert name counter m
               case getMaxJobs host jtype of
                 Just max -> do
@@ -93,14 +129,17 @@ acquireHost mvar host jtype = do
              threadDelay $ 1000*1000
              check name
 
-releaseHost :: HostCounters -> Host -> IO ()
-releaseHost mvar host = do
+releaseHost :: LoggingTState -> HostCounters -> Host -> IO ()
+releaseHost lts mvar host = do
   let name = hName host
   modifyMVar_ mvar $ \m -> do
     counter <- case M.lookup name m of
                  Nothing -> fail $ "Can't release host: " ++ name ++ "; map: " ++ show (M.keys m)
                  Just c -> return c
     modifyMVar_ counter (\c -> return (c-1))
+    newCount <- readMVar counter
+    when (newCount == 0) $ do
+      ensureHostStopped lts host
     return $ M.insert name counter m
   return ()
 
@@ -111,5 +150,5 @@ withHost mvar host jtype actions = do
   translations <- getTranslations
   lts <- askLoggingStateM
   let connInfo = ConnectionInfo cfg (Just pool) (Just translations)
-  liftIO $ bracket_ (acquireHost mvar host jtype) (releaseHost mvar host) $ runDaemonIO connInfo lts actions
+  liftIO $ bracket_ (acquireHost lts mvar host jtype) (releaseHost lts mvar host) $ runDaemonIO connInfo lts actions
 

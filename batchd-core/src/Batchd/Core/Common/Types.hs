@@ -287,6 +287,7 @@ data Host = Host {
     hPort :: Int,
     hMaxJobs :: Maybe Int,
     hController :: String,
+    hStartupTime :: Int,
     hInputDirectory :: String,
     hOutputDirectory :: String,
     hStartupCommands :: [String]
@@ -305,6 +306,7 @@ instance FromJSON Host where
       <*> v .:? "port" .!= 22
       <*> v .:? "max_jobs"
       <*> v .:? "controller" .!= "local"
+      <*> v .:? "startup_time" .!= 5
       <*> v .:? "input_directory" .!= "."
       <*> v .:? "output_directory" .!= "."
       <*> v .:? "startup_commands" .!= []
