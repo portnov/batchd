@@ -27,6 +27,16 @@ your machine, while you are going to work on the next scene. It would be good
 to run the rendering as a night job. Then you create the next scene and want it
 to be rendered next after the first. So you have a queue of batch jobs.
 
+batchd supports simple host management for several kinds of virtual hosts:
+
+* LibVirt-supported hypervisors (KVM, QEMU, Xen, Virtuozzo, VMWare ESX, LXC,
+  BHyve and more);
+* Docker containers;
+* AWS EC2 instances.
+
+batchd can automatically start such hosts when there are jobs to be executed on
+them, and automatically stop hosts when there is no need for them. 
+
 Architecture
 ------------
 The batchd suite consists of the following components:
@@ -177,9 +187,7 @@ options of how to specify periods:
 Installation
 ------------
 
-    $ sudo apt-get install haskell-platform
+    $ sudo apt-get install stack
     $ cd batchd/
-    $ cabal update
-    $ cabal sandbox init
-    $ cabal install
+    $ stack install --flag batchd:docker --flag batchd:libvirt --flag batchd:ec2
 
