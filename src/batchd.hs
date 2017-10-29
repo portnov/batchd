@@ -8,14 +8,14 @@ import Options.Applicative
 import Data.Text.Format.Heavy
 import System.Log.Heavy
 
-import System.Batchd.Common.Types
-import System.Batchd.Common.Localize
-import System.Batchd.Common.Config
-import System.Batchd.Daemon.Types (runDaemon, forkDaemon, setupTranslations)
-import qualified Daemon.Logging as Log
-import Daemon.Database
-import Daemon.Manager as Manager
-import Daemon.Dispatcher as Dispatcher
+import Batchd.Core.Common.Types
+import Batchd.Core.Common.Localize
+import Batchd.Core.Common.Config
+import Batchd.Core.Daemon.Types (runDaemon, forkDaemon, setupTranslations)
+import qualified Batchd.Daemon.Logging as Log
+import Batchd.Daemon.Database
+import Batchd.Daemon.Manager as Manager
+import Batchd.Daemon.Dispatcher as Dispatcher
 
 parser :: Parser DaemonMode
 parser =
@@ -44,7 +44,7 @@ main = do
                    else cmd
       let logSettings = Log.getLoggingSettings cfg
       runDaemon cfg Nothing logSettings $ do
-        System.Batchd.Daemon.Types.setupTranslations translationPolicy
+        Batchd.Core.Daemon.Types.setupTranslations translationPolicy
         tr <- getTranslations
         $(Log.debug) "Loaded translations: {}" (Single $ show tr)
         $(Log.debug) "Loaded global configuration file: {}" (Single $ show cfg)

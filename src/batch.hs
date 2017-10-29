@@ -6,13 +6,13 @@ import Control.Exception
 import qualified Data.Text.Lazy.IO as TLIO
 import Data.Text.Format.Heavy
 
-import System.Batchd.Common.Localize
-import Client.Types
-import Client.CmdLine
-import Client.Config
-import Client.Monad
-import Client.Http
-import Client.Shell
+import Batchd.Core.Common.Localize
+import Batchd.Client.Types
+import Batchd.Client.CmdLine
+import Batchd.Client.Config
+import Batchd.Client.Monad
+import Batchd.Client.Http
+import Batchd.Client.Shell
 
 main :: IO ()
 main = realMain `catch` errorHandler

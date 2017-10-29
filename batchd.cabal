@@ -61,17 +61,17 @@ executable batchd
   main-is:             batchd.hs
   hs-source-dirs:      src/
   other-modules:       
-        Common.Data
-        Common.Schedule
-        Daemon.Auth
-        Daemon.Crypto
-        Daemon.Database
-        Daemon.Dispatcher
-        Daemon.Executor
-        Daemon.Logging
-        Daemon.Manager
-        Daemon.SSH
-        Daemon.Schedule
+        Batchd.Common.Data
+        Batchd.Common.Schedule
+        Batchd.Daemon.Auth
+        Batchd.Daemon.Crypto
+        Batchd.Daemon.Database
+        Batchd.Daemon.Dispatcher
+        Batchd.Daemon.Executor
+        Batchd.Daemon.Logging
+        Batchd.Daemon.Manager
+        Batchd.Daemon.SSH
+        Batchd.Daemon.Schedule
   other-extensions:    TypeFamilies, DeriveDataTypeable, TemplateHaskell, StandaloneDeriving, RecordWildCards
   build-depends:       base >=4.7 && <5.0,
                        persistent >= 2.2,
@@ -138,13 +138,13 @@ executable batchd-admin
   main-is:             batchd-admin.hs
   hs-source-dirs:      src/
   other-modules:       
-        Common.Data
-        Common.Schedule
-        Daemon.Auth
-        Daemon.Crypto
-        Daemon.Database
-        Daemon.Logging
-        Daemon.Schedule
+        Batchd.Common.Data
+        Batchd.Common.Schedule
+        Batchd.Daemon.Auth
+        Batchd.Daemon.Crypto
+        Batchd.Daemon.Database
+        Batchd.Daemon.Logging
+        Batchd.Daemon.Schedule
   other-extensions:    TypeFamilies, DeriveDataTypeable, TemplateHaskell, StandaloneDeriving, RecordWildCards
   build-depends:       base >=4.7 && <5.0,
                        persistent >= 2.2,
@@ -198,16 +198,16 @@ executable batch
   main-is:             batch.hs
   hs-source-dirs:      src/
   other-modules:       
-        Client.Actions
-        Client.CmdLine
-        Client.Config
-        Client.Http
-        Client.Logging
-        Client.Monad
-        Client.Shell
-        Client.Types
-        Common.Data
-        Common.Schedule
+        Batchd.Client.Actions
+        Batchd.Client.CmdLine
+        Batchd.Client.Config
+        Batchd.Client.Http
+        Batchd.Client.Logging
+        Batchd.Client.Monad
+        Batchd.Client.Shell
+        Batchd.Client.Types
+        Batchd.Common.Data
+        Batchd.Common.Schedule
   build-depends:       base >=4.7 && <5.0,
                        data-default >= 0.5,
                        mtl >=2.2 && <2.3,

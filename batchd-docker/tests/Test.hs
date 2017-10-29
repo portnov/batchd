@@ -2,8 +2,8 @@
 module Main where
 
 import System.Environment
-import System.Batchd
-import System.Batchd.Docker
+import Batchd.Core
+import Batchd.Ext.Docker
 
 main :: IO ()
 main = do

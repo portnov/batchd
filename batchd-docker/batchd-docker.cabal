@@ -15,7 +15,7 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     System.Batchd.Docker
+  exposed-modules:     Batchd.Ext.Docker
   build-depends:       base >= 4.7 && < 5,
                        mtl >= 2.2,
                        exceptions >= 0.8.3,

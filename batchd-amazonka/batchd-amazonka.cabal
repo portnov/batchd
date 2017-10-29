@@ -15,7 +15,7 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     System.Batchd.AWS
+  exposed-modules:     Batchd.Ext.AWS
   build-depends:       base >= 4.7 && < 5,
                        text >= 1.2.2.2,
                        lens >= 4.15.4,

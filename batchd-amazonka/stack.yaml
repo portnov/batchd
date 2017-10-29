@@ -37,7 +37,7 @@ resolver: lts-9.10
 # will not be run. This is useful for tweaking upstream packages.
 packages:
   - .
-  - ..
+  - ../batchd-core/
   - location:
       git: https://github.com/portnov/libssh2-hs.git
       commit: master

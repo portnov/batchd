@@ -3,8 +3,8 @@ module Main where
 
 import Network.AWS
 import System.Environment
-import System.Batchd
-import System.Batchd.AWS
+import Batchd.Core
+import Batchd.Ext.AWS
 import System.Log.Heavy
 import System.Log.Heavy.IO
 

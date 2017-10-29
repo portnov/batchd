@@ -2,8 +2,8 @@
 module Main where
 
 import System.Environment
-import System.Batchd
-import System.Batchd.LibVirt
+import Batchd.Core
+import Batchd.Ext.LibVirt
 
 main :: IO ()
 main = do
