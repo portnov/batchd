@@ -4,6 +4,8 @@
 *.swp
 dist/
 data/
+.idea/
+.directory
 .cabal-sandbox/
 cabal.sandbox.config
 *.json
