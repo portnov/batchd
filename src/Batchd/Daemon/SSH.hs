@@ -41,39 +41,51 @@ getDfltPrivateKey = do
 
 processOnHost :: HostCounters -> Host -> JobType -> JobInfo -> String -> Daemon (ExitCode, T.Text)
 processOnHost counters h jtype job command = do
-  cfg <- askConfig
-  known_hosts <- liftIO $ getKnownHosts
-  def_public_key <- liftIO $ getDfltPublicKey
-  def_private_key <- liftIO $ getDfltPrivateKey
-  let passphrase = hPassphrase h
-      public_key = fromMaybe def_public_key $ hPublicKey h
-      private_key = fromMaybe def_private_key $ hPrivateKey h
-      user = hUserName h
-      port = hPort h
-      hostname = hHostName h
+    cfg <- askConfig
+    known_hosts <- liftIO $ getKnownHosts
+    def_public_key <- liftIO $ getDfltPublicKey
+    def_private_key <- liftIO $ getDfltPrivateKey
+    let passphrase = hPassphrase h
+        public_key = fromMaybe def_public_key $ hPublicKey h
+        private_key = fromMaybe def_private_key $ hPrivateKey h
+        user = hUserName h
+        port = hPort h
+        original_hostname = hHostName h
 
-  $info "CONNECTING TO {}:{}" (hostname, port)
-  $debug "Target host settings: {}" (Single $ Shown h)
-  r <- withHost counters h jtype $ do
-          wrapDaemon (withSSH2 known_hosts public_key private_key passphrase user hostname port) $ \session -> do
-              $info "Connected." ()
-              liftIO $ execCommands session (hStartupCommands h)
-                         `catch` (\(e :: SomeException) -> throw (ExecException e))
-              uploadFiles (getInputFiles jtype job) (hInputDirectory h) session
-              $info "EXECUTING: {}" (Single command)
-              (ec,out) <- liftIO $ execCommands session [command]
-              $info "Done." ()
-              downloadFiles (hOutputDirectory h) (getOutputFiles jtype job) session
-              let outText = TL.toStrict $ TLE.decodeUtf8 (head out)
-                  ec' = if ec == 0
-                          then ExitSuccess
-                          else ExitFailure ec
-              return (ec', outText)
-  case r of
-    Left e -> do
-      $reportError "Error while executing job at host `{}': {}" (hName h, show e)
-      return (ExitFailure (-1), T.pack (show e))
-    Right result -> return result
+    $info "CONNECTING TO {}:{}" (original_hostname, port)
+    $debug "Target host settings: {}" (Single $ Shown h)
+    r <- withHost counters h jtype $ do
+            lts <- askLoggingStateM
+            controller <- liftIO $ loadHostController lts (hController h)
+            mbActualHostName <- getActualHostName_ controller (hControllerId h)
+            hostname <- case mbActualHostName of
+                          Nothing -> return original_hostname
+                          Just actual -> do
+                            $debug "Actual hostname of host `{}' is {}" (hName h, actual)
+                            return actual
+
+            wrapDaemon (withSSH2 known_hosts public_key private_key passphrase user hostname port) $ \session -> do
+                $info "Connected to {}:{}." (hostname, port)
+                liftIO $ execCommands session (hStartupCommands h)
+                           `catch` (\(e :: SomeException) -> throw (ExecException e))
+                uploadFiles (getInputFiles jtype job) (hInputDirectory h) session
+                $info "EXECUTING: {}" (Single command)
+                (ec,out) <- liftIO $ execCommands session [command]
+                $info "Done." ()
+                downloadFiles (hOutputDirectory h) (getOutputFiles jtype job) session
+                let outText = TL.toStrict $ TLE.decodeUtf8 (head out)
+                    ec' = if ec == 0
+                            then ExitSuccess
+                            else ExitFailure ec
+                return (ec', outText)
+    case r of
+      Left e -> do
+        $reportError "Error while executing job at host `{}': {}" (hName h, show e)
+        return (ExitFailure (-1), T.pack (show e))
+      Right result -> return result
+  where
+    getActualHostName_ (AnyHostController controller) name = do
+      liftIO $ getActualHostName controller name
 
 getInputFiles :: JobType -> JobInfo -> [FilePath]
 getInputFiles jt job =

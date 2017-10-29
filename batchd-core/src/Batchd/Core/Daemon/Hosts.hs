@@ -44,6 +44,9 @@ class Show c => HostController c where
 
   doesSupportStartStop :: c -> Bool
 
+  getActualHostName :: c -> HostName -> IO (Maybe HostName)
+  getActualHostName _ _ = return Nothing
+
   startHost :: c -> HostName -> IO (Either Error ())
 
   stopHost :: c -> HostName -> IO (Either Error ())

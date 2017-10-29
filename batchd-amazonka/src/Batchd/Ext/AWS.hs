@@ -75,6 +75,19 @@ instance HostController AWSEC2 where
       Left err -> return $ Left err
       Right aws -> return $ Right $ aws {awsLogging = lts}
 
+  getActualHostName aws name = do
+      env <- newEnv (awsCredentials aws) <&> set envLogger (toAwsLogger $ ltsLogger $ awsLogging aws)
+      let instanceId = T.pack name
+      runResourceT . runAWST env . within (awsRegion aws) $ do
+          r <- trying _Error $ send $ describe instanceId
+          case r of
+            Right dirs -> do
+                let mbNames = map (view insPublicDNSName) $ concatMap (view rInstances) $ view dirsReservations dirs
+                case mbNames of
+                  (Just dnsName : _) -> return $ Just $ T.unpack dnsName
+                  _ -> return Nothing
+            Left err -> return Nothing
+
   startHost aws name = do
       env <- newEnv (awsCredentials aws) <&> set envLogger (toAwsLogger $ ltsLogger $ awsLogging aws)
       let instanceId = T.pack name
