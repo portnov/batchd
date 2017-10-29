@@ -289,6 +289,7 @@ data Host = Host {
     hMaxJobs :: Maybe Int,
     hController :: String,
     hStartupTime :: Int,
+    hShutdownTimeout :: Int,
     hInputDirectory :: String,
     hOutputDirectory :: String,
     hStartupCommands :: [String]
@@ -308,6 +309,7 @@ instance FromJSON Host where
     max_jobs <- v .:? "max_jobs"
     controller <- v .:? "controller" .!= "local"
     startup_time <- v .:? "startup_time" .!= 5
+    shutdown_timeout <- v .:? "shutdown_timeout" .!= (5*60)
     input_directory <- v .:? "input_directory" .!= "."
     output_directory <- v .:? "output_directory" .!= "."
     startup_commands <- v .:? "startup_commands" .!= []
@@ -323,6 +325,7 @@ instance FromJSON Host where
             , hMaxJobs = max_jobs
             , hController = controller
             , hStartupTime = startup_time
+            , hShutdownTimeout = shutdown_timeout
             , hInputDirectory = input_directory
             , hOutputDirectory = output_directory
             , hStartupCommands = startup_commands

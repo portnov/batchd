@@ -193,7 +193,7 @@ hostCleaner lts mvar = forever $ do
                  return st
                Just releaseTime -> do
                  now <- getCurrentTime
-                 if ceiling (diffUTCTime now releaseTime) >= (5*60 :: Int)
+                 if ceiling (diffUTCTime now releaseTime) >= hShutdownTimeout (hsHostConfig st)
                    then do
                         debugIO lts $(here) "Host `{}' was released at {}, it's time to shut it down"
                                             (name, releaseTime)
