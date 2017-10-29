@@ -12,7 +12,9 @@ import Control.Concurrent
 import Control.Exception
 import Control.Monad.Trans
 import qualified Data.Map as M
+import Data.Time
 import Data.Text.Format.Heavy
+import Data.Text.Format.Heavy.Time () -- import instances only
 import System.Log.Heavy
 
 import Batchd.Core.Common.Types
@@ -68,6 +70,46 @@ getMaxJobs host jtype =
     (Nothing, Just m) -> Just m
     (Just x, Just y) -> Just $ max x y
 
+waitForStatus :: MVar HostState -> [HostStatus] -> (HostState -> IO HostState) -> IO ()
+waitForStatus mvar targetStatuses actions = do
+  ok <- modifyMVar mvar $ \st ->
+          if hsStatus st `elem` targetStatuses
+            then do
+              result <- actions st
+              return (result, True)
+            else do
+              return (st, False)
+  when (not ok) $ do
+    threadDelay $ 10 * 1000 * 1000
+    waitForStatus mvar targetStatuses actions
+
+increaseJobCount :: LoggingTState -> HostState -> Maybe Int -> IO HostState
+increaseJobCount lts st mbMaxJobs = do
+    debugIO lts $(here) "Set status of host `{}' to {}" (hName $ hsHostConfig st, show activeOrBusy)
+    return $ st {hsStatus = activeOrBusy, hsJobCount = hsJobCount st + 1}
+  where
+    activeOrBusy =
+      case mbMaxJobs of
+        Nothing -> Active
+        Just maxJobs -> if hsJobCount st + 1 >= maxJobs 
+                          then Busy
+                          else Active
+
+decreaseJobCount :: LoggingTState -> HostState -> IO HostState
+decreaseJobCount lts st = do
+    let newStatus = if hsJobCount st - 1 <= 0
+                      then Released
+                      else Active
+    released <- if newStatus == Released
+                  then Just <$> getCurrentTime
+                  else return Nothing
+    debugIO lts $(here) "Set status of host `{}' to {}" (hName $ hsHostConfig st, show newStatus)
+    return $ st {hsStatus = newStatus, hsJobCount = hsJobCount st - 1, hsReleaseTime = released}
+
+setHostStatus :: MVar HostState -> HostStatus -> IO ()
+setHostStatus mvar status =
+  modifyMVar_ mvar $ \st -> return $ st {hsStatus = status}
+
 ensureHostStarted :: LoggingTState -> Host -> IO ()
 ensureHostStarted lts host = do
     c <- loadHostController lts (hController host)
@@ -103,44 +145,29 @@ acquireHost lts mvar host jtype = do
     return ()
   where
     check name = do
-      ok <- modifyMVar mvar $ \m -> do
-              counter <- case M.lookup name m of
-                           Just c -> return c
-                           Nothing -> newMVar 0
+      counter <- modifyMVar mvar $ \m -> do
+                   case M.lookup name m of
+                     Just c -> do
+                       return (m, c)
+                     Nothing -> do
+                       c <- newMVar $ HostState Free Nothing 0 host
+                       let m' = M.insert name c m
+                       return (m', c)
 
-              oldCount <- readMVar counter
-              when (oldCount == 0) $ do
-                ensureHostStarted lts host
-
-              let m' = M.insert name counter m
-              case getMaxJobs host jtype of
-                Just max -> do
-                            ok <- modifyMVar counter $ \cnt -> do
-                                    if cnt < max
-                                      then return (cnt+1, True)
-                                      else return (cnt, False)
-                            return (m', ok)
-                Nothing ->  do
-                            modifyMVar_ counter (\c -> return (c+1))
-                            return (m', True)
-      if ok
-        then return ()
-        else do
-             threadDelay $ 1000*1000
-             check name
+      waitForStatus counter [Free, Active, Released] $ \st -> do
+        when (hsStatus st == Free) $ do
+          ensureHostStarted lts host
+        increaseJobCount lts st $ getMaxJobs host jtype
 
 releaseHost :: LoggingTState -> HostCounters -> Host -> IO ()
 releaseHost lts mvar host = do
   let name = hName host
-  modifyMVar_ mvar $ \m -> do
-    counter <- case M.lookup name m of
+  counter <- withMVar mvar $ \m -> do
+               case M.lookup name m of
                  Nothing -> fail $ "Can't release host: " ++ name ++ "; map: " ++ show (M.keys m)
                  Just c -> return c
-    modifyMVar_ counter (\c -> return (c-1))
-    newCount <- readMVar counter
-    when (newCount == 0) $ do
-      ensureHostStopped lts host
-    return $ M.insert name counter m
+  modifyMVar_ counter $ \st -> do
+    decreaseJobCount lts st
   return ()
 
 withHost :: HostCounters -> Host -> JobType -> Daemon a -> Daemon a
@@ -152,3 +179,29 @@ withHost mvar host jtype actions = do
   let connInfo = ConnectionInfo cfg (Just pool) (Just translations)
   liftIO $ bracket_ (acquireHost lts mvar host jtype) (releaseHost lts mvar host) $ runDaemonIO connInfo lts actions
 
+hostCleaner :: LoggingTState -> HostCounters -> IO ()
+hostCleaner lts mvar = forever $ do
+  threadDelay $ 60 * 1000 * 1000
+  hosts <- readMVar mvar
+  forM_ (M.assocs hosts) $ \(name, counter) -> do
+    modifyMVar_ counter $ \st -> do
+      if hsStatus st == Released
+        then case hsReleaseTime st of
+               Nothing -> do
+                 reportErrorIO lts $(here) "Host `{}' status is Released, but it's release time is not set"
+                                           (Single name)
+                 return st
+               Just releaseTime -> do
+                 now <- getCurrentTime
+                 if ceiling (diffUTCTime now releaseTime) >= (5*60 :: Int)
+                   then do
+                        debugIO lts $(here) "Host `{}' was released at {}, it's time to shut it down"
+                                            (name, releaseTime)
+                        ensureHostStopped lts (hsHostConfig st)
+                        return $ st {hsStatus = Free, hsReleaseTime = Nothing}
+                   else do
+                        debugIO lts $(here) "Host `{}' was relesed at {}, it's not time to shut it down yet"
+                                            (name, releaseTime)
+                        return st
+        else return st
+    

@@ -25,6 +25,7 @@ import Batchd.Daemon.Database
 import Batchd.Common.Schedule
 import Batchd.Daemon.Schedule
 import Batchd.Daemon.Executor
+import Batchd.Daemon.Hosts (hostCleaner)
 import Batchd.Daemon.Logging
 import Batchd.Core.Daemon.Hosts
 
@@ -42,7 +43,15 @@ runDispatcher = do
   forM_ [1.. dbcWorkers cfg] $ \idx -> do
     $debug "  Starting worker #{}" (Single idx)
     forkDaemon $ worker idx counters jobsChan resChan
+
+  -- Listen for job results
   forkDaemon $ callbackListener resChan
+
+  -- Stop hosts when they are not needed anymore
+  withLogVariable "thread" ("host cleaner" :: String) $ do
+      lts <- askLoggingStateM
+      liftIO $ forkIO $ hostCleaner lts counters
+
   dispatcher jobsChan
 
 -- | Dispatcher main loop itself.

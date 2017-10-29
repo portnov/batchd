@@ -10,14 +10,32 @@ import Control.Concurrent
 import Control.Exception
 import Control.Monad.Trans
 import qualified Data.Map as M
+import Data.Time
 import System.Log.Heavy
 
 import Batchd.Core.Common.Types
 import Batchd.Core.Common.Localize
 import Batchd.Core.Daemon.Types
 
+data HostStatus =
+    Free            -- ^ Does not have any jobs, free for use
+  | Starting        -- ^ During startup procedure. To give it a job, one has to wait for Free or Active status.
+  | Active          -- ^ Has some jobs, but can accept one more.
+  | Busy            -- ^ Has maximum allowed count of jobs. To give it a job, one has to wait for Active or Released status.
+  | Released        -- ^ Has no jobs. Waiting to be stopped or for a new job.
+  | Stopping        -- ^ During shutdown procedure.
+  deriving (Eq, Show)
+
+data HostState = HostState {
+    hsStatus :: HostStatus
+  , hsReleaseTime :: Maybe UTCTime -- ^ Time of last transition to Released state
+  , hsJobCount :: Int
+  , hsHostConfig :: Host
+  }
+  deriving (Show)
+
 type HostName = String
-type HostCounters = MVar (M.Map HostName (MVar Int))
+type HostCounters = MVar (M.Map HostName (MVar HostState))
 
 class Show c => HostController c where
   data Selector c
