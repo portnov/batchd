@@ -19,11 +19,9 @@ import Batchd.Core.Daemon.Types
 
 data HostStatus =
     Free            -- ^ Does not have any jobs, free for use
-  | Starting        -- ^ During startup procedure. To give it a job, one has to wait for Free or Active status.
   | Active          -- ^ Has some jobs, but can accept one more.
   | Busy            -- ^ Has maximum allowed count of jobs. To give it a job, one has to wait for Active or Released status.
   | Released        -- ^ Has no jobs. Waiting to be stopped or for a new job.
-  | Stopping        -- ^ During shutdown procedure.
   deriving (Eq, Show)
 
 data HostState = HostState {
