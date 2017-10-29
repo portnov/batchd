@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-10-27 17:46+0500\n"
+"POT-Creation-Date: 2017-10-29 21:24+0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -12,35 +12,105 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: src/Client/Actions.hs:376:37
+#: src/Batchd/Daemon/Manager.hs:158:49
+msgid "File not found: `{}'"
+msgstr "Файл не найден: `{}'"
+
+#: src/Batchd/Daemon/Manager.hs:156:49
+msgid "Queue not found: `{}'"
+msgstr "Очередь не найдена: `{}'"
+
+#: src/Batchd/Daemon/Manager.hs:157:42
+msgid "Specified job not found"
+msgstr "Указанное задание не найдено"
+
+#: src/Batchd/Client/Http.hs:56:50
+msgid "Can't load certificate/key: {}"
+msgstr "Невозможно загрузить сертификат/ключ: {}"
+
+#: src/Batchd/Client/Http.hs:233:33
+msgid "Can't parse server response for GET request: {}"
+msgstr "Невозможно разобрать ответ сервера на запрос GET: {}"
+
+#: src/Batchd/Client/Http.hs:244:33
+msgid "Can't parse server response for OPTIONS request: {}"
+msgstr "Невозможно разобрать ответ сервера на запрос OPTIONS: {}"
+
+#: src/Batchd/Client/Http.hs:58:34
+msgid ""
+"Certificate or key file is not specified, try to access HTTPS without them"
+msgstr ""
+"Файл сертификата или ключа не указан, пытаюсь получить доступ к HTTPS без них"
+
+#: src/Batchd/Client/Http.hs:52:33
+msgid "Loading HTTPS certificate: {}, key: {}"
+msgstr "Загружается HTTPS сертификат: {}, ключ: {}"
+
+#: src/Batchd/Client/Http.hs:120:28
+msgid "Password is not required"
+msgstr "Пароль не требуется"
+
+#: src/Batchd/Client/Http.hs:157:13
+msgid "Received response: {}"
+msgstr "Получен ответ: {}"
+
+#: src/Batchd/Client/Http.hs:190:13
+msgid "Request JSON: {}"
+msgstr "Запрос JSON: {}"
+
+#: src/Batchd/Client/Http.hs:181:13
+msgid "Sending request: {}"
+msgstr "Посылается запрос: {}"
+
+#: src/Batchd/Client/Http.hs:48:22
+msgid "Server certificate check disabled"
+msgstr "Проверка подлинности сервера отключена"
+
+#: src/Batchd/Client/Http.hs:158:15
+msgid "Server response code is {} {}"
+msgstr "Код ответа сервера: {} {}"
+
+#: src/Batchd/Client/Http.hs:115:15
+msgid "Supported authentication methods: {}"
+msgstr "Поддерживаемые методы аутентификации: {}"
+
+#: src/Batchd/Client/Http.hs:67:54
+msgid "cannot read specified CA store"
+msgstr "Невозможно прочитать указанное хранилище CA"
+
+#: src/Batchd/Client/Http.hs:126:62
+msgid "{} password: "
+msgstr "Пароль {}: "
+
+#: src/Batchd/Client/Actions.hs:376:37
 msgid "\tParameters:"
 msgstr "\tПараметры:"
 
-#: src/Client/Actions.hs:53:33
+#: src/Batchd/Client/Actions.hs:53:33
 msgid "Can't load job type description: {}"
 msgstr "Невозможно загрузить описани типа задания: {}"
 
-#: src/Client/Actions.hs:336:33
+#: src/Batchd/Client/Actions.hs:336:33
 msgid "Can't parse period description: {}"
 msgstr "Невозможно разобрать описание периода: {}"
 
-#: src/Client/Actions.hs:181:25
+#: src/Batchd/Client/Actions.hs:181:25
 msgid "Created"
 msgstr "Создано"
 
-#: src/Client/Actions.hs:381:39
+#: src/Batchd/Client/Actions.hs:381:39
 msgid "Default"
 msgstr "По умолчанию"
 
-#: src/Client/Actions.hs:332:20
+#: src/Batchd/Client/Actions.hs:332:20
 msgid "Exactly one schedule name must be specified when creating a schedule"
 msgstr "При создании расписания должно быть указано ровно одно имя расписания"
 
-#: src/Client/Actions.hs:352:20
+#: src/Batchd/Client/Actions.hs:352:20
 msgid "Exactly one schedule name must be specified when deleting a schedule"
 msgstr "При удалении расписания должно быть указано ровно одно имя расписания"
 
-#: src/Client/Actions.hs:194:30
+#: src/Batchd/Client/Actions.hs:194:30
 msgid ""
 "Exit code:\t{}\n"
 "Time:\t{}\n"
@@ -50,145 +120,79 @@ msgstr ""
 "Время:\t{}\n"
 "\n"
 
-#: src/Client/Actions.hs:179:25
+#: src/Batchd/Client/Actions.hs:179:25
 msgid "Host"
 msgstr "Хост"
 
-#: src/Client/Actions.hs:100:61
+#: src/Batchd/Client/Actions.hs:100:61
 msgid "Invalid status"
 msgstr "Неверный статус"
 
-#: src/Client/Actions.hs:378:39
+#: src/Batchd/Client/Actions.hs:378:39
 msgid "Name"
 msgstr "Имя"
 
-#: src/Client/Actions.hs:216:36
+#: src/Batchd/Client/Actions.hs:216:36
 msgid "No mode is selected"
 msgstr "Ни один режим не выбран"
 
-#: src/Client/Actions.hs:374:35
+#: src/Batchd/Client/Actions.hs:374:35
 msgid "On fail"
 msgstr "При неудаче"
 
-#: src/Client/Actions.hs:225:34
+#: src/Batchd/Client/Actions.hs:225:34
 msgid "Only one mode can be selected"
 msgstr "Может быть выбран только один режим"
 
-#: src/Client/Actions.hs:176:25
+#: src/Batchd/Client/Actions.hs:176:25
 msgid "Order"
 msgstr "Порядок"
 
-#: src/Client/Actions.hs:178:25
+#: src/Batchd/Client/Actions.hs:178:25
 msgid "Queue"
 msgstr "Очередь"
 
-#: src/Client/Actions.hs:182:25
+#: src/Batchd/Client/Actions.hs:182:25
 msgid "Start"
 msgstr "Начало"
 
-#: src/Client/Actions.hs:183:25
+#: src/Batchd/Client/Actions.hs:183:25
 msgid "Status"
 msgstr "Статус"
 
-#: src/Client/Actions.hs:373:35
+#: src/Batchd/Client/Actions.hs:373:35
 msgid "Template"
 msgstr "Шаблон"
 
-#: src/Client/Actions.hs:372:35
+#: src/Batchd/Client/Actions.hs:372:35
 msgid "Title"
 msgstr "Название"
 
-#: src/Client/Actions.hs:184:25
+#: src/Batchd/Client/Actions.hs:184:25
 msgid "Try count"
 msgstr "Количество попыток"
 
-#: src/Client/Actions.hs:177:25
+#: src/Batchd/Client/Actions.hs:177:25
 msgid "Type"
 msgstr "Тип"
 
-#: src/Client/Actions.hs:180:25
+#: src/Batchd/Client/Actions.hs:180:25
 msgid "User"
 msgstr "Пользователь"
 
-#: src/Client/Actions.hs:441:39
+#: src/Batchd/Client/Actions.hs:441:39
 msgid "permission (-p) must be specified"
 msgstr "должно быть укзаано разрешение (-p)"
 
-#: src/Client/Actions.hs:452:38
+#: src/Batchd/Client/Actions.hs:452:38
 msgid "permission ID (-i) must be specified"
 msgstr "должен быть указан идентификатор разрешения (-i)"
 
-#: src/Client/Config.hs:97:59
-msgid ""
-"Can't parse client configuration file:\n"
-"{}"
-msgstr ""
-"Невозможно разобрать конфигурационный файл клиента:\n"
-"{}"
-
-#: src/Client/Http.hs:56:50
-msgid "Can't load certificate/key: {}"
-msgstr "Невозможно загрузить сертификат/ключ: {}"
-
-#: src/Client/Http.hs:233:33
-msgid "Can't parse server response for GET request: {}"
-msgstr "Невозможно разобрать ответ сервера на запрос GET: {}"
-
-#: src/Client/Http.hs:244:33
-msgid "Can't parse server response for OPTIONS request: {}"
-msgstr "Невозможно разобрать ответ сервера на запрос OPTIONS: {}"
-
-#: src/Client/Http.hs:58:34
-msgid ""
-"Certificate or key file is not specified, try to access HTTPS without them"
-msgstr ""
-"Файл сертификата или ключа не указан, пытаюсь получить доступ к HTTPS без них"
-
-#: src/Client/Http.hs:52:33
-msgid "Loading HTTPS certificate: {}, key: {}"
-msgstr "Загружается HTTPS сертификат: {}, ключ: {}"
-
-#: src/Client/Http.hs:120:28
-msgid "Password is not required"
-msgstr "Пароль не требуется"
-
-#: src/Client/Http.hs:157:13
-msgid "Received response: {}"
-msgstr "Получен ответ: {}"
-
-#: src/Client/Http.hs:190:13
-msgid "Request JSON: {}"
-msgstr "Запрос JSON: {}"
-
-#: src/Client/Http.hs:181:13
-msgid "Sending request: {}"
-msgstr "Посылается запрос: {}"
-
-#: src/Client/Http.hs:48:22
-msgid "Server certificate check disabled"
-msgstr "Проверка подлинности сервера отключена"
-
-#: src/Client/Http.hs:158:15
-msgid "Server response code is {} {}"
-msgstr "Код ответа сервера: {} {}"
-
-#: src/Client/Http.hs:115:15
-msgid "Supported authentication methods: {}"
-msgstr "Поддерживаемые методы аутентификации: {}"
-
-#: src/Client/Http.hs:67:54
-msgid "cannot read specified CA store"
-msgstr "Невозможно прочитать указанное хранилище CA"
-
-#: src/Client/Http.hs:126:62
-msgid "{} password: "
-msgstr "Пароль {}: "
-
-#: src/Client/Shell.hs:76:35
+#: src/Batchd/Client/Shell.hs:76:35
 msgid "Error: {}"
 msgstr "Ошибка: {}"
 
-#: src/Client/Shell.hs:71:19
+#: src/Batchd/Client/Shell.hs:71:19
 msgid ""
 "This is batch client shell. Type `--help' for list of available commands or "
 "`some_command --help' (without quotes) for help message on particular "
@@ -197,33 +201,29 @@ msgstr ""
 "Это оболочка клиента batch. Наберите `--help' для списка доступных команд, "
 "или `some_commmand --help' (без кавычек) для справки по конкретной команде."
 
-#: src/Common/Config.hs:76:32
+#: src/Batchd/Client/Config.hs:97:59
+msgid ""
+"Can't parse client configuration file:\n"
+"{}"
+msgstr ""
+"Невозможно разобрать конфигурационный файл клиента:\n"
+"{}"
+
+#: batchd-core/src/Batchd/Core/Daemon/Types.hs:173:46
+msgid "Database connection is not established yet"
+msgstr "Соедениение с базой данных ещё не установлено"
+
+#: batchd-core/src/Batchd/Core/Common/Config.hs:79:32
 msgid "Password again: "
 msgstr "Пароль ещё раз: "
 
-#: src/Common/Config.hs:75:32
+#: batchd-core/src/Batchd/Core/Common/Config.hs:78:32
 msgid "Password: "
 msgstr "Пароль: "
 
-#: src/Common/Config.hs:78:24
+#: batchd-core/src/Batchd/Core/Common/Config.hs:81:24
 msgid "passwords do not match"
 msgstr "пароли не совпадают"
-
-#: src/Daemon/Manager.hs:158:49
-msgid "File not found: `{}'"
-msgstr "Файл не найден: `{}'"
-
-#: src/Daemon/Manager.hs:156:49
-msgid "Queue not found: `{}'"
-msgstr "Очередь не найдена: `{}'"
-
-#: src/Daemon/Manager.hs:157:42
-msgid "Specified job not found"
-msgstr "Указанное задание не найдено"
-
-#: src/Daemon/Types.hs:173:46
-msgid "Database connection is not established yet"
-msgstr "Соедениение с базой данных ещё не установлено"
 
 #~ msgid "Job to be queued: {}"
 #~ msgstr "Задание для постановки в очередь: {}"
