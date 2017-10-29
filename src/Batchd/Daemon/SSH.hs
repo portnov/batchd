@@ -52,7 +52,7 @@ processOnHost counters h jtype job command = do
       port = hPort h
       hostname = hHostName h
 
-  $info "CONNECTING TO {}" (Single hostname)
+  $info "CONNECTING TO {}:{}" (hostname, port)
   $debug "Target host settings: {}" (Single $ Shown h)
   withHost counters h jtype $ do
     wrapDaemon (withSSH2 known_hosts public_key private_key passphrase user hostname port) $ \session -> do

@@ -70,18 +70,21 @@ getMaxJobs host jtype =
     (Nothing, Just m) -> Just m
     (Just x, Just y) -> Just $ max x y
 
-waitForStatus :: MVar HostState -> [HostStatus] -> (HostState -> IO HostState) -> IO ()
-waitForStatus mvar targetStatuses actions = do
+waitForStatus :: LoggingTState -> MVar HostState -> [HostStatus] -> (HostState -> IO HostState) -> IO ()
+waitForStatus lts mvar targetStatuses actions = do
   ok <- modifyMVar mvar $ \st ->
           if hsStatus st `elem` targetStatuses
             then do
               result <- actions st
               return (result, True)
             else do
+              debugIO lts $(here) "Host `{}' has status {}, waiting for one of {}..."
+                                  (hName $ hsHostConfig st, show (hsStatus st), show targetStatuses)
               return (st, False)
   when (not ok) $ do
+
     threadDelay $ 10 * 1000 * 1000
-    waitForStatus mvar targetStatuses actions
+    waitForStatus lts mvar targetStatuses actions
 
 increaseJobCount :: LoggingTState -> HostState -> Maybe Int -> IO HostState
 increaseJobCount lts st mbMaxJobs = do
@@ -156,7 +159,7 @@ acquireHost lts mvar host jtype = do
                        let m' = M.insert name c m
                        return (m', c)
 
-      waitForStatus counter [Free, Active, Released] $ \st -> do
+      waitForStatus lts counter [Free, Active, Released] $ \st -> do
         when (hsStatus st == Free) $ do
           ensureHostStarted lts host
         increaseJobCount lts st $ getMaxJobs host jtype
@@ -173,7 +176,7 @@ releaseHost lts mvar host = do
   return ()
 
 withHost :: HostCounters -> Host -> JobType -> Daemon a -> Daemon a
-withHost mvar host jtype actions = do
+withHost mvar host jtype actions = withLogVariable "host" (hName host) $ do
   cfg <- askConfig
   pool <- askPool
   translations <- getTranslations
