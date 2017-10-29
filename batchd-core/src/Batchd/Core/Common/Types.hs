@@ -280,6 +280,7 @@ getParamType jt name = piType `fmap` lookupParam name (jtParams jt)
 data Host = Host {
     hName :: String,
     hHostName :: String,
+    hControllerId :: String,
     hPublicKey :: Maybe String,
     hPrivateKey :: Maybe String,
     hPassphrase :: String,
@@ -295,21 +296,37 @@ data Host = Host {
   deriving (Eq, Show, Data, Typeable, Generic)
 
 instance FromJSON Host where
-  parseJSON (Object v) =
-    Host
-      <$> v .: "name"
-      <*> v .: "host_name"
-      <*> v .:? "public_key"
-      <*> v .:? "private_key"
-      <*> v .:? "passphrase" .!= ""
-      <*> v .: "user_name"
-      <*> v .:? "port" .!= 22
-      <*> v .:? "max_jobs"
-      <*> v .:? "controller" .!= "local"
-      <*> v .:? "startup_time" .!= 5
-      <*> v .:? "input_directory" .!= "."
-      <*> v .:? "output_directory" .!= "."
-      <*> v .:? "startup_commands" .!= []
+  parseJSON (Object v) = do
+    name <- v .: "name"
+    host_name <- v .: "host_name"
+    controller_id <- v .:? "controller_id" .!= name
+    public_key <- v .:? "public_key"
+    private_key <- v .:? "private_key"
+    passphrase <- v .:? "passphrase" .!= ""
+    user_name <- v .: "user_name"
+    port <- v .:? "port" .!= 22
+    max_jobs <- v .:? "max_jobs"
+    controller <- v .:? "controller" .!= "local"
+    startup_time <- v .:? "startup_time" .!= 5
+    input_directory <- v .:? "input_directory" .!= "."
+    output_directory <- v .:? "output_directory" .!= "."
+    startup_commands <- v .:? "startup_commands" .!= []
+    return $ Host {
+              hName = name
+            , hHostName = host_name
+            , hControllerId = controller_id
+            , hPublicKey = public_key
+            , hPrivateKey = private_key
+            , hPassphrase = passphrase
+            , hUserName = user_name
+            , hPort = port
+            , hMaxJobs = max_jobs
+            , hController = controller
+            , hStartupTime = startup_time
+            , hInputDirectory = input_directory
+            , hOutputDirectory = output_directory
+            , hStartupCommands = startup_commands
+            }
   parseJSON invalid = typeMismatch "host definition" invalid
 
 -- | Supported database drivers

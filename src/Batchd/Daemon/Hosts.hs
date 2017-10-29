@@ -78,7 +78,7 @@ ensureHostStarted lts host = do
       if doesSupportStartStop controller
         then do
           debugIO lts $(here) "Starting host `{}'" (Single name)
-          startHost controller name
+          startHost controller (hControllerId host)
           debugIO lts $(here) "Waiting for host `{}' to initialize for {} seconds..." 
                               (name, hStartupTime host)
           threadDelay $ 1000 * 1000 * hStartupTime host
@@ -94,7 +94,7 @@ ensureHostStopped lts host = do
       if doesSupportStartStop controller
         then do
           debugIO lts $(here) "Stopping host `{}'" (Single name)
-          stopHost controller name
+          stopHost controller (hControllerId host)
         else debugIO lts $(here) "Controller does not support stopping hosts" ()
 
 acquireHost :: LoggingTState -> HostCounters -> Host -> JobType -> IO ()
