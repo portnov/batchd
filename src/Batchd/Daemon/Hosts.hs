@@ -85,7 +85,8 @@ waitForStatus mvar targetStatuses actions = do
 
 increaseJobCount :: LoggingTState -> HostState -> Maybe Int -> IO HostState
 increaseJobCount lts st mbMaxJobs = do
-    debugIO lts $(here) "Set status of host `{}' to {}" (hName $ hsHostConfig st, show activeOrBusy)
+    debugIO lts $(here) "Host `{}' had {} jobs, got new one, set status to {}"
+                        (hName $ hsHostConfig st, hsJobCount st, show activeOrBusy)
     return $ st {hsStatus = activeOrBusy, hsJobCount = hsJobCount st + 1}
   where
     activeOrBusy =
@@ -103,7 +104,8 @@ decreaseJobCount lts st = do
     released <- if newStatus == Released
                   then Just <$> getCurrentTime
                   else return Nothing
-    debugIO lts $(here) "Set status of host `{}' to {}" (hName $ hsHostConfig st, show newStatus)
+    debugIO lts $(here) "Host `{}' had {} jobs, one done, set status to {}"
+                        (hName $ hsHostConfig st, hsJobCount st, show newStatus)
     return $ st {hsStatus = newStatus, hsJobCount = hsJobCount st - 1, hsReleaseTime = released}
 
 setHostStatus :: MVar HostState -> HostStatus -> IO ()
