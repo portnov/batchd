@@ -19,13 +19,13 @@ import Batchd.Core.Daemon.Types
 import Batchd.Core.Daemon.Hosts
 
 #ifdef LIBVIRT
-import System.Batchd.LibVirt
+import Batchd.Ext.LibVirt
 #endif
 #ifdef DOCKER
-import System.Batchd.Docker
+import Batchd.Ext.Docker
 #endif
 #ifdef AWSEC2
-import System.Batchd.AWS
+import Batchd.Ext.AWS
 #endif
 
 supportedControllers :: [(String, FilePath -> AnyHostControllerSelector)]
