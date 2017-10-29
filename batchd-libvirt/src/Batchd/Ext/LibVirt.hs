@@ -10,9 +10,11 @@ module Batchd.Ext.LibVirt
     Selector (..)
   ) where
 
+import Control.Monad (guard)
 import Control.Exception
 import Control.Concurrent
 import Data.Time
+import qualified Data.Text as T
 import Data.Aeson
 import Batchd.Core
 import System.LibVirt as V
@@ -24,21 +26,22 @@ data LibVirt = LibVirt {
   deriving (Show)
 
 instance FromJSON LibVirt where
-  parseJSON (Object v) =
-    LibVirt
-    <$> v .:? "enable_start_stop" .!= True
-    <*> v .:? "connection_string" .!= "qemu:///system"
+  parseJSON (Object v) = do
+    driver <- v .: "driver"
+    guard $ driver == ("libvirt" :: T.Text)
+    enable <- v .:? "enable_start_stop" .!= True
+    conn <- v .:? "connection_string" .!= "qemu:///system"
+    return $ LibVirt enable conn
 
 instance HostController LibVirt where
-  data Selector LibVirt = LibVirtSelector FilePath
+  data Selector LibVirt = LibVirtSelector
+
+  controllerName LibVirtSelector = "libvirt"
 
   doesSupportStartStop l = lvEnableStartStop l
 
-  initController (LibVirtSelector name) _ = do
-    r <- loadHostControllerConfig name
-    case r of
-      Left err -> throw err
-      Right lib -> return lib
+  tryInitController LibVirtSelector _ name = do
+    loadHostControllerConfig name
 
   startHost l name = do
     withConnection (lvConnectionString l) $ \conn -> do

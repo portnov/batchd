@@ -7,7 +7,7 @@ module Batchd.Ext.AWS
   ) where
 
 import Control.Applicative
-import Control.Monad (when)
+import Control.Monad (when, guard)
 import Control.Monad.Trans.AWS
 import Control.Lens
 import Control.Exception
@@ -30,12 +30,13 @@ data AWSEC2 = AWSEC2 {
   }
 
 instance FromJSON AWSEC2 where
-  parseJSON (Object v) =
-    AWSEC2
-    <$> v .:? "enable_start_stop" .!= True
-    <*> v .:? "credentials" .!= Discover
-    <*> (read <$> v .: "region")
-    <*> pure (const $ return ())
+  parseJSON (Object v) = do
+    driver <- v .: "driver"
+    guard $ driver == ("awsec2" :: T.Text)
+    enable <- v .:? "enable_start_stop" .!= True
+    creds <- v .:? "credentials" .!= Discover
+    region <- read <$> v .: "region"
+    return $ AWSEC2 enable creds region (const $ return ())
 
 instance FromJSON Credentials where
   parseJSON (Aeson.String "discover") = return Discover
@@ -56,15 +57,14 @@ describe instanceId =
   describeInstances & (diiInstanceIds .~ [instanceId])
 
 instance HostController AWSEC2 where
-  data Selector AWSEC2 = AWSEC2Selector FilePath
+  data Selector AWSEC2 = AWSEC2Selector
+
+  controllerName AWSEC2Selector = "awsec2"
 
   doesSupportStartStop aws = awsEnableStartStop aws
 
-  initController (AWSEC2Selector name) logger = do
-    r <- loadHostControllerConfig name
-    case r of
-      Left err -> throw err
-      Right aws -> return $ aws {awsLogger = logger}
+  tryInitController AWSEC2Selector logger name = do
+    loadHostControllerConfig name
 
   startHost aws name = do
       env <- newEnv (awsCredentials aws) <&> set envLogger (toAwsLogger $ awsLogger aws)

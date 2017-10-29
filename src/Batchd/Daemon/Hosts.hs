@@ -17,6 +17,7 @@ import Batchd.Core.Common.Types
 import Batchd.Core.Common.Localize
 import Batchd.Core.Daemon.Types
 import Batchd.Core.Daemon.Hosts
+import Batchd.Daemon.Logging
 
 #ifdef LIBVIRT
 import Batchd.Ext.LibVirt
@@ -28,20 +29,34 @@ import Batchd.Ext.Docker
 import Batchd.Ext.AWS
 #endif
 
-supportedControllers :: [(String, FilePath -> AnyHostControllerSelector)]
+supportedControllers :: [AnyHostControllerSelector]
 supportedControllers =
   [
 #ifdef LIBVIRT
-   ("libvirt", \name -> AnyHostControllerSelector (LibVirtSelector name)),
+   AnyHostControllerSelector LibVirtSelector,
 #endif
 #ifdef DOCKER
-   ("docker", \name -> AnyHostControllerSelector (DockerSelector name)),
+   AnyHostControllerSelector DockerSelector,
 #endif
 #ifdef AWSEC2
-   ("ec2", \name -> AnyHostControllerSelector (AWSEC2Selector name)),
+   AnyHostControllerSelector AWSEC2Selector,
 #endif
-   ("local", const $ AnyHostControllerSelector LocalSelector)
+   AnyHostControllerSelector LocalSelector
   ]
+
+loadHostController :: LoggingTState -> FilePath -> IO AnyHostController
+loadHostController lts name = do
+    go (UnknownError "impossible: list of supported host controllers exhaused without errors") supportedControllers
+  where
+    go lastError [] = throw lastError
+    go _ (AnyHostControllerSelector selector : rest) = do
+        r <- tryInitController selector (ltsLogger lts) name
+        case r of
+          Right controller -> return $ AnyHostController controller
+          Left err -> do
+            debugIO lts $(here) "Loading host controller config by name `{0}': this is not a valid config for `{1}': {2}"
+                   (name, controllerName selector, show err)
+            go err rest
 
 getMaxJobs :: Host -> JobType -> Maybe Int
 getMaxJobs host jtype =
@@ -77,7 +92,6 @@ acquireHost mvar host jtype = do
         else do
              threadDelay $ 1000*1000
              check name
-
 
 releaseHost :: HostCounters -> Host -> IO ()
 releaseHost mvar host = do

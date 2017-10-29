@@ -22,7 +22,9 @@ type HostCounters = MVar (M.Map HostName (MVar Int))
 class HostController c where
   data Selector c
 
-  initController :: Selector c -> SpecializedLogger -> IO c
+  controllerName :: Selector c -> String
+
+  tryInitController :: Selector c -> SpecializedLogger -> FilePath -> IO (Either Error c)
 
   doesSupportStartStop :: c -> Bool
 
@@ -40,7 +42,12 @@ data Local = Local
 instance HostController Local where
   data Selector Local = LocalSelector
   doesSupportStartStop _ = False
-  initController _ _ = return Local
+
+  controllerName LocalSelector = "local"
+
+  tryInitController _ _ "local" = return $ Right Local
+  tryInitController _ _ name = return $ Left $ UnknownError "Invalid name for local host controller"
+
   startHost _ _ = return ()
   stopHost _ _ = return ()
 
