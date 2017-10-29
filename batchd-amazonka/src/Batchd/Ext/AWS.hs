@@ -67,8 +67,11 @@ instance HostController AWSEC2 where
 
   doesSupportStartStop aws = awsEnableStartStop aws
 
-  tryInitController AWSEC2Selector logger name = do
-    loadHostControllerConfig name
+  tryInitController AWSEC2Selector lts name = do
+    r <- loadHostControllerConfig name
+    case r of
+      Left err -> return $ Left err
+      Right aws -> return $ Right $ aws {awsLogging = lts}
 
   startHost aws name = do
       env <- newEnv (awsCredentials aws) <&> set envLogger (toAwsLogger $ ltsLogger $ awsLogging aws)
