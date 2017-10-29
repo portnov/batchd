@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable, ScopedTypeVariables, TemplateHaskell, GeneralizedNewtypeDeriving, DeriveGeneric, StandaloneDeriving, OverloadedStrings, TypeSynonymInstances, FlexibleInstances, MultiParamTypeClasses #-}
 
-module System.Batchd.Daemon.Types where
+module Batchd.Core.Daemon.Types where
 
 import Control.Exception (catch)
 import Control.Monad.Reader
@@ -18,7 +18,7 @@ import System.Log.Heavy
 import Text.Localize
 import Text.Localize.IO
 
-import System.Batchd.Common.Types
+import Batchd.Core.Common.Types
 
 instance Scotty.ScottyError Error where
   stringError e = UnknownError e

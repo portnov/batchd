@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable, ScopedTypeVariables, TemplateHaskell, GeneralizedNewtypeDeriving, DeriveGeneric, StandaloneDeriving, OverloadedStrings, FlexibleInstances, RecordWildCards #-}
 
-module System.Batchd.Common.Types where
+module Batchd.Core.Common.Types where
 
 import GHC.Generics
 import Control.Exception

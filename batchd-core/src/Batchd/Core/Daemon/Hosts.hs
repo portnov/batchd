@@ -4,7 +4,7 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module System.Batchd.Daemon.Hosts where
+module Batchd.Core.Daemon.Hosts where
 
 import Control.Concurrent
 import Control.Exception
@@ -12,9 +12,9 @@ import Control.Monad.Trans
 import qualified Data.Map as M
 import System.Log.Heavy
 
-import System.Batchd.Common.Types
-import System.Batchd.Common.Localize
-import System.Batchd.Daemon.Types
+import Batchd.Core.Common.Types
+import Batchd.Core.Common.Localize
+import Batchd.Core.Daemon.Types
 
 type HostName = String
 type HostCounters = MVar (M.Map HostName (MVar Int))
