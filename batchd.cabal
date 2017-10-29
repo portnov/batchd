@@ -70,6 +70,7 @@ executable batchd
         Batchd.Daemon.Executor
         Batchd.Daemon.Logging
         Batchd.Daemon.Manager
+        Batchd.Daemon.Hosts
         Batchd.Daemon.SSH
         Batchd.Daemon.Schedule
   other-extensions:    TypeFamilies, DeriveDataTypeable, TemplateHaskell, StandaloneDeriving, RecordWildCards
