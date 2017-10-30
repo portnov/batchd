@@ -18,10 +18,10 @@ settings = defStderrSettings {lsType = F.LogStderr 0}
 
 main :: IO ()
 main = withLoggingIO (LoggingSettings settings) $ do
-  [action, id] <- getArgs
+  [uri, action, id] <- getArgs
   logger <- getLogger
   backend <- getLogBackend
-  let libvirt = LibVirt True "qemu:///system" $ LoggingTState logger backend []
+  let libvirt = LibVirt True uri $ LoggingTState logger backend []
   case action of
     "start" -> force $ startHost libvirt id
     "stop"  -> force $ stopHost libvirt id
