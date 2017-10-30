@@ -1,14 +1,16 @@
 FROM ubuntu
 MAINTAINER Ilya V. Portnov <portnov84@rambler.ru>
 
-RUN apt-get update -y && apt-get install -y ghc alex happy cabal-install
+RUN apt-get update -y && apt-get install -y ca-certificates curl
 RUN apt-get install -y unzip libpq-dev zlib1g-dev c2hs pkg-config libssh2-1-dev
+RUN curl -sSL https://get.haskellstack.org/ | sh
 
 WORKDIR /usr/src/
 ADD https://github.com/portnov/batchd/archive/master.zip .
 RUN unzip master.zip && rm master.zip
 WORKDIR /usr/src/batchd-master/
-RUN cabal update && cabal install
+RUN stack setup
+RUN stack install
 RUN cp dist/build/batchd/batchd /usr/bin/ && \
     cp dist/build/batch/batch /usr/bin && \
     cp dist/build/batchd-admin/batchd-admin /usr/sbin
