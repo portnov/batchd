@@ -108,6 +108,7 @@ callbackListener resChan = withLogVariable "thread" ("job result listener" :: St
                         moveToEnd job -- put the job to the end of queue.
                       else setJobStatus job Failed
 
+withJobContext :: HasLogContext m => JobInfo -> m a -> m a
 withJobContext job =
     withLogContext (LogContextFrame vars noChange)
   where

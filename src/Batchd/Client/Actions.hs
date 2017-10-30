@@ -289,6 +289,7 @@ updateQueue = do
     let url = baseUrl </> "queue" </> queueObject command
     doPut url queue
 
+toList :: (ToJSON v, KeyValue t) => T.Text -> Maybe v -> [t]
 toList _ Nothing = []
 toList name (Just str) = [name .= str]
 

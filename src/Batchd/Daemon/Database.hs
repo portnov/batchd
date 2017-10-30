@@ -265,15 +265,23 @@ getJobResults jid = do
   res <- selectList [JobResultJobId ==. jkey] [Asc JobResultTime]
   return $ map entityVal res
 
+equals :: (PersistField typ, E.Esqueleto query expr backend) =>
+                expr (E.Value typ) -> expr (E.Value typ) -> expr (E.Value Bool)
 equals = (E.==.)
 infix 4 `equals`
 
+leq :: (PersistField typ, E.Esqueleto query expr backend) =>
+             expr (E.Value typ) -> expr (E.Value typ) -> expr (E.Value Bool)
 leq = (E.<=.)
 infix 4 `leq`
 
+eand :: E.Esqueleto query expr backend =>
+              expr (E.Value Bool) -> expr (E.Value Bool) -> expr (E.Value Bool)
 eand = (E.&&.)
 infixr 3 `eand`
 
+eor :: E.Esqueleto query expr backend =>
+             expr (E.Value Bool) -> expr (E.Value Bool) -> expr (E.Value Bool)
 eor = (E.||.)
 infixr 3 `eor`
 
