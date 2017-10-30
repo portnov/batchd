@@ -38,15 +38,6 @@ resolver: lts-9.10
 packages:
   - .
   - ../batchd-core/
-  - location:
-      git: https://github.com/portnov/heavy-logger.git
-      commit: master
-    extra-dep: true
-  - location:
-      git: https://github.com/portnov/libssh2-hs.git
-      commit: master
-    extra-dep: true
-    subdirs: [libssh2]
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 extra-deps:
@@ -55,6 +46,7 @@ extra-deps:
   - localize-0.2.0.0
   - text-format-heavy-0.1.5.0
   - haskell-gettext-0.1.1.0
+  - heavy-logger-0.3.1.0
 
 # Override default flag values for local packages and extra-deps
 flags: {}
