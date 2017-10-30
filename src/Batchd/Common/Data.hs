@@ -66,6 +66,7 @@ Queue
   enabled Bool default=True
   scheduleName String
   hostName String Maybe
+  autostartJobCount Int Maybe
   Primary name
   Foreign Schedule schedule scheduleName
 

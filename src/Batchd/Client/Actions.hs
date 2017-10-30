@@ -270,7 +270,8 @@ addQueue = do
                 Database.queueTitle = fromMaybe (queueObject command) (title command),
                 Database.queueEnabled = fromMaybe True (enabled command),
                 Database.queueScheduleName = fromMaybe "anytime" (scheduleName command),
-                Database.queueHostName = hostName command
+                Database.queueHostName = hostName command,
+                Database.queueAutostartJobCount = Nothing
               }
   let url = baseUrl </> "queue"
   doPost url queue

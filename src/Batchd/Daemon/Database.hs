@@ -208,6 +208,12 @@ getAllQueues = selectList [] []
 getEnabledQueues :: DB [Entity Queue]
 getEnabledQueues = selectList [QueueEnabled ==. True] []
 
+getDisabledQueues :: DB [Entity Queue]
+getDisabledQueues = selectList [QueueEnabled ==. True] []
+
+getDisabledQueues' :: DB [Queue]
+getDisabledQueues' = map entityVal `fmap` getDisabledQueues
+
 getAllQueues' :: DB [Queue]
 getAllQueues' = map entityVal `fmap` selectList [] []
 
@@ -221,6 +227,10 @@ getAllowedQueues name perm = do
                               `eor` (E.isNothing $ uperm ^. UserPermissionQueueName))
            return queue
   return $ map entityVal lst
+
+enableQueue :: String -> DB ()
+enableQueue qname = do
+  update (QueueKey qname) [QueueEnabled =. True]
 
 getAllJobs :: String -> DB [Entity Job]
 getAllJobs qid = selectList [JobQueueName ==. qid] [Asc JobSeq]
@@ -250,6 +260,17 @@ loadJobsByStatus mbStatus = do
   jes <- selectList filt [Asc JobId]
   forM jes $ \je -> do
       loadJob (entityKey je)
+
+getNewJobsCount :: String -> DB Int
+getNewJobsCount qname = do
+  lst <- E.select $
+         E.from $ \job -> do
+           E.where_ $ job ^. JobStatus `equals` E.val New
+           return E.countRows
+  case lst of
+    [] -> return 0
+    [E.Value cnt] -> return cnt
+    _ -> throwR $ UnknownError "impossible: query for new jobs count returned more than one row"
 
 getJobResult :: Int64 -> DB JobResult
 getJobResult jid = do
@@ -361,7 +382,7 @@ addQueue q = do
 
 addQueue' :: String -> String -> DB (Key Queue)
 addQueue' name scheduleId = do
-  r <- insertUnique $ Queue name name True scheduleId Nothing
+  r <- insertUnique $ Queue name name True scheduleId Nothing Nothing
   case r of
     Just qid -> return qid
     Nothing -> throwR $ QueueExists name

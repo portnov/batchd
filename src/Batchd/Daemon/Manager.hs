@@ -122,6 +122,7 @@ runManager = do
     let options = def {Scotty.settings = setPort (dbcManagerPort cfg) defaultSettings}
     lts <- askLoggingStateM
     liftIO $ do
+      forkIO $ runDaemonIO connInfo lts queueRunner
       forkIO $ runDaemonIO connInfo lts maintainer
       scottyOptsT options (runService connInfo lts) $ routes cfg lts
   where
@@ -133,6 +134,30 @@ maintainer :: Daemon ()
 maintainer = withLogVariable "thread" ("maintainer" :: String) $ forever $ do
   cfg <- askConfig
   runDB $ cleanupJobResults (dbcStoreDone cfg)
+  liftIO $ threadDelay $ 60 * 1000*1000
+
+queueRunner :: Daemon ()
+queueRunner = withLogVariable "thread" ("queue starter" :: String) $ forever $ do
+  qesr <- runDB getDisabledQueues'
+  case qesr of
+    Left err -> $reportError "Can't get list of disabled queues: {}" (Single $ show err)
+    Right queues -> do
+      forM_ queues $ \queue -> do
+        case queueAutostartJobCount queue of
+          Nothing -> return ()
+          Just minCount -> do
+            countRes <- runDB $ getNewJobsCount (queueName queue)
+            case countRes of
+              Left err -> $reportError "Can't get list of new jobs in queue `{}': {}" (queueName queue, show err)
+              Right currentCount -> do
+                if currentCount >= minCount
+                  then do
+                       $debug "Disabled queue `{}' has {} new jobs, enable it" (queueName queue, currentCount)
+                       r <- runDB $ enableQueue (queueName queue)
+                       case r of
+                         Left err -> $reportError "Can't enable queue `{}': {}" (queueName queue, show err)
+                         Right _ -> return ()
+                  else $debug "Disabled queue `{}' has {} new jobs, do not enable it" (queueName queue, currentCount)
   liftIO $ threadDelay $ 60 * 1000*1000
 
 -- | Get URL parameter in form ?name=value
