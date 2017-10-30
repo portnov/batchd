@@ -182,7 +182,7 @@ doHttp request manager = do
 doPut :: ToJSON a => String -> a -> Client ()
 doPut urlStr object = do
   manager <- getManager
-  url <- liftIO $ parseUrl urlStr
+  url <- liftIO $ parseUrlThrow urlStr
   let json = Aeson.encode object
   debug (__ "Request JSON: {}") (Single json)
   request <- applyAuth $ url {
@@ -197,7 +197,7 @@ doPut urlStr object = do
 doPost :: ToJSON a => String -> a -> Client ()
 doPost urlStr object = do
   manager <- getManager
-  url <- liftIO $ parseUrl urlStr
+  url <- liftIO $ parseUrlThrow urlStr
   let json = Aeson.encode object
   debug (__ "Request JSON: {}") (Single json)
   request <- applyAuth $ url {
@@ -212,7 +212,7 @@ doPost urlStr object = do
 doDelete :: String -> Client ()
 doDelete urlStr = do
   manager <- getManager
-  url <- liftIO $ parseUrl urlStr
+  url <- liftIO $ parseUrlThrow urlStr
   request <- applyAuth $ url { method="DELETE",
                       checkResponse = allowAny
                     }
@@ -223,7 +223,7 @@ doDelete urlStr = do
 doGet :: FromJSON a => String -> Client a
 doGet urlStr = do
   manager <- getManager
-  url <- liftIO $  parseUrl urlStr
+  url <- liftIO $  parseUrlThrow urlStr
   request <- applyAuth $ url {checkResponse = allowAny}
   responseLbs <- doHttp request manager
   case Aeson.eitherDecode responseLbs of
@@ -234,7 +234,7 @@ doGet urlStr = do
 doOptions :: FromJSON a => String -> Client a
 doOptions urlStr = do
   manager <- getManager
-  url <- liftIO $ parseUrl urlStr
+  url <- liftIO $ parseUrlThrow urlStr
   let request = url {checkResponse = allowAny, method = "OPTIONS"}
   responseLbs <- doHttp request manager
   case Aeson.eitherDecode responseLbs of
