@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable, ScopedTypeVariables, TemplateHaskell, GeneralizedNewtypeDeriving, DeriveGeneric, StandaloneDeriving, OverloadedStrings, FlexibleInstances, RecordWildCards #-}
-
+-- | This module contains data type declarations that are used both by batchd daemon and client.
 module Batchd.Core.Common.Types where
 
 import GHC.Generics
@@ -28,9 +28,11 @@ import qualified System.Posix.Syslog as Syslog
 import System.Log.Heavy
 import System.Exit
 
+-- | Default manager port - 9681.
 defaultManagerPort :: Int
 defaultManagerPort = 9681
 
+-- | Type of job parameter
 data ParamType =
     String
   | Integer
@@ -38,22 +40,27 @@ data ParamType =
   | OutputFile
   deriving (Eq, Show, Data, Typeable, Generic)
 
+-- | Description of job parameter
 data ParamDesc = ParamDesc {
-    piName :: String,
-    piType :: ParamType,
-    piTitle :: String,
-    piDefault :: String
+    piName :: String       -- ^ Parameter name (identifier)
+  , piType :: ParamType    -- ^ Parameter type
+  , piTitle :: String      -- ^ Parameter title (to show in client)
+  , piDefault :: String    -- ^ Default value of the parameter
   }
   deriving (Eq, Show, Data, Typeable, Generic)
 
+-- | Job type description
 data JobType = JobType {
-    jtName :: String,
-    jtTitle :: Maybe String,
-    jtTemplate :: String,
-    jtOnFail :: OnFailAction,
-    jtHostName :: Maybe String,
-    jtMaxJobs :: Maybe Int,
-    jtParams :: [ParamDesc]
+    jtName :: String            -- ^ Job type name (identifier)
+  , jtTitle :: Maybe String     -- ^ Job type title (to show in client)
+  , jtTemplate :: String        -- ^ Template of command line to execute
+  , jtOnFail :: OnFailAction    -- ^ What to do if execution failed
+  , jtHostName :: Maybe String  -- ^ Name of host where to execute jobs.
+                                --   Nothing means use default host from queue or localhost.
+  , jtMaxJobs :: Maybe Int      -- ^ Maximum count of jobs of this type which
+                                --   can be executed in parallel on one host.
+                                --   Can be overruled in host settings.
+  , jtParams :: [ParamDesc]     -- ^ Set of job parameters
   }
   deriving (Eq, Show, Data, Typeable, Generic)
 
@@ -209,8 +216,12 @@ instance Show Error where
 
 instance Exception Error
 
+-- | Job parameter values
 type JobParamInfo = M.Map String String
 
+-- | Job information. This data type
+-- unites information from @Job@ and connected
+-- @JobParam@.
 data JobInfo = JobInfo {
     jiId :: Int64,
     jiQueue :: String,
@@ -256,6 +267,7 @@ instance FromJSON JobInfo where
       <*> v .:? "params" .!= M.empty
   parseJSON invalid = typeMismatch "job" invalid
 
+-- | User name and password
 data UserInfo = UserInfo {
     uiName :: String,
     uiPassword :: String
@@ -267,32 +279,41 @@ instance ToJSON UserInfo where
 instance FromJSON UserInfo where
   parseJSON = genericParseJSON (jsonOptions "ui")
 
-lookupParam :: String -> [ParamDesc] -> Maybe ParamDesc
+-- | Lookup for parameter description by name.
+lookupParam :: String       -- ^ Parameter name
+            -> [ParamDesc]  -- ^ List of parameter descriptions
+            -> Maybe ParamDesc
 lookupParam _ [] = Nothing
 lookupParam name (p:ps)
   | piName p == name = Just p
   | otherwise = lookupParam name ps
 
+-- | Lookup for parameter type by name
 getParamType :: JobType -> String -> Maybe ParamType
 getParamType jt name = piType `fmap` lookupParam name (jtParams jt)
 
 -- | Remote host description
 data Host = Host {
-    hName :: String,
-    hHostName :: String,
-    hControllerId :: String,
-    hPublicKey :: Maybe String,
-    hPrivateKey :: Maybe String,
-    hPassphrase :: String,
-    hUserName :: String,
-    hPort :: Int,
-    hMaxJobs :: Maybe Int,
-    hController :: String,
-    hStartupTime :: Int,
-    hShutdownTimeout :: Int,
-    hInputDirectory :: String,
-    hOutputDirectory :: String,
-    hStartupCommands :: [String]
+    hName :: String               -- ^ Name (identifier)
+  , hHostName :: String           -- ^ Network host name
+  , hControllerId :: String       -- ^ ID by which this host is known to the controller
+  , hPublicKey :: Maybe String    -- ^ Path to SSH public key file
+  , hPrivateKey :: Maybe String   -- ^ Path to SSH private key file
+  , hPassphrase :: String         -- ^ Passphrase for SSH private key
+  , hUserName :: String           -- ^ SSH user name
+  , hPort :: Int                  -- ^ SSH port (default 22)
+  , hMaxJobs :: Maybe Int         -- ^ Maximum number of jobs which this host can execute
+                                  --   in parallel.
+  , hController :: String         -- ^ Name of host controller. Default is local.
+  , hStartupTime :: Int           -- ^ Startup\/initialization time, in seconds.
+                                  --   Batchd will wait this time after host starttup
+                                  --   before executing actual commands. Default is 5.
+  , hShutdownTimeout :: Int       -- ^ Only shut down the host if it is not used for this
+                                  --   time (in seconds). This is used to prevent too
+                                  --   frequent shutdown\/start of one host. Default is 5*60.
+  , hInputDirectory :: String     -- ^ Directory (on the host) for input files. Default is @"."@.
+  , hOutputDirectory :: String    -- ^ Directory (on the host) with output files. Default is @"."@.
+  , hStartupCommands :: [String]
   }
   deriving (Eq, Show, Data, Typeable, Generic)
 
@@ -349,12 +370,13 @@ data DaemonMode =
 instance ToJSON DaemonMode
 instance FromJSON DaemonMode
 
+-- | Authentication methods
 data AuthMode =
-    AuthDisabled
+    AuthDisabled              -- ^ Authentication is disabled, all users to be authorized as superusers
   | AuthConfig {
-    authBasicEnabled :: Bool,
-    authHeaderEnabled :: Bool,
-    authStaticSalt :: String
+    authBasicEnabled :: Bool  -- ^ Is HTTP Basic authentication enabled
+  , authHeaderEnabled :: Bool -- ^ Is use of @X-Auth-User:@ HTTP header enabled
+  , authStaticSalt :: String  -- ^ Static salt value
   }
   deriving (Data, Typeable, Show, Eq, Generic)
 
@@ -370,9 +392,11 @@ instance FromJSON AuthMode where
       <*> v .:? "header" .!= False
       <*> v .:? "static_salt" .!= defaultStaticSalt
 
+-- | Default autentication mode: only HTTP basic auth is enabled.
 defaultAuthMode :: AuthMode
 defaultAuthMode = AuthConfig True False defaultStaticSalt
 
+-- | Supported authentication methods
 data AuthMethod = BasicAuth | HeaderAuth
   deriving (Data, Typeable, Show, Read, Eq, Generic)
 
@@ -385,12 +409,14 @@ instance FromJSON AuthMethod where
   parseJSON (Aeson.String "header") = return HeaderAuth
   parseJSON x = typeMismatch "auth method" x
 
+-- | Get enabled authentication methods from specified mode.
 authMethods :: AuthMode -> [AuthMethod]
 authMethods AuthDisabled = []
 authMethods (AuthConfig {..}) =
   (if authBasicEnabled then [BasicAuth] else []) ++
   (if authHeaderEnabled then [HeaderAuth] else [])
 
+-- | Supported logging targets
 data LogTarget =
     LogSyslog
   | LogStdout
@@ -411,17 +437,21 @@ instance FromJSON LogTarget where
   parseJSON (Aeson.String path) = return $ LogFile $ T.unpack path
   parseJSON invalid = typeMismatch "log target" invalid
 
+-- | Logging configuration
 data LogConfig = LogConfig {
-    lcTarget :: LogTarget,
-    lcFormat :: F.Format,
-    lcLevel :: Level,
-    lcFilter :: [(String, Level)]
+    lcTarget :: LogTarget            -- ^ Logging target. Default is syslog.
+  , lcFormat :: F.Format             -- ^ Log message format.
+  , lcLevel :: Level                 -- ^ General filter
+  , lcFilter :: [(String, Level)]    -- ^ Filter by source prefixes
   }
   deriving (Eq, Show, Typeable, Generic)
 
+-- | Default logging config
 defaultLogConfig :: LogConfig
 defaultLogConfig = LogConfig LogSyslog defaultLogFormat info_level []
 
+-- | Default log messages format:
+-- @"{time} [{level:~l}] {source} ({fullcontext}): {message}\n"@
 defaultLogFormat :: F.Format
 defaultLogFormat = "{time} [{level:~l}] {source} ({fullcontext}): {message}\n"
 
@@ -466,6 +496,7 @@ data GlobalConfig = GlobalConfig {
   }
   deriving (Eq, Show, Typeable, Generic)
 
+-- | Default static salt value.
 defaultStaticSalt :: String
 defaultStaticSalt = "1234567890abcdef"
 
@@ -488,9 +519,11 @@ instance FromJSON GlobalConfig where
       <*> v .:? "store_done" .!= 2
   parseJSON invalid = typeMismatch "global configuration" invalid
 
+-- | EVENT logging level
 event_level :: Level
 event_level = Level "EVENT" 350 Syslog.Info
 
+-- | VERBOSE logging level
 verbose_level :: Level
 verbose_level = Level "VERBOSE" 450 Syslog.Info
 

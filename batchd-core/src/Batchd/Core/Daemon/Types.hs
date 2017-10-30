@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable, ScopedTypeVariables, TemplateHaskell, GeneralizedNewtypeDeriving, DeriveGeneric, StandaloneDeriving, OverloadedStrings, TypeSynonymInstances, FlexibleInstances, MultiParamTypeClasses #-}
-
+-- | This module contains type declarations and utilities that are used only by batchd daemon.
 module Batchd.Core.Daemon.Types where
 
 import Control.Exception (catch, try, SomeException)
@@ -129,6 +129,7 @@ instance F.VarContainer Request where
   lookupVar "useragent" rq = Just $ F.Variable $ requestHeaderUserAgent rq
   lookupVar _ rq = Nothing
 
+-- | Set up translations
 setupTranslations :: LocatePolicy -> Daemon ()
 setupTranslations p = do
   liftIO $ Text.Localize.IO.setupTranslations p

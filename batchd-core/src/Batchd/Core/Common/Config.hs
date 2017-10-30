@@ -1,4 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
+-- | This module contains utility functions for locating and loading
+-- configuration files.
 module Batchd.Core.Common.Config where
 
 import Control.Monad
@@ -12,6 +14,9 @@ import System.IO
 import Batchd.Core.Common.Types
 import Batchd.Core.Common.Localize
 
+-- | Get list of directories in which to look up for configs
+-- of certain type. Example:
+-- @getConfigDirs "hosts" == ["/home/user/.config/batchd/hosts", "/etc/batchd/hosts"]@
 getConfigDirs :: String -> IO [FilePath]
 getConfigDirs t = do
   home <- getEnv "HOME"
@@ -22,7 +27,11 @@ getConfigDirs t = do
   return $ (if homeExists then [homeCfg] else []) ++
            (if etcExists  then [etc] else [])
 
-locateConfig :: String -> String -> IO (Maybe FilePath)
+-- | Locate config file of certain type.
+-- Returns Nothing if no files found.
+locateConfig :: String    -- ^ Config type
+             -> String    -- ^ Config file name (e.g. @"host.yaml"@)
+             -> IO (Maybe FilePath)
 locateConfig t name = do
   paths <- getConfigDirs t
   rs <- forM paths $ \path -> do
@@ -33,7 +42,12 @@ locateConfig t name = do
     [] -> return Nothing
     (result:_) -> return $ Just result
 
-loadConfig :: FromJSON config => String -> String -> (ParseException -> Error) -> IO (Either Error config)
+-- | Load configuration file of certain type.
+loadConfig :: FromJSON config
+           => String                    -- ^ Config type
+           -> String                    -- ^ Config file name without extension (@"host"@)
+           -> (ParseException -> Error) -- ^ Wrap YAML parsing error. This is usually one of @Error@ constructors.
+           -> IO (Either Error config)
 loadConfig t name exc = do
   mbPath <- locateConfig t (name ++ ".yaml")
   case mbPath of
@@ -44,15 +58,19 @@ loadConfig t name exc = do
         Left err -> return $ Left $ exc err
         Right cfg -> return $ Right cfg
 
+-- | Load config file of host controller.
 loadHostControllerConfig :: FromJSON config => String -> IO (Either Error config)
 loadHostControllerConfig name = loadConfig "controllers" name InvalidHostControllerConfig
 
+-- | Load host config file
 loadHost :: String -> IO (Either Error Host)
 loadHost name = loadConfig "hosts" name InvalidHost
 
+-- | Load job type config file
 loadTemplate :: String -> IO (Either Error JobType)
 loadTemplate name = loadConfig "jobtypes" name InvalidJobType
 
+-- | Load global config file (@"batchd.yaml"@)
 loadGlobalConfig :: IO (Either Error GlobalConfig)
 loadGlobalConfig = do
   mbPath <- locateConfig "" "batchd.yaml"
@@ -65,7 +83,9 @@ loadGlobalConfig = do
         Right cfg -> do
           return $ Right cfg
 
-getPassword :: String -> IO String
+-- | Read password from stdout.
+getPassword :: String    -- ^ Prompt
+           -> IO String
 getPassword prompt = do
   putStr prompt
   hFlush stdout
@@ -73,6 +93,8 @@ getPassword prompt = do
   putChar '\n'
   return pass
 
+-- | Ask password from stdout twice.
+-- Make sure that entered passwords are equal.
 getPassword2 :: IO String
 getPassword2 = do
   pwd1 <- getPassword =<< (__s "Password: ")
@@ -81,6 +103,8 @@ getPassword2 = do
     then fail =<< (__s "passwords do not match")
     else return pwd1
 
+-- | Execute IO actions with enabled\/disabled terminal echo,
+-- and then return echo state to previous.
 withEcho :: Bool -> IO a -> IO a
 withEcho echo action = do
   old <- hGetEcho stdin
