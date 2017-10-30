@@ -3,7 +3,8 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-
+-- | This module contains an implementation of batchd host controller,
+-- which controls VMs supported by LibVirt.
 module Batchd.Ext.LibVirt
   (
     LibVirt (..),
@@ -19,9 +20,10 @@ import Data.Aeson
 import Batchd.Core
 import System.LibVirt as V
 
+-- | LibVirt host controller
 data LibVirt = LibVirt {
-    lvEnableStartStop :: Bool
-  , lvConnectionString :: String
+    lvEnableStartStop :: Bool      -- ^ Automatic start\/stop of VMs can be disabled in config file.
+  , lvConnectionString :: String   -- ^ Libvirt connection string. Default is @"qemu:///system"@.
   }
   deriving (Show)
 
@@ -85,5 +87,4 @@ instance HostController LibVirt where
           Just dom -> do
             shutdownDomain dom
             return $ Right ()
-
 

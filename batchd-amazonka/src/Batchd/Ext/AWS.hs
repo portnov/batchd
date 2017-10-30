@@ -1,5 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE OverloadedStrings #-}
+-- | This module contains an implementation of host controller for batchd,
+-- which controls AWS EC2 instances.
 module Batchd.Ext.AWS
   (
     AWSEC2 (..),
@@ -24,9 +26,11 @@ import System.Log.Heavy.AWS
 
 import Batchd.Core
 
+-- | AWS EC2 host controller
 data AWSEC2 = AWSEC2 {
-    awsEnableStartStop :: Bool
-  , awsCredentials :: Credentials
+    awsEnableStartStop :: Bool     -- ^ Automatic start\/stop can be disabled in config file
+  , awsCredentials :: Credentials  -- ^ AWS credentials. We can parse either @"path" / "profile"@
+                                   --   or @"access_key" / "secret_key"@ pair from config file
   , awsRegion :: Region
   , awsLogging :: LoggingTState
   }
@@ -55,7 +59,6 @@ instance FromJSON Credentials where
         secret <- TE.encodeUtf8 <$> (v .: "secret_key")
         return $ FromKeys (AccessKey access) (SecretKey secret)
         
-
 describe instanceId =
   describeInstances & (diiInstanceIds .~ [instanceId])
 

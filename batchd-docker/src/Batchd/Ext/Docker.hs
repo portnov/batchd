@@ -2,6 +2,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE StandaloneDeriving #-}
+-- | This module contains an implementation of batchd host controllers,
+-- which controls docker containers.
 module Batchd.Ext.Docker
   (Docker (..),
    Selector (..),
@@ -22,9 +24,10 @@ import Docker.Client
 deriving instance Typeable DockerError
 instance Exception DockerError
 
+-- | Docker host controller
 data Docker = Docker {
-    dEnableStartStop :: Bool
-  , dUnixSocket :: Maybe FilePath
+    dEnableStartStop :: Bool       -- ^ Automatic start\/stop of containers can be disabled in config file
+  , dUnixSocket :: Maybe FilePath  -- ^ This should be usually specified for default docker installation on local host
   , dBaseUrl :: URL
   }
   deriving (Show)
@@ -39,6 +42,7 @@ instance FromJSON Docker where
     url <- v .:? "base_url" .!= defaultDockerUrl
     return $ Docker enable socket url
 
+-- | Default Docker API URL.
 defaultDockerUrl :: URL
 defaultDockerUrl = baseUrl defaultClientOpts
 
