@@ -9,11 +9,9 @@ import Control.Exception
 import Data.Yaml
 import Data.Generics hiding (Generic)
 import Data.Maybe
-import Data.Monoid ((<>))
-import qualified Data.Text.Lazy as TL
 import Data.Text.Format.Heavy
 import Text.Localize
-import Text.Localize.IO
+import Text.Localize.IO () -- import instances only
 import System.Environment
 import System.Posix.User (getLoginName)
 

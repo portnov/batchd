@@ -1,19 +1,11 @@
 {-# LANGUAGE FlexibleInstances #-}
 module Batchd.Client.Logging where
 
-import Control.Monad (when)
-import Control.Monad.Trans
-import Control.Monad.State
 import qualified Data.Text.Lazy as TL
-import qualified Data.Text.Lazy.IO as TLIO
 import Data.Text.Format.Heavy
-import Data.Text.Format.Heavy.Parse
 import System.Log.Heavy
 
 import Batchd.Core.Common.Types
-import Batchd.Core.Common.Localize
-import Batchd.Client.Types
-import Batchd.Client.CmdLine
 import Batchd.Client.Monad
 
 putMessage :: (VarContainer vars) => Level -> Client TL.Text -> vars -> Client ()

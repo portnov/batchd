@@ -9,7 +9,6 @@ import Control.Monad
 import Control.Monad.State
 import Data.Int
 import Data.Maybe
-import Data.Monoid ((<>))
 import Data.Time.Clock
 import Data.Time.LocalTime
 import qualified Data.Map as M
@@ -32,7 +31,6 @@ import Batchd.Client.CmdLine
 import Batchd.Client.Config
 import Batchd.Client.Http
 import Batchd.Client.Monad
-import Batchd.Client.Logging
 
 localTimeToUTC' :: Maybe (Maybe LocalTime) -> Client (Maybe (Maybe UTCTime))
 localTimeToUTC' Nothing = return Nothing

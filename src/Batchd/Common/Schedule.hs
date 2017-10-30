@@ -7,7 +7,6 @@ import Data.Time.Clock
 import Data.Time.LocalTime
 import Data.Dates
 import Data.Dates.Formats
-import Data.Time
 import Data.Aeson
 import Text.Parsec
 import Text.Parsec.String

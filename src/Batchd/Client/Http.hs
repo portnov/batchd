@@ -7,13 +7,10 @@ module Batchd.Client.Http where
 import Control.Exception
 import Control.Monad.State
 import qualified Data.ByteString.Lazy as L
-import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TLE
 import Data.Text.Format.Heavy
-import Data.Char
 import Data.Default
 import Data.List
-import Data.Monoid ((<>))
 import Data.Aeson as Aeson
 import Data.X509.CertificateStore
 import Network.HTTP.Client

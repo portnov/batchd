@@ -11,7 +11,6 @@ import Batchd.Client.Types
 import Batchd.Client.CmdLine
 import Batchd.Client.Config
 import Batchd.Client.Monad
-import Batchd.Client.Http
 import Batchd.Client.Shell
 
 main :: IO ()

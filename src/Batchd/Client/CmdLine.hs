@@ -4,11 +4,9 @@
 
 module Batchd.Client.CmdLine where
 
-import Control.Monad
 import Data.Generics hiding (Generic)
 import qualified Data.Map as M
 import Data.Int
-import Data.Time.Clock
 import Data.Time.LocalTime
 import Data.Dates
 import Data.Char (toLower)

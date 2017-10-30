@@ -5,7 +5,6 @@ module Batchd.Daemon.Executor where
 
 import Control.Monad
 import Control.Monad.Trans
-import Control.Exception
 import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
