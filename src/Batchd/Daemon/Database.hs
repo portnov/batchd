@@ -209,7 +209,7 @@ getEnabledQueues :: DB [Entity Queue]
 getEnabledQueues = selectList [QueueEnabled ==. True] []
 
 getDisabledQueues :: DB [Entity Queue]
-getDisabledQueues = selectList [QueueEnabled ==. True] []
+getDisabledQueues = selectList [QueueEnabled ==. False] []
 
 getDisabledQueues' :: DB [Queue]
 getDisabledQueues' = map entityVal `fmap` getDisabledQueues

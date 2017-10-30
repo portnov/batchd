@@ -86,12 +86,13 @@ doList = do
       let url = baseUrl </> "queue"
       response <- doGet url
       forM_ (response :: [Database.Queue]) $ \queue -> do
-        liftIO $ printf "[%s]\t%s:\t%s\t%s\t%s\n"
+        liftIO $ printf "[%s]\t%s:\t%s\t%s\t%s\t%s\n"
                    ((if Database.queueEnabled queue then "*" else " ") :: String)
                    (Database.queueName queue)
                    (Database.queueTitle queue)
                    (Database.queueScheduleName queue)
                    (fromMaybe "*" $ Database.queueHostName queue)
+                   (maybe "no" show $ Database.queueAutostartJobCount queue)
 
     qnames ->
       forM_ qnames $ \qname -> do
@@ -271,7 +272,7 @@ addQueue = do
                 Database.queueEnabled = fromMaybe True (enabled command),
                 Database.queueScheduleName = fromMaybe "anytime" (scheduleName command),
                 Database.queueHostName = hostName command,
-                Database.queueAutostartJobCount = Nothing
+                Database.queueAutostartJobCount = join (autostartCount command)
               }
   let url = baseUrl </> "queue"
   doPost url queue
@@ -285,7 +286,8 @@ updateQueue = do
                   toList "enabled" (enabled command) ++
                   toList "title" (title command) ++
                   toList "schedule_name" (scheduleName command) ++
-                  toList "host_name" (hostName command)
+                  toList "host_name" (hostName command) ++ 
+                  toList "autostart_job_count" (autostartCount command)
     -- print queue
     let url = baseUrl </> "queue" </> queueObject command
     doPut url queue

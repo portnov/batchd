@@ -55,6 +55,7 @@ data Command =
       hostName :: Maybe String,
       title :: Maybe String,
       enabled :: Maybe Bool,
+      autostartCount :: Maybe (Maybe Int),
       force :: Bool
     }
   | Job {
@@ -231,7 +232,18 @@ queue = Queue
   <*> (   flag Nothing (Just True) (long "enable"  <> short 'e' <> help "enable queue")
       <|> flag Nothing (Just False) (long "disable" <> short 'D' <> help "disable queue")
       )
+  <*> (optional $ option autostartReader (long "autostart" <> metavar "N"
+                                   <> help "automatically enable queue if it has N new jobs. Use `--autostart no' to disable."))
   <*> switch (long "force" <> short 'f' <> help "force non-empty queue deletion")
+
+autostartReader :: ReadM (Maybe Int)
+autostartReader = (Just <$> auto) <|> maybeReader disable
+  where
+    disable :: String -> Maybe (Maybe Int)
+    disable "no" = Just Nothing
+    disable "disable" = Just Nothing
+    disable "false" = Just Nothing
+    disable _ = Nothing
 
 job :: Parser Command
 job = Job

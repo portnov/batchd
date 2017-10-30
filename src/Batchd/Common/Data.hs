@@ -126,7 +126,8 @@ instance FromJSON (UpdateList Queue) where
     uTitle    <- parseUpdate QueueTitle "title" o
     uEnable   <- parseUpdate QueueEnabled "enabled" o
     uHostName <- parseUpdateStar QueueHostName "host_name" o
-    return $ UpdateList $ catMaybes [uEnable, uTitle, uSchedule, uHostName]
+    uAutostart <- parseUpdateMaybe QueueAutostartJobCount "autostart_job_count" o
+    return $ UpdateList $ catMaybes [uEnable, uTitle, uSchedule, uHostName, uAutostart]
 
 instance FromJSON (UpdateList Job) where
   parseJSON o = do
