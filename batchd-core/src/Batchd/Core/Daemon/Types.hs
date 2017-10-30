@@ -2,7 +2,7 @@
 -- | This module contains type declarations and utilities that are used only by batchd daemon.
 module Batchd.Core.Daemon.Types where
 
-import Control.Exception (catch, try, SomeException)
+import Control.Exception (catch)
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Except

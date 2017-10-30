@@ -7,15 +7,11 @@
 module Batchd.Core.Daemon.Hosts where
 
 import Control.Concurrent
-import Control.Exception
-import Control.Monad.Trans
 import qualified Data.Map as M
 import Data.Time
 import System.Log.Heavy
 
 import Batchd.Core.Common.Types
-import Batchd.Core.Common.Localize
-import Batchd.Core.Daemon.Types
 
 -- | Host status
 data HostStatus =
