@@ -11,7 +11,7 @@ import System.Log.Heavy
 
 import Batchd.Core.Common.Config
 import Batchd.Common.Data (migrateAll)
-import Batchd.Daemon.Logging (getLoggingSettings)
+import Batchd.Core.Daemon.Logging (getLoggingSettings)
 import Batchd.Daemon.Database
 import Batchd.Daemon.Auth
 

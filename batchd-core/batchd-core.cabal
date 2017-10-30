@@ -23,10 +23,13 @@ library
                        Batchd.Core.Common.Localize
                        Batchd.Core.Daemon.Types
                        Batchd.Core.Daemon.Hosts
+                       Batchd.Core.Daemon.Logging
 
   other-extensions:    TypeFamilies, DeriveDataTypeable, TemplateHaskell, StandaloneDeriving, RecordWildCards
 
   build-depends:       base >=4.7 && <5.0,
+                       template-haskell >= 2.10,
+                       th-lift >= 0.7.7,
                        persistent >= 2.2,
                        persistent-template >= 2,
                        hsyslog >= 5,

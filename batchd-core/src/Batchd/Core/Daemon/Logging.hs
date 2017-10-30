@@ -1,10 +1,12 @@
 {-# LANGUAGE TemplateHaskell, TypeFamilies, OverloadedStrings #-}
-
-module Batchd.Daemon.Logging
+-- | This module contains utilities for logging, used by batchd daemon.
+-- This also reexports required modules from @heavy-logger@ package.
+module Batchd.Core.Daemon.Logging
   (
     translateString,
     logIO, debugIO, infoIO, reportErrorIO,
     getLoggingSettings,
+    -- * Reexports
     module System.Log.Heavy.Types,
     module System.Log.Heavy.Level,
     module System.Log.Heavy.Util,
@@ -40,9 +42,11 @@ deriveLift ''F.Format
 deriveLift ''LogConfig
 deriveLift ''GlobalConfig
 
+-- | Variant of @translate@, which takes String argument.
 translateString :: Localized m => String -> m TL.Text
 translateString str = translate $ stringToBstr str
 
+-- | Write a message to log within IO monad.
 logIO :: (F.VarContainer vars, MonadIO m) => LoggingTState -> Loc -> Level -> TL.Text -> vars -> m ()
 logIO lts loc level msg vars = Trans.liftIO $
   do
@@ -51,15 +55,34 @@ logIO lts loc level msg vars = Trans.liftIO $
     when (checkContextFilter (ltsContext lts) message) $ do
         ltsLogger lts message
 
-debugIO :: (F.VarContainer vars, MonadIO m) => LoggingTState -> Loc -> TL.Text -> vars -> m ()
+-- | Write a debug message to log within IO monad.
+debugIO :: (F.VarContainer vars, MonadIO m)
+        => LoggingTState                     -- ^ Logging state
+        -> Loc                               -- ^ Message location in Haskell source. Usually filled by @\$(here)@ TH macros.
+        -> TL.Text                           -- ^ Message string, with placeholders if needed.
+        -> vars                              -- ^ Message variables. Use @()@ if you do not have variables.
+        -> m ()
 debugIO lts loc = logIO lts loc debug_level
 
-infoIO :: (F.VarContainer vars, MonadIO m) => LoggingTState -> Loc -> TL.Text -> vars -> m ()
+-- | Write an info message to log within IO monad.
+infoIO :: (F.VarContainer vars, MonadIO m)
+       => LoggingTState -- ^ Logging state
+       -> Loc           -- ^ Message location in Haskell source. Usually filled by @\$(here)@ TH macros.
+       -> TL.Text       -- ^ Message string, with placeholders if needed.
+       -> vars          -- ^ Message variables. Use @()@ if you do not have variables.                   
+       -> m ()
 infoIO lts loc = logIO lts loc info_level
 
-reportErrorIO :: (F.VarContainer vars, MonadIO m) => LoggingTState -> Loc -> TL.Text -> vars -> m ()
+-- | Write an error message to log within IO monad.
+reportErrorIO :: (F.VarContainer vars, MonadIO m)
+              => LoggingTState -- ^ Logging state
+              -> Loc           -- ^ Message location in Haskell source. Usually filled by @\$(here)@ TH macros.
+              -> TL.Text       -- ^ Message string, with placeholders if needed.
+              -> vars          -- ^ Message variables. Use @()@ if you do not have variables.                   
+              -> m ()
 reportErrorIO lts loc = logIO lts loc error_level
 
+-- | Get logging settings from global config.
 getLoggingSettings :: GlobalConfig -> LoggingSettings
 getLoggingSettings cfg =
     case lcTarget $ dbcLogging cfg of

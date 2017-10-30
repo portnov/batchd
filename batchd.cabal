@@ -68,7 +68,6 @@ executable batchd
         Batchd.Daemon.Database
         Batchd.Daemon.Dispatcher
         Batchd.Daemon.Executor
-        Batchd.Daemon.Logging
         Batchd.Daemon.Manager
         Batchd.Daemon.Hosts
         Batchd.Daemon.SSH
@@ -144,7 +143,6 @@ executable batchd-admin
         Batchd.Daemon.Auth
         Batchd.Daemon.Crypto
         Batchd.Daemon.Database
-        Batchd.Daemon.Logging
         Batchd.Daemon.Schedule
   other-extensions:    TypeFamilies, DeriveDataTypeable, TemplateHaskell, StandaloneDeriving, RecordWildCards
   build-depends:       base >=4.7 && <5.0,
@@ -203,7 +201,6 @@ executable batch
         Batchd.Client.CmdLine
         Batchd.Client.Config
         Batchd.Client.Http
-        Batchd.Client.Logging
         Batchd.Client.Monad
         Batchd.Client.Shell
         Batchd.Client.Types

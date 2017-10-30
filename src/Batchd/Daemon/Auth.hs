@@ -24,7 +24,7 @@ import Batchd.Common.Data
 import Batchd.Core.Daemon.Types
 import Batchd.Daemon.Crypto
 import Batchd.Daemon.Database
-import Batchd.Daemon.Logging
+import Batchd.Core.Daemon.Logging
 
 -- | WAI Request vault key for currently authenticated user name
 usernameKey :: V.Key String

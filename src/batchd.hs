@@ -12,7 +12,7 @@ import Batchd.Core.Common.Types
 import Batchd.Core.Common.Localize
 import Batchd.Core.Common.Config
 import Batchd.Core.Daemon.Types (runDaemon, forkDaemon, setupTranslations)
-import qualified Batchd.Daemon.Logging as Log
+import qualified Batchd.Core.Daemon.Logging as Log
 import Batchd.Daemon.Database
 import Batchd.Daemon.Manager as Manager
 import Batchd.Daemon.Dispatcher as Dispatcher

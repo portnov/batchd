@@ -35,7 +35,7 @@ import Batchd.Core.Daemon.Types
 import Batchd.Daemon.Database
 import Batchd.Daemon.Schedule
 import Batchd.Daemon.Auth
-import Batchd.Daemon.Logging
+import Batchd.Core.Daemon.Logging
 
 corsPolicy :: GlobalConfig -> CorsResourcePolicy
 corsPolicy cfg =

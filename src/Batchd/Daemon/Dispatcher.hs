@@ -26,7 +26,7 @@ import Batchd.Common.Schedule
 import Batchd.Daemon.Schedule
 import Batchd.Daemon.Executor
 import Batchd.Daemon.Hosts (hostCleaner)
-import Batchd.Daemon.Logging
+import Batchd.Core.Daemon.Logging
 import Batchd.Core.Daemon.Hosts
 
 -- | Set up workers, callback listener and dispatcher itself.
