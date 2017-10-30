@@ -3,14 +3,27 @@ module Main where
 
 import System.Environment
 import Batchd.Core
+import System.Log.Heavy
+import System.Log.Heavy.IO
+import qualified System.Log.FastLogger as F
 import Batchd.Ext.LibVirt
 
+force action = do
+  r <- action
+  case r of
+    Right _ -> return ()
+    Left err -> fail $ show err
+
+settings = defStderrSettings {lsType = F.LogStderr 0}
+
 main :: IO ()
-main = do
+main = withLoggingIO (LoggingSettings settings) $ do
   [action, id] <- getArgs
-  let libvirt = LibVirt True "qemu:///system"
+  logger <- getLogger
+  backend <- getLogBackend
+  let libvirt = LibVirt True "qemu:///system" $ LoggingTState logger backend []
   case action of
-    "start" -> startHost libvirt id
-    "stop"  -> stopHost libvirt id
+    "start" -> force $ startHost libvirt id
+    "stop"  -> force $ stopHost libvirt id
     _ -> fail $ "unknown action"
 

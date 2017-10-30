@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveDataTypeable #-}
@@ -16,7 +17,9 @@ import Control.Exception
 import Control.Concurrent
 import Data.Time
 import qualified Data.Text as T
+import Data.Text.Format.Heavy
 import Data.Aeson
+import System.Log.Heavy
 import Batchd.Core
 import System.LibVirt as V
 
@@ -24,8 +27,8 @@ import System.LibVirt as V
 data LibVirt = LibVirt {
     lvEnableStartStop :: Bool      -- ^ Automatic start\/stop of VMs can be disabled in config file.
   , lvConnectionString :: String   -- ^ Libvirt connection string. Default is @"qemu:///system"@.
+  , lvLogging :: LoggingTState
   }
-  deriving (Show)
 
 instance FromJSON LibVirt where
   parseJSON (Object v) = do
@@ -34,10 +37,10 @@ instance FromJSON LibVirt where
       fail $ "incorrect driver specification"
     enable <- v .:? "enable_start_stop" .!= True
     conn <- v .:? "connection_string" .!= "qemu:///system"
-    return $ LibVirt enable conn
+    return $ LibVirt enable conn undefined
 
--- instance Show LibVirt where
---   show _ = "<LibVirt host controller>"
+instance Show LibVirt where
+   show _ = "<LibVirt host controller>"
 
 instance HostController LibVirt where
   data Selector LibVirt = LibVirtSelector
@@ -46,24 +49,27 @@ instance HostController LibVirt where
 
   doesSupportStartStop l = lvEnableStartStop l
 
-  tryInitController LibVirtSelector _ name = do
-    loadHostControllerConfig name
+  tryInitController LibVirtSelector lts name = do
+    r <- loadHostControllerConfig name
+    case r of
+      Left err -> return $ Left err
+      Right lib -> return $ Right $ lib {lvLogging = lts}
 
   startHost l name = do
+    let lts = lvLogging l
     withConnection (lvConnectionString l) $ \conn -> do
-        putStrLn "connect ok"
+        infoIO lts $(here) "Connection to libvirt URI {} succeeded" (Single $ lvConnectionString l)
         mbdom <- do
                  x <- try $ lookupDomainName conn name
                  case x of
                    Left (e :: V.Error) -> do
-                                          putStrLn "lookupDomainName:"
-                                          print e
+                                          reportErrorIO lts $(here) "Cannot get domain ID by name `{}': {}" (name, show e)
                                           return Nothing
                    Right dom -> return (Just dom)
         case mbdom of
           Just dom -> do
             di <- getDomainInfo dom
-            putStrLn $ "domain got ok: " ++ show di
+            debugIO lts $(here) "Domain information obtained: {}" (Single $ show di)
             case diState di of
               DomainRunning -> return $ Right ()
               DomainPaused -> resumeDomain dom >> (return $ Right ())
@@ -74,12 +80,14 @@ instance HostController LibVirt where
           Nothing -> return $ Left $ UnknownError $ "Domain is not defined in hypervisor: " ++ name
 
   stopHost l name = do
+    let lts = lvLogging l
     withConnection (lvConnectionString l) $ \conn -> do
+        infoIO lts $(here) "Connection to libvirt URI {} succeeded" (Single $ lvConnectionString l)
         mbdom <- do
                  x <- try $ lookupDomainName conn name
                  case x of
                    Left (e :: V.Error) -> do
-                                          print e
+                                          reportErrorIO lts $(here) "Cannot get domain ID by name `{}': {}" (name, show e)
                                           return Nothing
                    Right dom -> return (Just dom)
         case mbdom of

@@ -20,6 +20,8 @@ library
                        time >= 1.6,
                        text >= 1.2.2.2,
                        aeson >= 1.1.2.0,
+                       text-format-heavy >= 0.1.5.0,
+                       heavy-logger >= 0.3.1.0,
                        batchd-core >= 0.1.0.0,
                        libvirt-hs >= 0.2.1
   default-language:    Haskell2010
