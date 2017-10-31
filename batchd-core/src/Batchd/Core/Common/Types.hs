@@ -1,6 +1,35 @@
 {-# LANGUAGE DeriveDataTypeable, ScopedTypeVariables, TemplateHaskell, GeneralizedNewtypeDeriving, DeriveGeneric, StandaloneDeriving, OverloadedStrings, FlexibleInstances, RecordWildCards #-}
 -- | This module contains data type declarations that are used both by batchd daemon and client.
-module Batchd.Core.Common.Types where
+module Batchd.Core.Common.Types
+  (
+    -- * Data types
+    JobType (..), OnFailAction (..),
+    ParamType (..), ParamDesc (..),
+    JobStatus (..),
+    JobParamInfo, JobInfo (..),
+    Host (..),
+    UserInfo (..), Permission (..),
+    DbDriver (..), DaemonMode (..),
+    AuthMode (..), AuthMethod (..),
+    LogTarget (..), LogConfig (..),
+    GlobalConfig (..),
+    ByStatus (..),
+    -- * Exceptions
+    Error (..), UploadException (..),
+    DownloadException (..), ExecException (..),
+    -- * Utility functions
+    lookupParam, getParamType,
+    parseUpdate, parseUpdateMaybe,
+    parseUpdateStar, parseStatus,
+    bstrToString, stringToBstr,
+    jsonOptions, authMethods,
+    -- * Some default settings
+    defaultManagerPort, zeroUtcTime,
+    defaultAuthMode, defaultLogConfig,
+    defaultLogFormat, defaultStaticSalt,
+    -- * Logging levels
+    event_level, verbose_level
+  ) where
 
 import GHC.Generics
 import Control.Exception
