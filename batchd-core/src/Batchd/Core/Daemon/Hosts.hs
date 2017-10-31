@@ -13,20 +13,19 @@ module Batchd.Core.Daemon.Hosts
     -- * Host controllers
     -- $drivers
     HostController (..),
-    HostDriver,
+    HostDriver (..),
     controllerFromConfig,
     -- * Local hosts driver
-    initLocal
+    localDriver
   ) where
 
 import Control.Concurrent
 import qualified Data.Map as M
 import Data.Time
-import Data.Aeson
+import Data.Aeson as Aeson
 import System.Log.Heavy
 
 import Batchd.Core.Common.Types
-import Batchd.Core.Common.Config
 
 -- | Host status
 data HostStatus =
@@ -53,21 +52,26 @@ type HostsPool = MVar (M.Map HostName (MVar HostState))
 
 -- $drivers
 --
--- Host driver is a programmatic component (technically, a function which
--- constructs an instance of @HostController@ data type from controller
--- settings), which contains an implementation of host-controlling functions.
--- I.e., this component knows how to start and stop hosts of certain type.
+-- Host driver is a programmatic component (technically, an instance of
+-- @HostDriver@ data type), which contains an implementation of
+-- host-controlling functions.  I.e., this component knows how to start and
+-- stop hosts of certain type.
 --
 -- Host controller is a configuration object, which refers to host driver which should
 -- be actuall driving the hosts. Moreover, the host controller contains specific settings
 -- used by the driver. There can exist many host controllers, using the same driver, but
 -- with different settings.
 --
+-- Programmatically, batchd always deals with @HostController@, which is built from
+-- configuration file by @HostDriver@.
+--
 
--- | ADT for host host controlling drivers.
+-- | Host controller. Implementation of all functions is actually
+-- located in host driver definition. These functions are already
+-- aware of all settings in the host controller config file.
 data HostController = HostController {
-    -- | Get name of the driver
-    driverName :: String,
+    -- | Name of host driver
+    controllerDriverName :: String,
 
     -- | Does this controller support starting and stopping hosts?
     doesSupportStartStop :: Bool,
@@ -86,35 +90,45 @@ data HostController = HostController {
   }
 
 instance Show HostController where
-  show c = driverName c
+  show c = controllerDriverName c
 
--- | A type of functions which initialize host controllers from configuration file.
--- The second argument is name of config file without extension (e.g., @"docker"@).
-type HostDriver = LoggingTState -> FilePath -> IO (Either Error HostController)
+-- | Host driver definition data type
+data HostDriver = HostDriver {
+    -- | Get name of the driver
+    driverName :: String
+
+    -- | Initialize host controllers from configuration file.
+    -- This actually `plugs' knowledge of configuration into
+    -- instance of @HostController@.
+  , initController :: LoggingTState
+                   -> Value -- ^ Configuration file contents
+                   -> Either Error HostController
+  }
 
 -- | Utility function to construct host controller from configuration file.
 controllerFromConfig :: FromJSON settings
-               => (settings -> LoggingTState -> HostController)
+               => String                                        -- ^ Driver name
+               -> (settings -> LoggingTState -> HostController) -- ^ How to create controller from settings
                -> HostDriver
-controllerFromConfig maker lts name = do
-    r <- loadHostControllerConfig name
-    case r of
-      Left err -> return $ Left err
-      Right settings -> return $ Right $ maker settings lts
-
--- | Initialize local hosts driver
-initLocal :: HostDriver
-initLocal _ "local" = return $ Right local
-initLocal _ _ = return $ Left $ UnknownError "Invalid name for local host controller"
+controllerFromConfig name maker =
+    let init lts config =
+          case fromJSON config of
+            Aeson.Error err -> Left $ UnknownError err
+            Aeson.Success settings -> Right $ maker settings lts
+    in  HostDriver name init
 
 -- | Local hosts driver
+localDriver :: HostDriver
+localDriver = HostDriver "local" $ \_ _ -> Right local
+
+-- | Local hosts controller
 local :: HostController
 local = HostController {
+    controllerDriverName = driverName localDriver,
+
     doesSupportStartStop = False,
 
     getActualHostName = \_ -> return Nothing,
-
-    driverName = "local",
 
     startHost = \_ -> return $ Right (),
     stopHost = \_ -> return $ Right ()

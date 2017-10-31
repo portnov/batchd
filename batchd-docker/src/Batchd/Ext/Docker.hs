@@ -6,7 +6,7 @@
 -- which controls docker containers.
 module Batchd.Ext.Docker
   (DockerSettings (..),
-   initDocker,
+   dockerDriver,
    defaultDockerUrl
   ) where
 
@@ -53,11 +53,11 @@ getHttpHandler d = do
     Just path -> unixHttpHandler path
 
 -- | Initialize Docker host controller
-initDocker :: HostDriver
-initDocker =
-  controllerFromConfig $ \d lts -> HostController {
+dockerDriver :: HostDriver
+dockerDriver =
+  controllerFromConfig "docker" $ \d lts -> HostController {
 
-    driverName = "docker",
+    controllerDriverName = driverName dockerDriver,
 
     getActualHostName = \_ -> return Nothing,
 

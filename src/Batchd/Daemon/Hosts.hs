@@ -12,12 +12,16 @@ import Control.Concurrent
 import Control.Exception
 import Control.Monad.Trans
 import qualified Data.Map as M
+import qualified Data.HashMap.Strict as H
 import Data.Time
+import Data.Aeson as Aeson
+import qualified Data.Text as T
 import Data.Text.Format.Heavy
 import Data.Text.Format.Heavy.Time () -- import instances only
 import System.Log.Heavy
 
 import Batchd.Core.Common.Types
+import Batchd.Core.Common.Config
 import Batchd.Core.Common.Localize
 import Batchd.Daemon.Types
 import Batchd.Core.Daemon.Hosts
@@ -38,30 +42,41 @@ supportedDrivers :: [HostDriver]
 supportedDrivers =
   [
 #ifdef LIBVIRT
-   initLibVirt,
+   libVirtDriver,
 #endif
 #ifdef DOCKER
-   initDocker,
+   dockerDriver,
 #endif
 #ifdef AWSEC2
-   initAwsEc2,
+   awsEc2Driver,
 #endif
-   initLocal
+   localDriver
   ]
+
+selectDriver :: String -> Maybe HostDriver
+selectDriver name = go supportedDrivers
+  where
+    go [] = Nothing
+    go (driver : rest)
+      | driverName driver == name = Just driver
+      | otherwise = go rest
 
 loadHostController :: LoggingTState -> FilePath -> IO HostController
 loadHostController lts name = do
-    go (UnknownError "impossible: list of supported host controllers exhaused without errors") supportedDrivers
-  where
-    go lastError [] = throw lastError
-    go _ (driver : rest) = do
-        r <- driver lts name
-        case r of
-          Right controller -> return controller
-          Left err -> do
-            debugIO lts $(here) "Loading host controller config by name `{0}': this is not a valid config: {1}"
-                   (name, show err)
-            go err rest
+    cfgr <- loadHostControllerConfig name
+    case cfgr of
+      Left err -> throw err
+      Right value@(Object cfg) -> do
+          case H.lookup "driver" cfg of
+            Nothing -> throw $ UnknownError $ "Invalid host controller config: driver not specified"
+            Just (Aeson.String dname) -> do
+              case selectDriver (T.unpack dname) of
+                Nothing -> throw $ UnknownError $ "Invalid host controller config: unsupported driver name: " ++ T.unpack dname
+                Just driver -> do
+                  case initController driver lts value of
+                    Right controller -> return controller
+                    Left err -> throw err
+      Right _ -> throw $ UnknownError "Invalid host controller config: it must be a dictionary"
 
 getMaxJobs :: Host -> JobType -> Maybe Int
 getMaxJobs host jtype =

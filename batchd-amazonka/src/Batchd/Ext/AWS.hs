@@ -5,7 +5,7 @@
 module Batchd.Ext.AWS
   (
     AwsEc2Settings (..),
-    initAwsEc2
+    awsEc2Driver
   ) where
 
 import Control.Applicative
@@ -61,14 +61,14 @@ instance FromJSON Credentials where
 describe instanceId =
   describeInstances & (diiInstanceIds .~ [instanceId])
 
--- | Initialize AWS EC2 host controller
-initAwsEc2 :: HostDriver
-initAwsEc2 = controllerFromConfig mkAwsEc2
+-- | AWS EC2 host controller
+awsEc2Driver :: HostDriver
+awsEc2Driver = controllerFromConfig "awsec2" mkAwsEc2
 
 mkAwsEc2 :: AwsEc2Settings -> LoggingTState -> HostController
 mkAwsEc2 aws lts = HostController {
 
-  driverName = "awsec2",
+  controllerDriverName = driverName awsEc2Driver,
 
   doesSupportStartStop = awsEnableStartStop aws,
 

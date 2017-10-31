@@ -9,7 +9,7 @@
 module Batchd.Ext.LibVirt
   (
     LibVirtSettings (..),
-    initLibVirt
+    libVirtDriver
   ) where
 
 import Control.Monad (when)
@@ -40,13 +40,13 @@ instance FromJSON LibVirtSettings where
     return $ LibVirtSettings enable conn
 
 -- | Initialize LibVirt host controller
-initLibVirt :: HostDriver
-initLibVirt = controllerFromConfig mkLibVirt
+libVirtDriver :: HostDriver
+libVirtDriver = controllerFromConfig "libvirt" mkLibVirt
 
 mkLibVirt :: LibVirtSettings -> LoggingTState -> HostController
 mkLibVirt l lts = HostController {
 
-  driverName = "libvirt",
+  controllerDriverName = driverName libVirtDriver,
 
   doesSupportStartStop = lvEnableStartStop l,
 
