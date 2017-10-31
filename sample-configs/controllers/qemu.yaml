@@ -1,0 +1,3 @@
+# LibVirt host controller for QEMU virtual machines
+driver: libvirt
+connection_string: qemu:///system

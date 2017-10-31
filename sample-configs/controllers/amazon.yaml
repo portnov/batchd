@@ -1,0 +1,11 @@
+# AWS EC2 host controller
+driver: awsec2
+enable_start_stop: true
+credentials:
+  path: /home/user/.aws/credentials
+  profile: batchd
+  # Or you can directly specify keys:
+  #access_key: access_key = AXXXXXXXXXXX
+  #secret_key = XXXXXXXXXXXXXXXXXXXXXXXXXXX
+region: Virginia
+

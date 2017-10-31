@@ -1,0 +1,7 @@
+# Docker host controller
+driver: docker
+enable_start_stop: true
+# This is required for default docker installation on local host
+unix_socket: /var/run/docker.sock
+# Or you can specify docker API URL:
+#base_url: http://127.0.0.1:2375

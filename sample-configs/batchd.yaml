@@ -8,6 +8,23 @@ connection_string: "host=localhost port=5432 user=batchd password=batchd"
 
 # Logging settings
 logging:
+  # Log message format
+  # Available variables are:
+  # * level
+  # * source
+  # * location
+  # * line
+  # * file
+  # * package
+  # * time
+  # * message
+  # * fullcontext
+  # * thread
+  # * user
+  # * job
+  # * worker
+  #format: "{time} [{level}] {source}: {message}"
+  
   # default logging level
   # possible values: debug info warning error
   level: info
@@ -15,8 +32,9 @@ logging:
   # More precise filter.
   # You can specify logging level for each program module
   #filter:
-  #  Daemon.Dispatcher: debug
+  #  Batchd.Daemon.Dispatcher: debug
   #  SQL: debug
+  #  Amazon: debug
 
 # Number of concurrent workers
 # workers: 1
