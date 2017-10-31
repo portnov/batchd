@@ -123,7 +123,7 @@ instance HasLogger (ReaderT Sql.SqlBackend (LoggingT (ExceptT Error (ResourceT I
       ReaderT $ \backend -> localLogger logger $ runReaderT actions backend
 
 instance F.VarContainer Request where
-  lookupVar "method" rq = Just $ F.Variable $ show $ httpVersion rq
+  lookupVar "method" rq = Just $ F.Variable $ show $ requestMethod rq
   lookupVar "path" rq = Just $ F.Variable $ rawPathInfo rq
   lookupVar "secure" rq = Just $ F.Variable $ isSecure rq
   lookupVar "referer" rq = Just $ F.Variable $ requestHeaderReferer rq
