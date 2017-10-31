@@ -53,11 +53,11 @@ The batchd suite consists of the following components:
 * Batchd dispatcher. It is a daemon process which takes jobs from queues,
   decides whether it is possible to run them now and runs them. The dispatcher
   can execute jobs on the localhost or it can connect to other machines via SSH
-  and execute jobs there. Jobs can be executed in one or more threads. Several
-  threads are useful when you have several machines to run your jobs on or your
-  jobs consume only part of computational power of one machine.
-  Batchd manager and batchd dispatcher can be run on the same machine in one OS
-  threads for simple use cases.
+  and execute jobs there. Jobs can be executed in one or more threads
+  (worders). Several threads are useful when you have several machines to run
+  your jobs on or your jobs consume only part of computational power of one
+  machine.  Batchd manager and batchd dispatcher can be run on the same machine
+  in one OS thread for simple use cases.
 * Database. This can be Sqlite database or other SQL database server. For now,
   PostgreSQL is supported. In the simplest case, it is possible to use Sqlite
   in-memory database, so for simple use cases you do not have to install any
@@ -74,7 +74,8 @@ See also REST API description in the REST.API file.
 Access control
 --------------
 batchd uses relatively simple access control model, based on users and permissions.
-Each user can have one of predefined permissions. Permissions can be assigned with relation to:
+Each user can have one of predefined permissions. Permissions can be assigned
+with relation to:
 
   * Specific queue or any queue
   * Specific job type or any type (only for creating jobs)
@@ -152,6 +153,7 @@ The job type describes how to execute jobs of specific kind:
 * Shell command to be run. ${}-syntax can be used for parameters substitution.
 * Types of job parameters. The following types are supported for now:
   * String - just a string.
+  * Int - an integer number.
   * InputFile - the parameter represents a path to file which should be used as
     input. If the job is run on the remote host, then before command execution
     all files specified in InputFile-parameters are copied from the host where
@@ -190,4 +192,6 @@ Installation
     $ sudo apt-get install stack
     $ cd batchd/
     $ stack install --flag batchd:docker --flag batchd:libvirt --flag batchd:ec2
+    $ batchd-admin upgrade-db
+    $ batchd-admin create-superuser
 
