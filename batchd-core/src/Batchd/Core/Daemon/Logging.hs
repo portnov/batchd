@@ -19,7 +19,6 @@ import Control.Monad.Trans (MonadIO)
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Format.Heavy as F
 import Language.Haskell.TH hiding (reportError)
-import Language.Haskell.TH.Lift
 import System.Log.Heavy
 import System.Log.Heavy.Types
 import System.Log.Heavy.Level

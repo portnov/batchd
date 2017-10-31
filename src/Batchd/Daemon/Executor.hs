@@ -21,7 +21,6 @@ import Batchd.Core.Common.Config
 import Batchd.Core.Daemon.Logging
 import Batchd.Common.Types
 import Batchd.Common.Data
-import Batchd.Common.Config
 import Batchd.Daemon.Types
 import Batchd.Core.Daemon.Hosts
 import Batchd.Daemon.SSH

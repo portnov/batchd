@@ -17,9 +17,7 @@ import System.Exit
 import Data.Text.Format.Heavy
 import System.Log.Heavy
 
-import Batchd.Core.Common.Types
 import Batchd.Daemon.Types
-import Batchd.Core.Common.Config
 import Batchd.Common.Types
 import Batchd.Common.Data
 import Batchd.Common.Config as Config

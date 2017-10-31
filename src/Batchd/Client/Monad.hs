@@ -13,7 +13,6 @@ import Network.HTTP.Client
 import System.Log.Heavy
 import qualified System.Log.FastLogger as FL
 
-import Batchd.Core.Common.Types
 import Batchd.Core.Common.Localize
 import Batchd.Common.Types
 import Batchd.Client.Config

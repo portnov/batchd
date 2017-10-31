@@ -48,14 +48,12 @@ import Database.Persist
 import Database.Persist.TH
 import qualified Data.Map as M
 import qualified Data.HashMap.Strict as H
-import qualified Data.ByteString as B
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import Data.Aeson as Aeson
 import Data.Aeson.Types
 import qualified Data.Text.Format.Heavy as F
 import qualified Data.Text.Format.Heavy.Parse.Braces as PF
-import Data.Yaml (ParseException (..))
 import Data.Dates
 import qualified System.Posix.Syslog as Syslog
 import System.Log.Heavy

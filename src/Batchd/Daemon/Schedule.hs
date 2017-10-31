@@ -8,7 +8,6 @@ import Database.Persist
 
 import Batchd.Core.Common.Types
 import Batchd.Daemon.Types
-import Batchd.Common.Types
 import Batchd.Common.Data
 import Batchd.Common.Schedule
 

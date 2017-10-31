@@ -22,12 +22,10 @@ import Data.Aeson
 import System.FilePath
 import Text.Printf
 
-import Batchd.Core.Common.Types
 import Batchd.Core.Common.Localize
 import qualified Batchd.Common.Data as Database
 import Batchd.Common.Types
 import Batchd.Common.Schedule
-import Batchd.Core.Common.Config
 import Batchd.Common.Config
 import Batchd.Client.CmdLine
 import Batchd.Client.Config

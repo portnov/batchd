@@ -4,15 +4,12 @@
 module Batchd.Core.Common.Config where
 
 import Control.Monad
-import Control.Exception
 import Data.Yaml
 import System.FilePath
 import System.Environment
 import System.Directory
-import System.IO
 
 import Batchd.Core.Common.Types
-import Batchd.Core.Common.Localize
 
 -- | Get list of directories in which to look up for configs
 -- of certain type. Example:
