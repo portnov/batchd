@@ -54,7 +54,7 @@ The batchd suite consists of the following components:
   decides whether it is possible to run them now and runs them. The dispatcher
   can execute jobs on the localhost or it can connect to other machines via SSH
   and execute jobs there. Jobs can be executed in one or more threads
-  (worders). Several threads are useful when you have several machines to run
+  (workers). Several threads are useful when you have several machines to run
   your jobs on or your jobs consume only part of computational power of one
   machine.  Batchd manager and batchd dispatcher can be run on the same machine
   in one OS thread for simple use cases.

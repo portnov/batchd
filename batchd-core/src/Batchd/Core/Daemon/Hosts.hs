@@ -101,7 +101,7 @@ data HostDriver = HostDriver {
     -- This actually `plugs' knowledge of configuration into
     -- instance of @HostController@.
   , initController :: LoggingTState
-                   -> Value -- ^ Configuration file contents
+                   -> Value --  Configuration file contents
                    -> Either Error HostController
   }
 
