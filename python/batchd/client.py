@@ -3,7 +3,12 @@ import os
 from os.path import isfile, join, dirname
 import requests
 import json
-import yaml
+
+try:
+    import yaml
+    YAML_AVAILABLE=True
+except ImportError:
+    YAML_AVAILABLE=False
 
 class InsufficientRightsException(Exception):
     pass
@@ -31,6 +36,8 @@ class Client(object):
 
     @classmethod
     def load_config(cls):
+        if not YAML_AVAILABLE:
+            raise RuntimeError("YAML python module is not available, can't load batchd client config from file")
         home = os.environ['HOME']
         homecfg = join(home, ".config", "batchd", "client.yaml")
         cfgfile = None
@@ -120,7 +127,7 @@ class Client(object):
     def delete_job(self, jobid):
         rs = requests.delete(self.manager_url + "/job/" + str(jobid), auth=self.credentials, verify=self.verify, cert=self.client_certificate)
         self._handle_status(rs)
-        print rs
+        print(rs)
 
     def get_schedules(self):
         rs = requests.get(self.manager_url + "/schedule", auth=self.credentials, verify=self.verify, cert=self.client_certificate)
