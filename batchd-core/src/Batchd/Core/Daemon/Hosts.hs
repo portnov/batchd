@@ -4,14 +4,29 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE TemplateHaskell #-}
 -- | This module contains generic definitions about remote hosts.
-module Batchd.Core.Daemon.Hosts where
+module Batchd.Core.Daemon.Hosts
+  ( -- * Host-related data types
+    HostStatus (..),
+    HostState (..),
+    HostName,
+    HostsPool,
+    -- * Host controllers
+    -- $drivers
+    HostController (..),
+    HostDriver,
+    controllerFromConfig,
+    -- * Local hosts driver
+    initLocal
+  ) where
 
 import Control.Concurrent
 import qualified Data.Map as M
 import Data.Time
+import Data.Aeson
 import System.Log.Heavy
 
 import Batchd.Core.Common.Types
+import Batchd.Core.Common.Config
 
 -- | Host status
 data HostStatus =
@@ -34,68 +49,74 @@ data HostState = HostState {
 type HostName = String
 
 -- | Pool of used hosts and their states.
-type HostCounters = MVar (M.Map HostName (MVar HostState))
+type HostsPool = MVar (M.Map HostName (MVar HostState))
 
--- | Type class of host controllers.
-class Show c => HostController c where
-  -- | Proxy data type, which is used to select controller implementation.
-  -- Usually should have one trivial constructor.
-  data Selector c
+-- $drivers
+--
+-- Host driver is a programmatic component (technically, a function which
+-- constructs an instance of @HostController@ data type from controller
+-- settings), which contains an implementation of host-controlling functions.
+-- I.e., this component knows how to start and stop hosts of certain type.
+--
+-- Host controller is a configuration object, which refers to host driver which should
+-- be actuall driving the hosts. Moreover, the host controller contains specific settings
+-- used by the driver. There can exist many host controllers, using the same driver, but
+-- with different settings.
+--
 
-  -- | Get name of the controller
-  controllerName :: Selector c -> String
+-- | ADT for host host controlling drivers.
+data HostController = HostController {
+    -- | Get name of the driver
+    driverName :: String,
 
-  -- | Try initialize controller from specified config file.
-  -- Should return Left if config file is not valid for this controller.
-  tryInitController :: Selector c
-                    -> LoggingTState
-                    -> FilePath            -- ^ Name of config file without extension (@"docker"@)
-                    -> IO (Either Error c)
+    -- | Does this controller support starting and stopping hosts?
+    doesSupportStartStop :: Bool,
 
-  -- | Does this controller support starting and stopping hosts?
-  doesSupportStartStop :: c -> Bool
+    -- | Try to obtain actual network hostname for the host.
+    -- May be useful if VMs can change their IPs at each startup.
+    getActualHostName :: HostName -> IO (Maybe HostName),
 
-  -- | Try to obtain actual network hostname for the host.
-  -- May be useful if VMs can change their IPs at each startup.
-  -- Default implementation always returns Nothing.
-  getActualHostName :: c -> HostName -> IO (Maybe HostName)
-  getActualHostName _ _ = return Nothing
+    -- | Start the host. Should not return error if the 
+    -- host is already started.
+    startHost :: HostName -> IO (Either Error ()),
 
-  -- | Start the host. Should not return error if the 
-  -- host is already started.
-  startHost :: c -> HostName -> IO (Either Error ())
+    -- | Shutdown the host. Should wait until the host is
+    -- actually shut down.
+    stopHost :: HostName -> IO (Either Error ())
+  }
 
-  -- | Shutdown the host. Should wait until the host is
-  -- actually shut down.
-  stopHost :: c -> HostName -> IO (Either Error ())
+instance Show HostController where
+  show c = driverName c
 
--- | Container data type for any host controller
-data AnyHostController = forall c. HostController c => AnyHostController c
+-- | A type of functions which initialize host controllers from configuration file.
+-- The second argument is name of config file without extension (e.g., @"docker"@).
+type HostDriver = LoggingTState -> FilePath -> IO (Either Error HostController)
 
-instance Show AnyHostController where
-  show (AnyHostController c) = show c
+-- | Utility function to construct host controller from configuration file.
+controllerFromConfig :: FromJSON settings
+               => (settings -> LoggingTState -> HostController)
+               -> HostDriver
+controllerFromConfig maker lts name = do
+    r <- loadHostControllerConfig name
+    case r of
+      Left err -> return $ Left err
+      Right settings -> return $ Right $ maker settings lts
 
--- | Container data type for any host controller selector
-data AnyHostControllerSelector = forall c. HostController c => AnyHostControllerSelector (Selector c)
+-- | Initialize local hosts driver
+initLocal :: HostDriver
+initLocal _ "local" = return $ Right local
+initLocal _ _ = return $ Left $ UnknownError "Invalid name for local host controller"
 
-instance Show AnyHostControllerSelector where
-  show (AnyHostControllerSelector s) = controllerName s
+-- | Local hosts driver
+local :: HostController
+local = HostController {
+    doesSupportStartStop = False,
 
--- | Local hosts controller
-data Local = Local
+    getActualHostName = \_ -> return Nothing,
 
-instance Show Local where
-  show Local = "<local host controller>"
+    driverName = "local",
 
-instance HostController Local where
-  data Selector Local = LocalSelector
-  doesSupportStartStop _ = False
-
-  controllerName LocalSelector = "local"
-
-  tryInitController _ _ "local" = return $ Right Local
-  tryInitController _ _ name = return $ Left $ UnknownError "Invalid name for local host controller"
-
-  startHost _ _ = return $ Right ()
-  stopHost _ _ = return $ Right ()
+    startHost = \_ -> return $ Right (),
+    stopHost = \_ -> return $ Right ()
+  }
 

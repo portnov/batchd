@@ -8,8 +8,8 @@
 -- which controls VMs supported by LibVirt.
 module Batchd.Ext.LibVirt
   (
-    LibVirt (..),
-    Selector (..)
+    LibVirtSettings (..),
+    initLibVirt
   ) where
 
 import Control.Monad (when)
@@ -23,40 +23,36 @@ import System.Log.Heavy
 import Batchd.Core
 import System.LibVirt as V
 
--- | LibVirt host controller
-data LibVirt = LibVirt {
+-- | Settings of LibVirt host controller
+data LibVirtSettings = LibVirtSettings {
     lvEnableStartStop :: Bool      -- ^ Automatic start\/stop of VMs can be disabled in config file.
   , lvConnectionString :: String   -- ^ Libvirt connection string. Default is @"qemu:///system"@.
-  , lvLogging :: LoggingTState
   }
+  deriving (Show)
 
-instance FromJSON LibVirt where
+instance FromJSON LibVirtSettings where
   parseJSON (Object v) = do
     driver <- v .: "driver"
     when (driver /= ("libvirt" :: T.Text)) $
       fail $ "incorrect driver specification"
     enable <- v .:? "enable_start_stop" .!= True
     conn <- v .:? "connection_string" .!= "qemu:///system"
-    return $ LibVirt enable conn undefined
+    return $ LibVirtSettings enable conn
 
-instance Show LibVirt where
-   show _ = "<LibVirt host controller>"
+-- | Initialize LibVirt host controller
+initLibVirt :: HostDriver
+initLibVirt = controllerFromConfig mkLibVirt
 
-instance HostController LibVirt where
-  data Selector LibVirt = LibVirtSelector
+mkLibVirt :: LibVirtSettings -> LoggingTState -> HostController
+mkLibVirt l lts = HostController {
 
-  controllerName LibVirtSelector = "libvirt"
+  driverName = "libvirt",
 
-  doesSupportStartStop l = lvEnableStartStop l
+  doesSupportStartStop = lvEnableStartStop l,
 
-  tryInitController LibVirtSelector lts name = do
-    r <- loadHostControllerConfig name
-    case r of
-      Left err -> return $ Left err
-      Right lib -> return $ Right $ lib {lvLogging = lts}
+  getActualHostName = \_ -> return Nothing,
 
-  startHost l name = do
-    let lts = lvLogging l
+  startHost = \name -> do
     withConnection (lvConnectionString l) $ \conn -> do
         infoIO lts $(here) "Connection to libvirt URI {} succeeded" (Single $ lvConnectionString l)
         mbdom <- do
@@ -77,10 +73,9 @@ instance HostController LibVirt where
                        createDomain dom
                        return $ Right ()
               st -> return $ Left $ UnknownError $ "Don't know what to do with virtual domain " ++ name ++ " in state " ++ show st
-          Nothing -> return $ Left $ UnknownError $ "Domain is not defined in hypervisor: " ++ name
+          Nothing -> return $ Left $ UnknownError $ "Domain is not defined in hypervisor: " ++ name ,
 
-  stopHost l name = do
-    let lts = lvLogging l
+  stopHost = \name -> do
     withConnection (lvConnectionString l) $ \conn -> do
         infoIO lts $(here) "Connection to libvirt URI {} succeeded" (Single $ lvConnectionString l)
         mbdom <- do
@@ -95,4 +90,5 @@ instance HostController LibVirt where
           Just dom -> do
             shutdownDomain dom
             return $ Right ()
+  }
 

@@ -4,8 +4,8 @@
 -- which controls AWS EC2 instances.
 module Batchd.Ext.AWS
   (
-    AWSEC2 (..),
-    Selector (..)
+    AwsEc2Settings (..),
+    initAwsEc2
   ) where
 
 import Control.Applicative
@@ -26,16 +26,15 @@ import System.Log.Heavy.AWS
 
 import Batchd.Core
 
--- | AWS EC2 host controller
-data AWSEC2 = AWSEC2 {
+-- | Settings of AWS EC2 host controller
+data AwsEc2Settings = AwsEc2Settings {
     awsEnableStartStop :: Bool     -- ^ Automatic start\/stop can be disabled in config file
   , awsCredentials :: Credentials  -- ^ AWS credentials. We can parse either @"path" / "profile"@
                                    --   or @"access_key" / "secret_key"@ pair from config file
   , awsRegion :: Region
-  , awsLogging :: LoggingTState
   }
 
-instance FromJSON AWSEC2 where
+instance FromJSON AwsEc2Settings where
   parseJSON (Object v) = do
     driver <- v .: "driver"
     when (driver /= ("awsec2" :: T.Text)) $
@@ -43,7 +42,7 @@ instance FromJSON AWSEC2 where
     enable <- v .:? "enable_start_stop" .!= True
     creds <- v .:? "credentials" .!= Discover
     region <- read <$> v .: "region"
-    return $ AWSEC2 enable creds region undefined
+    return $ AwsEc2Settings enable creds region
 
 instance FromJSON Credentials where
   parseJSON (Aeson.String "discover") = return Discover
@@ -62,24 +61,19 @@ instance FromJSON Credentials where
 describe instanceId =
   describeInstances & (diiInstanceIds .~ [instanceId])
 
-instance Show AWSEC2 where
-  show _ = "<AWS EC2 host controller>"
+-- | Initialize AWS EC2 host controller
+initAwsEc2 :: HostDriver
+initAwsEc2 = controllerFromConfig mkAwsEc2
 
-instance HostController AWSEC2 where
-  data Selector AWSEC2 = AWSEC2Selector
+mkAwsEc2 :: AwsEc2Settings -> LoggingTState -> HostController
+mkAwsEc2 aws lts = HostController {
 
-  controllerName AWSEC2Selector = "awsec2"
+  driverName = "awsec2",
 
-  doesSupportStartStop aws = awsEnableStartStop aws
+  doesSupportStartStop = awsEnableStartStop aws,
 
-  tryInitController AWSEC2Selector lts name = do
-    r <- loadHostControllerConfig name
-    case r of
-      Left err -> return $ Left err
-      Right aws -> return $ Right $ aws {awsLogging = lts}
-
-  getActualHostName aws name = do
-      env <- newEnv (awsCredentials aws) <&> set envLogger (toAwsLogger $ ltsLogger $ awsLogging aws)
+  getActualHostName = \name -> do
+      env <- newEnv (awsCredentials aws) <&> set envLogger (toAwsLogger $ ltsLogger lts)
       let instanceId = T.pack name
       runResourceT . runAWST env . within (awsRegion aws) $ do
           r <- trying _Error $ send $ describe instanceId
@@ -89,10 +83,10 @@ instance HostController AWSEC2 where
                 case mbNames of
                   (Just dnsName : _) -> return $ Just $ T.unpack dnsName
                   _ -> return Nothing
-            Left err -> return Nothing
+            Left err -> return Nothing,
 
-  startHost aws name = do
-      env <- newEnv (awsCredentials aws) <&> set envLogger (toAwsLogger $ ltsLogger $ awsLogging aws)
+  startHost = \name -> do
+      env <- newEnv (awsCredentials aws) <&> set envLogger (toAwsLogger $ ltsLogger lts)
       let instanceId = T.pack name
 
       rs <- runResourceT . runAWST env . within (awsRegion aws) $ do
@@ -108,10 +102,10 @@ instance HostController AWSEC2 where
         Right accept -> do
           if accept /= AcceptSuccess
             then return $ Left $ UnknownError $ "Cannot start instance: " ++ show accept
-            else return $ Right ()
+            else return $ Right (),
 
-  stopHost aws name = do
-      env <- newEnv (awsCredentials aws) <&> set envLogger (toAwsLogger $ ltsLogger $ awsLogging aws)
+  stopHost = \name -> do
+      env <- newEnv (awsCredentials aws) <&> set envLogger (toAwsLogger $ ltsLogger lts)
       let instanceId = T.pack name
       rs <- runResourceT . runAWST env . within (awsRegion aws) $ do
                 r <- trying _Error $ send $ stopInstances & (siInstanceIds .~ [instanceId])
@@ -127,4 +121,5 @@ instance HostController AWSEC2 where
           if accept /= AcceptSuccess
             then return $ Left $ UnknownError $ "Cannot stop instance: " ++ show accept
             else return $ Right ()
+  }
 

@@ -5,8 +5,8 @@
 -- | This module contains an implementation of batchd host controllers,
 -- which controls docker containers.
 module Batchd.Ext.Docker
-  (Docker (..),
-   Selector (..),
+  (DockerSettings (..),
+   initDocker,
    defaultDockerUrl
   ) where
 
@@ -24,15 +24,15 @@ import Docker.Client
 deriving instance Typeable DockerError
 instance Exception DockerError
 
--- | Docker host controller
-data Docker = Docker {
+-- | Settings of Docker host controller
+data DockerSettings = DockerSettings {
     dEnableStartStop :: Bool       -- ^ Automatic start\/stop of containers can be disabled in config file
   , dUnixSocket :: Maybe FilePath  -- ^ This should be usually specified for default docker installation on local host
-  , dBaseUrl :: URL
+  , dBaseUrl :: URL                -- ^ Docker API URL
   }
   deriving (Show)
 
-instance FromJSON Docker where
+instance FromJSON DockerSettings where
   parseJSON (Object v) = do
     driver <- v .: "driver"
     when (driver /= ("docker" :: T.Text)) $
@@ -40,46 +40,45 @@ instance FromJSON Docker where
     enable <- v .:? "enable_start_stop" .!= True
     socket <- v .:? "unix_socket"
     url <- v .:? "base_url" .!= defaultDockerUrl
-    return $ Docker enable socket url
+    return $ DockerSettings enable socket url
 
 -- | Default Docker API URL.
 defaultDockerUrl :: URL
 defaultDockerUrl = baseUrl defaultClientOpts
 
-getHttpHandler :: (MonadIO m, MonadMask m) => Docker -> m (HttpHandler m)
+getHttpHandler :: (MonadIO m, MonadMask m) => DockerSettings -> m (HttpHandler m)
 getHttpHandler d = do
   case dUnixSocket d of
     Nothing -> defaultHttpHandler
     Just path -> unixHttpHandler path
 
--- instance Show Docker where
---   show _ = "<Docker host controller>"
+-- | Initialize Docker host controller
+initDocker :: HostDriver
+initDocker =
+  controllerFromConfig $ \d lts -> HostController {
 
-instance HostController Docker where
-  data Selector Docker = DockerSelector
+    driverName = "docker",
 
-  controllerName DockerSelector = "docker"
+    getActualHostName = \_ -> return Nothing,
 
-  doesSupportStartStop d = dEnableStartStop d
+    doesSupportStartStop = dEnableStartStop d,
 
-  tryInitController DockerSelector _ name = do
-    loadHostControllerConfig name
+    startHost = \name -> do
+      handler <- getHttpHandler d
+      let opts = defaultClientOpts {baseUrl = dBaseUrl d}
+      r <- runDockerT (opts, handler) $ do
+             startContainer defaultStartOpts $ fromJust $ toContainerID (T.pack name)
+      case r of
+        Right _ -> return $ Right ()
+        Left err -> return $ Left $ UnknownError $ show err,
 
-  startHost d name = do
-    handler <- getHttpHandler d
-    let opts = defaultClientOpts {baseUrl = dBaseUrl d}
-    r <- runDockerT (opts, handler) $ do
-           startContainer defaultStartOpts $ fromJust $ toContainerID (T.pack name)
-    case r of
-      Right _ -> return $ Right ()
-      Left err -> return $ Left $ UnknownError $ show err
-
-  stopHost d name = do
-    handler <- getHttpHandler d
-    let opts = defaultClientOpts {baseUrl = dBaseUrl d}
-    r <- runDockerT (opts, handler) $ do
-           stopContainer DefaultTimeout $ fromJust $ toContainerID (T.pack name)
-    case r of
-      Right _ -> return $ Right ()
-      Left err -> return $ Left $ UnknownError $ show err
+    stopHost = \name -> do
+      handler <- getHttpHandler d
+      let opts = defaultClientOpts {baseUrl = dBaseUrl d}
+      r <- runDockerT (opts, handler) $ do
+             stopContainer DefaultTimeout $ fromJust $ toContainerID (T.pack name)
+      case r of
+        Right _ -> return $ Right ()
+        Left err -> return $ Left $ UnknownError $ show err
+  }
 
