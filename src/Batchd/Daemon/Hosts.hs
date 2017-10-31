@@ -34,33 +34,33 @@ import Batchd.Ext.Docker
 import Batchd.Ext.AWS
 #endif
 
-supportedControllers :: [AnyHostControllerSelector]
-supportedControllers =
+supportedDrivers :: [HostDriver]
+supportedDrivers =
   [
 #ifdef LIBVIRT
-   AnyHostControllerSelector LibVirtSelector,
+   initLibVirt,
 #endif
 #ifdef DOCKER
-   AnyHostControllerSelector DockerSelector,
+   initDocker,
 #endif
 #ifdef AWSEC2
-   AnyHostControllerSelector AWSEC2Selector,
+   initAwsEc2,
 #endif
-   AnyHostControllerSelector LocalSelector
+   initLocal
   ]
 
-loadHostController :: LoggingTState -> FilePath -> IO AnyHostController
+loadHostController :: LoggingTState -> FilePath -> IO HostController
 loadHostController lts name = do
-    go (UnknownError "impossible: list of supported host controllers exhaused without errors") supportedControllers
+    go (UnknownError "impossible: list of supported host controllers exhaused without errors") supportedDrivers
   where
     go lastError [] = throw lastError
-    go _ (AnyHostControllerSelector selector : rest) = do
-        r <- tryInitController selector lts name
+    go _ (driver : rest) = do
+        r <- driver lts name
         case r of
-          Right controller -> return $ AnyHostController controller
+          Right controller -> return controller
           Left err -> do
-            debugIO lts $(here) "Loading host controller config by name `{0}': this is not a valid config for `{1}': {2}"
-                   (name, controllerName selector, show err)
+            debugIO lts $(here) "Loading host controller config by name `{0}': this is not a valid config: {1}"
+                   (name, show err)
             go err rest
 
 getMaxJobs :: Host -> JobType -> Maybe Int
@@ -118,41 +118,37 @@ setHostStatus mvar status =
 
 ensureHostStarted :: LoggingTState -> Host -> IO ()
 ensureHostStarted lts host = do
-    c <- loadHostController lts (hController host)
-    debugIO lts $(here) "Host `{}' is controlled by `{}'" (hName host, show c)
-    start c (hName host)
-  where
-    start (AnyHostController controller) name = do
-      if doesSupportStartStop controller
-        then do
-          debugIO lts $(here) "Starting host `{}'" (Single name)
-          r <- startHost controller (hControllerId host)
-          case r of
-            Right _ -> do
-                debugIO lts $(here) "Waiting for host `{}' to initialize for {} seconds..." 
-                                    (name, hStartupTime host)
-                threadDelay $ 1000 * 1000 * hStartupTime host
-            Left err -> do
-                throw err
-        else debugIO lts $(here) "Controller does not support starting hosts" ()
+    controller <- loadHostController lts (hController host)
+    debugIO lts $(here) "Host `{}' is controlled by `{}'" (hName host, show controller)
+    let name = hName host
+    if doesSupportStartStop controller
+      then do
+        debugIO lts $(here) "Starting host `{}'" (Single name)
+        r <- startHost controller (hControllerId host)
+        case r of
+          Right _ -> do
+              debugIO lts $(here) "Waiting for host `{}' to initialize for {} seconds..." 
+                                  (name, hStartupTime host)
+              threadDelay $ 1000 * 1000 * hStartupTime host
+          Left err -> do
+              throw err
+      else debugIO lts $(here) "Controller does not support starting hosts" ()
 
 ensureHostStopped :: LoggingTState -> Host -> IO ()
 ensureHostStopped lts host = do
-    c <- loadHostController lts (hController host)
-    debugIO lts $(here) "Host `{}' is controlled by `{}'" (hName host, show c)
-    stop c (hName host)
-  where
-    stop (AnyHostController controller) name = do
-      if doesSupportStartStop controller
-        then do
-          debugIO lts $(here) "Stopping host `{}'" (Single name)
-          r <- stopHost controller (hControllerId host)
-          case r of
-            Right _ -> return ()
-            Left err -> throw err
-        else debugIO lts $(here) "Controller does not support stopping hosts" ()
+    controller <- loadHostController lts (hController host)
+    debugIO lts $(here) "Host `{}' is controlled by `{}'" (hName host, show controller)
+    let name = hName host
+    if doesSupportStartStop controller
+      then do
+        debugIO lts $(here) "Stopping host `{}'" (Single name)
+        r <- stopHost controller (hControllerId host)
+        case r of
+          Right _ -> return ()
+          Left err -> throw err
+      else debugIO lts $(here) "Controller does not support stopping hosts" ()
 
-acquireHost :: LoggingTState -> HostCounters -> Host -> JobType -> IO ()
+acquireHost :: LoggingTState -> HostsPool -> Host -> JobType -> IO ()
 acquireHost lts mvar host jtype = do
     check (hName host)
     return ()
@@ -172,7 +168,7 @@ acquireHost lts mvar host jtype = do
           ensureHostStarted lts host
         increaseJobCount lts st $ getMaxJobs host jtype
 
-releaseHost :: LoggingTState -> HostCounters -> Host -> IO ()
+releaseHost :: LoggingTState -> HostsPool -> Host -> IO ()
 releaseHost lts mvar host = do
   let name = hName host
   counter <- withMVar mvar $ \m -> do
@@ -183,7 +179,7 @@ releaseHost lts mvar host = do
     decreaseJobCount lts st
   return ()
 
-withHost :: HostCounters -> Host -> JobType -> Daemon a -> Daemon (Either SomeException a)
+withHost :: HostsPool -> Host -> JobType -> Daemon a -> Daemon (Either SomeException a)
 withHost mvar host jtype actions = withLogVariable "host" (hName host) $ do
   cfg <- askConfig
   pool <- askPool
@@ -192,7 +188,7 @@ withHost mvar host jtype actions = withLogVariable "host" (hName host) $ do
   let connInfo = ConnectionInfo cfg (Just pool) (Just translations)
   liftIO $ try $ bracket_ (acquireHost lts mvar host jtype) (releaseHost lts mvar host) $ runDaemonIO connInfo lts actions
 
-hostCleaner :: LoggingTState -> HostCounters -> IO ()
+hostCleaner :: LoggingTState -> HostsPool -> IO ()
 hostCleaner lts mvar = forever $ do
   threadDelay $ 60 * 1000 * 1000
   hosts <- readMVar mvar

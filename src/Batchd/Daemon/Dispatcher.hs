@@ -116,7 +116,7 @@ withJobContext job =
             ("user", Variable (jiUserName job))]
 
 -- | Worker loop executes jobs themeselves
-worker :: Int -> HostCounters -> Chan (Queue, JobInfo) -> Chan (JobInfo, JobResult, OnFailAction) -> Daemon ()
+worker :: Int -> HostsPool -> Chan (Queue, JobInfo) -> Chan (JobInfo, JobResult, OnFailAction) -> Daemon ()
 worker idx hosts jobsChan resChan = forever $ withLogVariable "worker" idx $ do
   (queue, job) <- liftIO $ readChan jobsChan
   withJobContext job $ do

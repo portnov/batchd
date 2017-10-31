@@ -46,7 +46,7 @@ hostContext (Just host) jt params = M.fromList $ map update $ M.assocs params
         Just OutputFile -> (key, hOutputDirectory host </> takeFileName value)
         _ -> (key, value)
 
-executeJob :: HostCounters -> Queue -> JobType -> JobInfo -> Daemon JobResult
+executeJob :: HostsPool -> Queue -> JobType -> JobInfo -> Daemon JobResult
 executeJob counters q jt job = do
   cfg <- askConfig
   let mbHostName = getHostName q jt job

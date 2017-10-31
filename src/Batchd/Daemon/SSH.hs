@@ -40,7 +40,7 @@ getDfltPrivateKey = do
   home <- getEnv "HOME"
   return $ home </> ".ssh" </> "id_rsa"
 
-processOnHost :: HostCounters -> Host -> JobType -> JobInfo -> String -> Daemon (ExitCode, T.Text)
+processOnHost :: HostsPool -> Host -> JobType -> JobInfo -> String -> Daemon (ExitCode, T.Text)
 processOnHost counters h jtype job command = do
     cfg <- askConfig
     known_hosts <- liftIO $ getKnownHosts
@@ -58,7 +58,7 @@ processOnHost counters h jtype job command = do
     r <- withHost counters h jtype $ do
             lts <- askLoggingStateM
             controller <- liftIO $ loadHostController lts (hController h)
-            mbActualHostName <- getActualHostName_ controller (hControllerId h)
+            mbActualHostName <- liftIO $ getActualHostName controller (hControllerId h)
             hostname <- case mbActualHostName of
                           Nothing -> return original_hostname
                           Just actual -> do
@@ -84,9 +84,6 @@ processOnHost counters h jtype job command = do
         $reportError "Error while executing job at host `{}': {}" (hName h, show e)
         return (ExitFailure (-1), T.pack (show e))
       Right result -> return result
-  where
-    getActualHostName_ (AnyHostController controller) name = do
-      liftIO $ getActualHostName controller name
 
 getInputFiles :: JobType -> JobInfo -> [FilePath]
 getInputFiles jt job =
