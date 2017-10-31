@@ -9,7 +9,6 @@ import Options.Applicative
 import qualified Database.Persist.Sql as Sql
 import System.Log.Heavy
 
-import Batchd.Core.Common.Config
 import Batchd.Common.Config
 import Batchd.Common.Data (migrateAll)
 import Batchd.Daemon.Logging (getLoggingSettings)

@@ -8,9 +8,7 @@ import Options.Applicative
 import Data.Text.Format.Heavy
 import System.Log.Heavy
 
-import Batchd.Core.Common.Types
 import Batchd.Core.Common.Localize
-import Batchd.Core.Common.Config
 import qualified Batchd.Core.Daemon.Logging as Log
 import Batchd.Daemon.Types (runDaemon, forkDaemon, setupTranslations)
 import qualified Batchd.Daemon.Logging as Log

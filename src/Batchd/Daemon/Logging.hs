@@ -5,23 +5,11 @@ module Batchd.Daemon.Logging
     getLoggingSettings
   ) where
 
-import Control.Monad (when)
-import qualified Control.Monad.Trans as Trans
-import Control.Monad.Trans (MonadIO)
-import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Format.Heavy as F
-import Language.Haskell.TH hiding (reportError)
 import Language.Haskell.TH.Lift
 import System.Log.Heavy
-import System.Log.Heavy.Types
-import System.Log.Heavy.Level
-import System.Log.Heavy.Util
-import System.Log.Heavy.TH
-import System.Log.Heavy.Backends
-import Text.Localize (translate, Localized)
+import System.Log.Heavy.TH () -- import instances only
 
-import Batchd.Core.Common.Types
-import Batchd.Core.Daemon.Logging
 import Batchd.Common.Types
 
 deriveLift ''DaemonMode
