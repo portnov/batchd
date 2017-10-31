@@ -15,6 +15,7 @@ import qualified System.Log.FastLogger as FL
 
 import Batchd.Core.Common.Types
 import Batchd.Core.Common.Localize
+import Batchd.Common.Types
 import Batchd.Client.Config
 import Batchd.Client.Types
 import Batchd.Client.CmdLine

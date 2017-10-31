@@ -12,6 +12,7 @@ import Text.Parsec
 import Text.Parsec.String
 
 import Batchd.Core.Common.Types
+import Batchd.Common.Types
 import Batchd.Common.Data
 
 data Period =

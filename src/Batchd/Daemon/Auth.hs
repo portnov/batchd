@@ -20,8 +20,9 @@ import Data.Text.Format.Heavy
 import System.IO.Unsafe (unsafePerformIO)
 
 import Batchd.Core.Common.Types
+import Batchd.Common.Types
 import Batchd.Common.Data
-import Batchd.Core.Daemon.Types
+import Batchd.Daemon.Types
 import Batchd.Daemon.Crypto
 import Batchd.Daemon.Database
 import Batchd.Core.Daemon.Logging

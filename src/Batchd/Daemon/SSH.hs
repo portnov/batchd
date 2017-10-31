@@ -19,9 +19,10 @@ import System.Environment
 import System.Exit
 
 import Batchd.Core.Common.Types
-import Batchd.Core.Daemon.Types
+import Batchd.Daemon.Types
 import Batchd.Core.Daemon.Hosts
 import Batchd.Core.Daemon.Logging
+import Batchd.Common.Types
 import Batchd.Daemon.Hosts
 
 getKnownHosts :: IO FilePath

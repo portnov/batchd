@@ -16,6 +16,7 @@ import System.Environment
 import System.Posix.User (getLoginName)
 
 import Batchd.Core.Common.Config
+import Batchd.Common.Config
 import Batchd.Client.Types
 import Batchd.Client.CmdLine
 

@@ -6,6 +6,7 @@ import Data.Text.Format.Heavy
 import System.Log.Heavy
 
 import Batchd.Core.Common.Types
+import Batchd.Common.Types
 import Batchd.Client.Monad
 
 putMessage :: (VarContainer vars) => Level -> Client TL.Text -> vars -> Client ()

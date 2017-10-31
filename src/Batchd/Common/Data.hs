@@ -31,6 +31,7 @@ import Database.Persist.TH
 import System.Exit
 
 import Batchd.Core.Common.Types
+import Batchd.Common.Types
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll", mkDeleteCascade sqlSettings] [persistLowerCase|
 JobParam

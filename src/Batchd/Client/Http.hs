@@ -22,7 +22,8 @@ import Network.Connection
 
 import Batchd.Core.Common.Types
 import Batchd.Core.Common.Localize
-import Batchd.Core.Common.Config (getPassword)
+import Batchd.Common.Types
+import Batchd.Common.Config (getPassword)
 import Batchd.Client.Types as C
 import Batchd.Client.Config
 import Batchd.Client.CmdLine

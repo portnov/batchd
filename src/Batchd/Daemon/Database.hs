@@ -34,7 +34,8 @@ import Database.Esqueleto ((^.))
 import System.Log.Heavy
 
 import Batchd.Core.Common.Types
-import Batchd.Core.Daemon.Types
+import Batchd.Daemon.Types
+import Batchd.Common.Types
 import Batchd.Common.Data
 import Batchd.Common.Schedule
 import Batchd.Daemon.Schedule

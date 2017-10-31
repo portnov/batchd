@@ -18,6 +18,7 @@ import qualified Text.Parsec as Parsec
 import System.IO.Unsafe (unsafePerformIO)
 
 import Batchd.Core.Common.Types
+import Batchd.Common.Types
 import Batchd.Common.Data (MoveAction (..))
 import Batchd.Client.Types
 

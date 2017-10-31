@@ -21,7 +21,6 @@ library
                        Batchd.Core.Common.Types
                        Batchd.Core.Common.Config
                        Batchd.Core.Common.Localize
-                       Batchd.Core.Daemon.Types
                        Batchd.Core.Daemon.Hosts
                        Batchd.Core.Daemon.Logging
 

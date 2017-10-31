@@ -2,7 +2,6 @@
 module Batchd.Core
   (
    module Batchd.Core.Common.Types,
-   module Batchd.Core.Daemon.Types,
    module Batchd.Core.Daemon.Hosts,
    module Batchd.Core.Daemon.Logging,
    loadHostControllerConfig
@@ -10,7 +9,6 @@ module Batchd.Core
 
 import Batchd.Core.Common.Types
 import Batchd.Core.Common.Config (loadHostControllerConfig)
-import Batchd.Core.Daemon.Types
 import Batchd.Core.Daemon.Hosts
 import Batchd.Core.Daemon.Logging
 

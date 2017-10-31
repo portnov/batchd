@@ -19,9 +19,10 @@ import System.Log.Heavy
 
 import Batchd.Core.Common.Types
 import Batchd.Core.Common.Localize
-import Batchd.Core.Daemon.Types
+import Batchd.Daemon.Types
 import Batchd.Core.Daemon.Hosts
 import Batchd.Core.Daemon.Logging
+import Batchd.Common.Types
 
 #ifdef LIBVIRT
 import Batchd.Ext.LibVirt

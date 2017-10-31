@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable, ScopedTypeVariables, TemplateHaskell, GeneralizedNewtypeDeriving, DeriveGeneric, StandaloneDeriving, OverloadedStrings, TypeSynonymInstances, FlexibleInstances, MultiParamTypeClasses #-}
 -- | This module contains type declarations and utilities that are used only by batchd daemon.
-module Batchd.Core.Daemon.Types where
+module Batchd.Daemon.Types where
 
 import Control.Exception (catch)
 import Control.Monad.Reader
@@ -19,6 +19,7 @@ import Text.Localize
 import Text.Localize.IO
 
 import Batchd.Core.Common.Types
+import Batchd.Common.Types
 
 instance Scotty.ScottyError Error where
   stringError e = UnknownError e

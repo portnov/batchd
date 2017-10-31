@@ -14,6 +14,7 @@ import System.Console.Readline (readline, addHistory)
 import System.Environment (getProgName)
 
 import Batchd.Core.Common.Localize
+import Batchd.Common.Types
 import Batchd.Client.Types
 import Batchd.Client.Logging
 import Batchd.Client.Actions
