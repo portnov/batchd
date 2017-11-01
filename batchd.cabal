@@ -228,6 +228,7 @@ executable batch
                        fast-logger >= 2.4,
                        localize >= 0.2,
                        unix >= 2.7.0,
+                       boxes >= 0.1.4,
                        batchd-core >= 0.1.0.0
 
   ghc-options: -fwarn-unused-imports -fwarn-missing-signatures

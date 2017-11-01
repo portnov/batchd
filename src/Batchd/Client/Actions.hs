@@ -17,10 +17,11 @@ import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.IO as TLIO
 import Data.Text.Format.Heavy
 import Data.Char
-import Data.List (intercalate)
+import Data.List (intercalate, transpose)
 import Data.Aeson
 import System.FilePath
 import Text.Printf
+import Text.PrettyPrint.Boxes
 
 import Batchd.Core.Common.Localize
 import qualified Batchd.Common.Data as Database
@@ -76,6 +77,13 @@ doEnqueue = do
       let url = baseUrl </> "queue" </> qname
       doPost url job
 
+mkTable :: [[String]] -> Box
+mkTable table = hsep 1 top [vcat left (map text column) | column <- table]
+
+printTable :: Int -> [[String]] -> IO ()
+printTable indent table =
+    printBox $ emptyBox 0 indent <> mkTable table
+
 doList :: Client ()
 doList = do
   baseUrl <- getBaseUrl
@@ -85,14 +93,15 @@ doList = do
     [] -> do
       let url = baseUrl </> "queue"
       response <- doGet url
-      forM_ (response :: [Database.Queue]) $ \queue -> do
-        liftIO $ printf "[%s]\t%s:\t%s\t%s\t%s\t%s\n"
-                   ((if Database.queueEnabled queue then "*" else " ") :: String)
-                   (Database.queueName queue)
-                   (Database.queueTitle queue)
-                   (Database.queueScheduleName queue)
-                   (fromMaybe "*" $ Database.queueHostName queue)
-                   (maybe "no" show $ Database.queueAutostartJobCount queue)
+      let queuesTable = flip map (response :: [Database.Queue]) $ \queue ->
+                           [(if Database.queueEnabled queue then "[*]" else "[ ]") :: String,
+                             Database.queueName queue,
+                             Database.queueTitle queue,
+                             Database.queueScheduleName queue,
+                             fromMaybe "*" $ Database.queueHostName queue,
+                             maybe "no" show $ Database.queueAutostartJobCount queue]
+                        
+      liftIO $ printTable 0 $ transpose queuesTable
 
     qnames ->
       forM_ qnames $ \qname -> do
@@ -104,6 +113,7 @@ doList = do
                                        _ -> "?status=" ++ map toLower (show st)
         let url = baseUrl </> "queue" </> qname </> "jobs" ++ statusStr
         response <- doGet url
+
         liftIO $ forM_ (response :: [JobInfo]) $ \job -> do
                   printf "#%d: [%d]\t%s\t%s\n" (jiId job) (jiSeq job) (jiType job) (show $ jiStatus job)
                   forM_ (M.assocs $ jiParams job) $ \(name, value) -> do
@@ -118,11 +128,12 @@ doStats = do
       [] -> do
         let url = baseUrl </> "stats"
         response <- doGet url
-        liftIO $ forM_ (M.assocs response) $ \rec -> do
-                  let qname = fst rec :: String
-                      stat = snd rec :: ByStatus Int
+        liftIO $ forM_ (M.assocs response) $ \record -> do
+                  let qname = fst record :: String
+                      stats = snd record
+                      
                   liftIO $ putStrLn $ qname ++ ":"
-                  liftIO $ printStats stat
+                  liftIO $ printStats stats
       qnames -> do
         forM_ qnames $ \qname -> do
           liftIO $ putStrLn $ qname ++ ":"
@@ -131,14 +142,19 @@ doStats = do
           liftIO $ printStats response
   where
     printStats :: ByStatus Int -> IO ()
-    printStats (ByStatus stat) =
-      forM_ (M.assocs stat) $ \(st, cnt) ->
-          printf "\t%s:\t%d\n" (show st) cnt
+    printStats (ByStatus stat) = do
+      printTable 4 $ transpose $ [[show status ++ ":", show count] | (status, count) <- M.assocs stat]
 
 printField :: Formatable value => TL.Text -> IO TL.Text -> value -> IO ()
 printField sep ioName value = do
   name <- ioName
   TLIO.putStrLn $ format "{}{}:\t{}" (sep, name, value)
+
+translateTable :: [(IO TL.Text, String)] -> IO [[String]]
+translateTable pairs =
+  forM pairs $ \(ioTitle, value) -> do
+    title <- ioTitle
+    return [TL.unpack title ++ ":", value]
 
 viewJob :: Client ()
 viewJob = do
@@ -172,17 +188,20 @@ viewJob = do
     printJob :: JobInfo -> IO ()
     printJob job = do
       let host = fromMaybe "*" $ jiHostName job
-      printField "" (__ "Order") (jiSeq job)
-      printField "" (__ "Type") (jiType job)
-      printField "" (__ "Queue") (jiQueue job)
-      printField "" (__ "Host") host
-      printField "" (__ "User") (jiUserName job)
-      printField "" (__ "Created") (show $ jiCreateTime job)
-      printField "" (__ "Start") (maybe "*" show $ jiStartTime job)
-      printField "" (__ "Status") (show $ jiStatus job)
-      printField "" (__ "Try count") (jiTryCount job)
-      forM_ (M.assocs $ jiParams job) $ \(name, value) -> do
-          printf "%s:\t%s\n" name value
+      table <- translateTable $ [
+                  ((__ "Order"),  show $ jiSeq job),
+                  ((__ "Type"),  jiType job),
+                  ((__ "Queue"),  jiQueue job),
+                  ((__ "Host"), host),
+                  ((__ "User"),  jiUserName job),
+                  ((__ "Created"),  show $ jiCreateTime job),
+                  ((__ "Start"),  maybe "*" show $ jiStartTime job),
+                  ((__ "Status"),  show $ jiStatus job),
+                  ((__ "Try count"),  show $ jiTryCount job)
+                ]
+      printTable 0 $ transpose table
+      let params = [[name ++ ":", value] | (name, value) <- M.assocs (jiParams job)]
+      printTable 4 $ transpose params
 
     printLastResult :: JobInfo -> IO ()
     printLastResult job = do
@@ -371,16 +390,24 @@ doType = do
             when (check jt) $ do
               let title = fromMaybe (jtName jt) (jtTitle jt)
               putStrLn $ jtName jt ++ ":"
-              printField "\t" (__ "Title") title
-              printField "\t" (__ "Template") (jtTemplate jt)
-              printField "\t" (__ "On fail") (Shown (jtOnFail jt))
-              printField "\t" (__ "Host") (fromMaybe "*" (jtHostName jt))
-              TLIO.putStrLn =<< (__ "\tParameters:")
+              table <- translateTable $ [
+                              (__ "Title", title),
+                              (__ "Template", jtTemplate jt),
+                              (__ "On fail", show (jtOnFail jt)),
+                              (__ "Host", fromMaybe "*" (jtHostName jt))
+                            ]
+              printTable 4 $ transpose table
+              paramsLine <- (__ "Parameters:")
+              TLIO.putStrLn $ "    " `TL.append` paramsLine
               forM_ (jtParams jt) $ \desc -> do
-                printField "\t* " (__ "Name") (piName desc)
-                printField "\t  " (__ "Type") (Shown (piType desc))
-                printField "\t  " (__ "Title") (piTitle desc)
-                printField "\t  " (__ "Default") (piDefault desc)
+                paramsTable <- translateTable $ [
+                                  (__ "Name", piName desc),
+                                  (__ "Type", show (piType desc)),
+                                  (__ "Title",  piTitle desc),
+                                  (__ "Default",  piDefault desc)
+                                ]
+                let box = emptyBox 0 4 <> char '*' <+> mkTable (transpose paramsTable)
+                printBox box
 
 doListUsers :: Client ()
 doListUsers = do
@@ -425,11 +452,15 @@ doListPermissions = do
   let url = baseUrl </> "user" </> grantUserName command </> "permissions"
   response <- doGet url
   liftIO $ forM_ (response :: [(Int64, Database.UserPermission)]) $ \(id, perm) -> do
-              let qname = fromMaybe "*" $ Database.userPermissionQueueName perm
-                  tname = fromMaybe "*" $ Database.userPermissionTypeName perm
-                  host  = fromMaybe "*" $ Database.userPermissionHostName perm
-              printf "Id:\t%d\nPermission:\t%s\nQueue:\t%s\nJob type:\t%s\nHost:\t%s\n\n"
-                id (show $ Database.userPermissionPermission perm) qname tname host
+              table <- translateTable $ [
+                           (__ "ID", show id),
+                           (__ "Permission", show $ Database.userPermissionPermission perm),
+                           (__ "Queue", fromMaybe "*" $ Database.userPermissionQueueName perm),
+                           (__ "Job type", fromMaybe "*" $ Database.userPermissionTypeName perm),
+                           (__ "Host", fromMaybe "*" $ Database.userPermissionHostName perm)
+                        ]
+              printTable 0 $ transpose table
+              putStrLn ""
 
 doAddPermission :: Client ()
 doAddPermission = do
