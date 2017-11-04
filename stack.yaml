@@ -14,6 +14,7 @@ extra-deps:
   - docker-0.4.1.1
   - libvirt-hs-0.2.1
   - libssh2-0.2.0.5
+  - libssh2-conduit-0.2.1
   - hsyslog-5
   - select-0.4.0.1
   - haskell-gettext-0.1.1.0

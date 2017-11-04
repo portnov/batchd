@@ -55,7 +55,7 @@ Job
 JobResult
   jobId JobId
   time UTCTime default=CURRENT_TIMESTAMP
-  exitCode ExitCode
+  exitCode ExitCode Maybe
   stdout T.Text sqltype=TEXT
   stderr T.Text sqltype=TEXT
   Primary jobId time

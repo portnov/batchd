@@ -83,30 +83,67 @@ dispatcher jobsChan = withLogVariable "thread" ("dispatcher" :: String) $ do
 
 -- | This listens for job results Chan and writes results to DB.
 -- It also reschedules failed jobs if needed.
-callbackListener :: Chan (JobInfo, JobResult, OnFailAction) -> Daemon ()
+callbackListener :: ResultsChan -> Daemon ()
 callbackListener resChan = withLogVariable "thread" ("job result listener" :: String) $ forever $ do
-  (job, result, onFail) <- liftIO $ readChan resChan
-  withJobContext job $ do
-    runDB $ do
-        insert_ result
-        if jobResultExitCode result == ExitSuccess
-          then setJobStatus job Done
-          else case onFail of
-                 Continue -> setJobStatus job Failed -- just mark job as Failed
-                 RetryNow m -> do
-                    count <- increaseTryCount job
-                    if count <= m
-                      then do
-                        $info "Retry now" ()
-                        setJobStatus job New -- job will be picked up by dispatcher at nearest iteration.
-                      else setJobStatus job Failed
-                 RetryLater m -> do
-                    count <- increaseTryCount job
-                    if count <= m
-                      then do
-                        $info "Retry later" ()
-                        moveToEnd job -- put the job to the end of queue.
-                      else setJobStatus job Failed
+    (job, command) <- liftIO $ readChan resChan
+    let jid = jiId job
+    let jkey = JobKey (Sql.SqlBackendKey jid)
+    now <- liftIO getCurrentTime
+      
+    withJobContext job $ do
+      case command of
+        StartExecution -> do
+          -- let result = JobResult jkey now Nothing T.empty T.empty
+          -- catchDbError $ runDB $ insert_ result
+          return ()
+
+        StdoutLine line -> do
+          let result = JobResult jkey now Nothing line T.empty
+          catchDbError $ runDB $ do
+            insert_ result
+
+        StderrLine line -> do
+          let result = JobResult jkey now Nothing T.empty line
+          catchDbError $ runDB $ do
+            insert_ result
+
+        ExecError msg onFail -> do
+          let result = JobResult jkey now Nothing T.empty msg
+          catchDbError $ runDB $ do
+            insert_ result
+            processFail job onFail
+
+        Exited ec onFail -> do
+          let result = JobResult jkey now (Just ec) T.empty T.empty
+          catchDbError $ runDB $ do
+            insert_ result
+            if ec == ExitSuccess
+              then setJobStatus job Done
+              else processFail job onFail
+  where
+    catchDbError db = do
+      res <- db
+      case res of
+        Right _ -> return ()
+        Left err -> do
+          $reportError "Can't update job result: {}" (Single $ show err)
+          return ()
+
+    processFail job Continue = setJobStatus job Failed -- just mark job as Failed
+    processFail job (RetryNow m) = do
+        count <- increaseTryCount job
+        if count <= m
+          then do
+            $info "Retry now" ()
+            setJobStatus job New -- job will be picked up by dispatcher at nearest iteration.
+          else setJobStatus job Failed
+    processFail job (RetryLater m) = do
+        count <- increaseTryCount job
+        if count <= m
+          then do
+            $info "Retry later" ()
+            moveToEnd job -- put the job to the end of queue.
+          else setJobStatus job Failed
 
 withJobContext :: HasLogContext m => JobInfo -> m a -> m a
 withJobContext job =
@@ -116,7 +153,7 @@ withJobContext job =
             ("user", Variable (jiUserName job))]
 
 -- | Worker loop executes jobs themeselves
-worker :: Int -> HostsPool -> Chan (Queue, JobInfo) -> Chan (JobInfo, JobResult, OnFailAction) -> Daemon ()
+worker :: Int -> HostsPool -> Chan (Queue, JobInfo) -> ResultsChan -> Daemon ()
 worker idx hosts jobsChan resChan = forever $ withLogVariable "worker" idx $ do
   (queue, job) <- liftIO $ readChan jobsChan
   withJobContext job $ do
@@ -124,20 +161,13 @@ worker idx hosts jobsChan resChan = forever $ withLogVariable "worker" idx $ do
     -- now job is picked up by worker, mark it as Processing
     runDB $ setJobStatus job Processing
     jtypeR <- liftIO $  Config.loadTemplate (jiType job)
-    (result, onFail) <-
-        case jtypeR of
-                Left err -> do -- we could not load job type description
-                    $reportError "Invalid job type {}: {}" (jiType job, show err)
-                    let jid = JobKey (Sql.SqlBackendKey $ jiId job)
-                    now <- liftIO getCurrentTime
-                    let res = JobResult jid now (ExitFailure (-1)) T.empty (T.pack $ show err)
-                    return (res, Continue)
+    case jtypeR of
+            Left err -> do -- we could not load job type description
+                $reportError "Invalid job type {}: {}" (jiType job, show err)
+                liftIO $ writeChan resChan (job, ExecError (T.pack $ show err) Continue)
 
-                Right jtype -> do
-                    res <- executeJob hosts queue jtype job
-                    return (res, jtOnFail jtype)
+            Right jtype -> do
+                executeJob hosts queue jtype job resChan
 
-    -- put job result to Chan, to be picked up by callbacklistener
-    liftIO $ writeChan resChan (job, result, onFail)
     $info "done job #{}." (Single $ jiId job)
 

@@ -77,6 +77,8 @@ executable batchd
         Batchd.Daemon.Types
   other-extensions:    TypeFamilies, DeriveDataTypeable, TemplateHaskell, StandaloneDeriving, RecordWildCards
   build-depends:       base >=4.7 && <5.0,
+                       conduit >= 1.2,
+                       conduit-combinators >= 1.1,
                        persistent >= 2.2,
                        persistent-sqlite >= 2.2,
                        persistent-postgresql >= 2.2,
@@ -111,7 +113,8 @@ executable batchd
                        bytestring >= 0.10,
                        optparse-applicative >= 0.13.2.0,
                        process >= 1.2.3.0,
-                       libssh2 >= 0.2,
+                       libssh2 >= 0.2.0.5,
+                       libssh2-conduit >= 0.2.1,
                        cryptonite >= 0.23,
                        th-lift >= 0.6,
                        batchd-core >= 0.1.0.0

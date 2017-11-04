@@ -5,6 +5,7 @@ module Batchd.Daemon.Executor where
 
 import Control.Monad
 import Control.Monad.Trans
+import Control.Concurrent
 import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
@@ -46,28 +47,33 @@ hostContext (Just host) jt params = M.fromList $ map update $ M.assocs params
         Just OutputFile -> (key, hOutputDirectory host </> takeFileName value)
         _ -> (key, value)
 
-executeJob :: HostsPool -> Queue -> JobType -> JobInfo -> Daemon JobResult
-executeJob counters q jt job = do
+executeJob :: HostsPool -> Queue -> JobType -> JobInfo -> ResultsChan -> Daemon ()
+executeJob counters q jt job resultChan = do
   cfg <- askConfig
   let mbHostName = getHostName q jt job
       jid = JobKey (Sql.SqlBackendKey $ jiId job)
+  liftIO $ writeChan resultChan (job, StartExecution)
   case mbHostName of
     Nothing -> do -- localhost
       let command = getCommand Nothing jt job
       (ec, stdout, stderr) <- liftIO $ readCreateProcessWithExitCode (shell command) ""
       now <- liftIO $ getCurrentTime
-      return $ JobResult jid now ec (T.pack stdout) (T.pack stderr)
+      liftIO $ writeChan resultChan (job, StdoutLine (T.pack stdout))
+      liftIO $ writeChan resultChan (job, StderrLine (T.pack stderr))
+      liftIO $ writeChan resultChan (job, Exited ec (jtOnFail jt))
+
     Just hostname -> do
       hostR <- liftIO $ loadHost hostname
       case hostR of
         Right host -> do
           let command = getCommand (Just host) jt job
-          (ec, stdout) <- processOnHost counters host jt job command
           now <- liftIO $ getCurrentTime
-          return $ JobResult jid now ec stdout T.empty
+          -- let result = JobResult jid now (ExitFailure (-2)) T.empty T.empty
+          processOnHost counters host jt job resultChan command
+          return ()
         Left err -> do
           $reportError "Error while executing job: {}" (Single $ Shown err)
-          now <- liftIO $ getCurrentTime
-          return $ JobResult jid now (ExitFailure (-1)) T.empty (T.pack $ show err)
+          liftIO $ writeChan resultChan (job, ExecError (T.pack $ show err) (jtOnFail jt))
+          return ()
 
 

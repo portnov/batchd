@@ -8,12 +8,14 @@ import Control.Monad.State
 import Control.Monad.Except
 import Control.Monad.Trans.Resource
 import Control.Concurrent
+import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Format.Heavy as F
 import qualified Database.Persist.Sql as Sql
 import Network.Wai
 import qualified Web.Scotty.Trans as Scotty
 import qualified Web.Scotty.Internal.Types as SI
+import System.Exit (ExitCode (..))
 import System.Log.Heavy
 import Text.Localize
 import Text.Localize.IO
@@ -52,6 +54,16 @@ data ConnectionInfo = ConnectionInfo {
   , ciPool :: Maybe Sql.ConnectionPool -- ^ DB connection pool
   , ciTranslations :: Maybe Translations
   }
+
+data JobResultUpdate =
+    StartExecution
+  | StdoutLine T.Text
+  | StderrLine T.Text
+  | Exited ExitCode OnFailAction
+  | ExecError T.Text OnFailAction
+  deriving (Eq, Show)
+
+type ResultsChan = Chan (JobInfo, JobResultUpdate)
 
 -- | Main monad for daemon actions (both Manager and Dispatcher). This handles logging
 -- and DB connection.

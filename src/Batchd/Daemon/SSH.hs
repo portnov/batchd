@@ -7,13 +7,19 @@ module Batchd.Daemon.SSH where
 import Control.Monad
 import Control.Monad.Trans
 import Control.Exception
+import Control.Concurrent
 import Data.Maybe
 import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TLE
+import qualified Data.ByteString as B
+import Data.Conduit
+import qualified Data.Conduit.Combinators as C
+import qualified Data.Conduit.List as CL
 import Data.Text.Format.Heavy
 import Network.SSH.Client.LibSSH2
+import Network.SSH.Client.LibSSH2.Conduit
 import System.FilePath
 import System.Environment
 import System.Exit
@@ -40,8 +46,8 @@ getDfltPrivateKey = do
   home <- getEnv "HOME"
   return $ home </> ".ssh" </> "id_rsa"
 
-processOnHost :: HostsPool -> Host -> JobType -> JobInfo -> String -> Daemon (ExitCode, T.Text)
-processOnHost counters h jtype job command = do
+processOnHost :: HostsPool -> Host -> JobType -> JobInfo -> ResultsChan -> String -> Daemon ExitCode
+processOnHost counters h jtype job resultChan command = do
     cfg <- askConfig
     known_hosts <- liftIO $ getKnownHosts
     def_public_key <- liftIO $ getDfltPublicKey
@@ -67,23 +73,33 @@ processOnHost counters h jtype job command = do
 
             wrapDaemon (withSSH2 known_hosts public_key private_key passphrase user hostname port) $ \session -> do
                 $info "Connected to {}:{}." (hostname, port)
-                liftIO $ execCommands session (hStartupCommands h)
-                           `catch` (\(e :: SomeException) -> throw (ExecException e))
+--                 liftIO $ execCommands session (hStartupCommands h)
+--                            `catch` (\(e :: SomeException) -> throw (ExecException e))
                 uploadFiles (getInputFiles jtype job) (hInputDirectory h) session
                 $info "EXECUTING: {}" (Single command)
-                (ec,out) <- liftIO $ execCommands session [command]
-                $info "Done." ()
+                (Just commandHandle, commandOutput) <- liftIO $ execCommand True session command
+                ec <- retrieveOutput job jtype commandHandle commandOutput resultChan
+                $info "Done, exit code is {}." (Single $ show ec)
                 downloadFiles (hOutputDirectory h) (getOutputFiles jtype job) session
-                let outText = TL.toStrict $ TLE.decodeUtf8 (head out)
-                    ec' = if ec == 0
-                            then ExitSuccess
-                            else ExitFailure ec
-                return (ec', outText)
+                return ec
     case r of
       Left e -> do
         $reportError "Error while executing job at host `{}': {}" (hName h, show e)
-        return (ExitFailure (-1), T.pack (show e))
+        liftIO $ writeChan resultChan (job, ExecError (T.pack $ show e) (jtOnFail jtype))
+        return $ ExitFailure (-1)
       Right result -> return result
+
+retrieveOutput :: JobInfo -> JobType -> CommandsHandle -> Source IO B.ByteString -> ResultsChan -> Daemon ExitCode
+retrieveOutput job jtype commandHandle commandOutput resultChan = do
+    liftIO $ do
+        commandOutput =$= C.decodeUtf8 =$= C.linesUnbounded $$ CL.mapM_ $ \line ->
+            writeChan resultChan (job, StdoutLine line)
+    rc <- liftIO $ getReturnCode commandHandle
+    let ec = if rc == 0
+               then ExitSuccess
+               else ExitFailure rc
+    liftIO $ writeChan resultChan (job, Exited ec (jtOnFail jtype))
+    return ec
 
 getInputFiles :: JobType -> JobInfo -> [FilePath]
 getInputFiles jt job =

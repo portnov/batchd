@@ -70,7 +70,7 @@ buildJobInfo jid j mbr params =
       jiTryCount = jobTryCount j,
       jiHostName = jobHostName j,
       jiResultTime = fmap jobResultTime mbr,
-      jiExitCode = fmap jobResultExitCode mbr,
+      jiExitCode = jobResultExitCode =<< mbr,
       jiStdout = fmap jobResultStdout mbr,
       jiStderr = fmap jobResultStderr mbr,
       jiParams = params
@@ -280,6 +280,14 @@ getJobResult jid = do
   case r of
     Nothing -> throwR JobNotExists
     Just res -> return $ entityVal res
+
+getJobResultE :: Int64 -> DB (Entity JobResult)
+getJobResultE jid = do
+  let jkey = JobKey (SqlBackendKey jid)
+  r <- selectFirst [JobResultJobId ==. jkey] [Desc JobResultTime]
+  case r of
+    Nothing -> throwR JobNotExists
+    Just res -> return res
 
 getJobResults :: Int64 -> DB [JobResult]
 getJobResults jid = do
