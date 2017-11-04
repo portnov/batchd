@@ -62,6 +62,10 @@ selectDriver name = go supportedDrivers
       | otherwise = go rest
 
 loadHostController :: LoggingTState -> FilePath -> IO HostController
+loadHostController lts "local" = do
+  case initController localDriver lts undefined of
+    Right controller -> return controller
+    Left err -> throw $ UnknownError $ "Can't initialize local host controller: " ++ show err
 loadHostController lts name = do
     cfgr <- loadHostControllerConfig name
     case cfgr of
