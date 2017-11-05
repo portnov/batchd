@@ -46,6 +46,8 @@ The batchd suite consists of the following components:
   * Command-line utility, `batch`. This is for now the most complete client.
   * Python+Qt4 GUI client. This allows to view and edit queues, view, create
     and edit jobs.
+  * Blender python client. This is simple addon for Blender, which allows to
+    put rendering jobs to batchd queue from Blender's UI.
   * Web client. This allows to view queues, create and view jobs. It is mainly
     intended for job creation and monitoring.
 * Batchd manager. It is a daemon process which provides REST API for clients
@@ -192,6 +194,7 @@ Installation
     $ sudo apt-get install stack
     $ cd batchd/
     $ stack install --flag batchd:docker --flag batchd:libvirt --flag batchd:ec2
+    $ vi .config/batchd/batchd.yaml # Please refer to sample-configs/ directory
     $ batchd-admin upgrade-db
     $ batchd-admin create-superuser
 
