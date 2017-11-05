@@ -20,6 +20,7 @@ import Data.Char
 import Data.List (intercalate, transpose)
 import Data.Aeson
 import System.FilePath
+import System.Exit
 import Text.Printf
 import Text.PrettyPrint.Boxes
 
@@ -182,8 +183,15 @@ viewJob = do
            when (viewAll command) $ do
                let url = baseUrl </> "job" </> show (jobId command) </> "results"
                response <- doGet url
-               forM_ (response :: [Database.JobResult]) $ \result -> do
-                   liftIO $ printResult result
+               let showEc Nothing = "-"
+                   showEc (Just ExitSuccess) = "0"
+                   showEc (Just (ExitFailure n)) = show n
+               let responseTable = flip map (response :: [Database.JobResult]) $ \result ->
+                                     [show (Database.jobResultTime result),
+                                      showEc (Database.jobResultExitCode result),
+                                      T.unpack (Database.jobResultStdout result)
+                                     ]
+               liftIO $ printTable 0 $ transpose responseTable
   where
     printJob :: JobInfo -> IO ()
     printJob job = do
