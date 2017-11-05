@@ -9,7 +9,7 @@ module Batchd.Core.Common.Types
     -- * Utility functions
     bstrToString, stringToBstr,
     -- * Logging levels
-    event_level, verbose_level
+    event_level, verbose_level, config_level
   ) where
 
 import GHC.Generics
@@ -134,22 +134,31 @@ event_level = Level "EVENT" 350 Syslog.Info
 verbose_level :: Level
 verbose_level = Level "VERBOSE" 450 Syslog.Info
 
+-- | CONFIG logging level
+config_level :: Level
+config_level = Level "CONFIG" 700 Syslog.Info
+
 instance FromJSON Level where
+  parseJSON (Aeson.String "config") = return config_level
   parseJSON (Aeson.String "debug") = return debug_level
   parseJSON (Aeson.String "verbose") = return verbose_level
   parseJSON (Aeson.String "info") = return info_level
   parseJSON (Aeson.String "warning") = return warn_level
   parseJSON (Aeson.String "error") = return error_level
+  parseJSON (Aeson.String "fatal") = return fatal_level
+  parseJSON (Aeson.String "disable") = return disable_logging
   parseJSON invalid = typeMismatch "logging level" invalid
 
 instance ToJSON Level where
   toJSON l =
     case levelName l of
+      "CONFIG" -> Aeson.String "config"
       "DEBUG" -> Aeson.String "debug"
       "VERBOSE" -> Aeson.String "verbose"
       "INFO" -> Aeson.String "info"
       "WARN" -> Aeson.String "warning"
       "ERROR" -> Aeson.String "error"
+      "FATAL" -> Aeson.String "fatal"
       name -> Aeson.String name
 
 -- | Utility conversion function. This assumes 1-byte encoding.

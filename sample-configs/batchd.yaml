@@ -26,7 +26,7 @@ logging:
   #format: "{time} [{level}] {source}: {message}"
   
   # default logging level
-  # possible values: debug info warning error
+  # possible values (severity increasing): config debug info warning error fatal disable
   level: info
 
   # More precise filter.

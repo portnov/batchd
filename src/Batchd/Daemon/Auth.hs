@@ -215,7 +215,7 @@ headerAuth gcfg lts app req sendResponse = do
     then app req sendResponse -- OPTIONS / is available without auth
     else case lookup "X-Auth-User" (requestHeaders req) of
             Nothing -> do
-                infoIO lts $(here) "No X-Auth-User header" ()
+                debugIO lts $(here) "No X-Auth-User header" ()
                 app req sendResponse
         --       case getAuthUserRq req of
         --         Nothing -> sendResponse $ responseLBS status401 [] "User name not provided"

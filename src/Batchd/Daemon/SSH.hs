@@ -11,8 +11,6 @@ import Control.Concurrent
 import Data.Maybe
 import qualified Data.Map as M
 import qualified Data.Text as T
-import qualified Data.Text.Lazy as TL
-import qualified Data.Text.Lazy.Encoding as TLE
 import qualified Data.ByteString as B
 import Data.Conduit
 import qualified Data.Conduit.Combinators as C
@@ -60,7 +58,7 @@ processOnHost counters h jtype job resultChan command = do
         original_hostname = hHostName h
 
     $info "CONNECTING TO {}:{}" (original_hostname, port)
-    $debug "Target host settings: {}" (Single $ Shown h)
+    $(putMessage config_level) "Target host settings: {}" (Single $ Shown h)
     r <- withHost counters h jtype $ do
             lts <- askLoggingStateM
             controller <- liftIO $ loadHostController lts (hController h)
