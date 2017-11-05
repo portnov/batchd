@@ -6,6 +6,7 @@ from batchd import client
 
 batchd_client = None
 batchd_queues = []
+batchd_types = []
 
 def get_preferences():
     return bpy.context.user_preferences.addons.get("batchd").preferences
@@ -34,6 +35,24 @@ def queues_from_batchd(self, context):
 
     return batchd_queues
 
+def types_from_batchd(self, context):
+    global batchd_types
+
+    if len(batchd_types) > 0 or context is None:
+        print("types: {}, context: {}".format(batchd_types, context))
+        return batchd_types
+
+    c = get_batchd_client(context)
+    for type in c.get_job_types():
+        name = type.get('name')
+        title = type.get('title', name)
+        if not title:
+            title = name
+        batchd_types.append((name, title, title))
+
+    print(batchd_types)
+    return batchd_types
+
 class SettingsPanel(bpy.types.AddonPreferences):
     bl_label = "Batchd settings"
     bl_idname = __package__
@@ -42,7 +61,8 @@ class SettingsPanel(bpy.types.AddonPreferences):
             name = "batchd manager URL",
             default = "http://localhost:9681")
 
-    job_type_name = StringProperty(name="batchd job type", default="blender")
+    batchd_queue = EnumProperty(name="Queue", items = queues_from_batchd)
+    job_type_name = EnumProperty(name="batchd job type", items = types_from_batchd)
     username = StringProperty(name="batchd user name")
     password = StringProperty(name="batchd password", subtype="PASSWORD")
 
@@ -50,21 +70,22 @@ class SettingsPanel(bpy.types.AddonPreferences):
         layout = self.layout
 
         layout.prop(self, "manager_url")
-        layout.prop(self, "job_type_name")
         layout.prop(self, "username")
         layout.prop(self, "password")
+        layout.prop(self, "batchd_queue")
+        layout.prop(self, "job_type_name")
 
 class EnqueuePanel(bpy.types.Panel):
     bl_label = "Submit to batchd"
     bl_idname = "batchd.enqueue.panel"
-    bl_space_type = "VIEW_3D"
-    bl_region_type = "TOOLS"
+    bl_space_type = "PROPERTIES"
+    bl_context = "render"
+    bl_region_type = "WINDOW"
 
     def draw(self, context):
         layout = self.layout
         wm = context.window_manager
 
-        layout.prop(wm, "batchd_queue")
         layout.operator("batchd.enqueue")
 
 class EnqueueOperator(bpy.types.Operator):
@@ -79,27 +100,20 @@ class EnqueueOperator(bpy.types.Operator):
         target_file = bpy.path.abspath(bpy.context.scene.render.filepath)
 
         job_type_name = get_preferences().job_type_name
+        queue_name = get_preferences().batchd_queue
 
         c = get_batchd_client(context)
-        queue_name = wm.batchd_queue
         params = dict(input=current_file, output=target_file, frame="1")
         c.do_enqueue(queue_name, job_type_name, params)
 
         return {'FINISHED'}
 
 def register():
-
-    WindowManager.batchd_queue = EnumProperty(name="Queue", items = queues_from_batchd)
-
     bpy.utils.register_class(SettingsPanel)
     bpy.utils.register_class(EnqueueOperator)
     bpy.utils.register_class(EnqueuePanel)
 
 def unregister():
-    from bpy.types import WindowManager
-
-    del WindowManager.batchd_queue
-
     bpy.utils.unregister_class(EnqueuePanel)
     bpy.utils.unregister_class(EnqueueOperator)
     bpy.utils.unregister_class(SettingsPanel)

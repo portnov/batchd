@@ -1,6 +1,6 @@
 bl_info = {
         "name": "Batchd Client",
-        "author": ("portnov84@rambler.ru"),
+        "author": "portnov84@rambler.ru",
         "version": (0, 0, 0, 1),
         "blender": (2, 7, 8),
         "location": "?",
