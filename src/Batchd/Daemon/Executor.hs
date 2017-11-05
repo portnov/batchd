@@ -6,6 +6,10 @@ module Batchd.Daemon.Executor where
 import Control.Monad
 import Control.Monad.Trans
 import Control.Concurrent
+import Data.Conduit
+import qualified Data.Conduit.Combinators as C
+import qualified Data.Conduit.List as CL
+import Data.Conduit.Binary (sourceHandle)
 import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
@@ -15,7 +19,7 @@ import qualified Database.Persist.Sql as Sql hiding (Single)
 import Data.Time
 import System.Process
 import System.FilePath
-import System.Exit
+import System.IO
 
 import Batchd.Core.Common.Types
 import Batchd.Core.Common.Config
@@ -47,6 +51,20 @@ hostContext (Just host) jt params = M.fromList $ map update $ M.assocs params
         Just OutputFile -> (key, hOutputDirectory host </> takeFileName value)
         _ -> (key, value)
 
+processOnLocalhost :: JobInfo -> OnFailAction -> String -> ResultsChan -> IO ()
+processOnLocalhost job onFail command resultChan = do
+    let opts = (shell command) {std_out = CreatePipe, std_err = CreatePipe}
+    withCreateProcess opts $ \_ (Just stdout) (Just stderr) process -> do
+      forkIO $ retrieveOutput StderrLine stderr
+      retrieveOutput StdoutLine stdout
+      ec <- waitForProcess process
+      writeChan resultChan (job, Exited ec onFail)
+  where
+    retrieveOutput cons handle = do
+      sourceHandle handle =$= C.decodeUtf8 =$= C.linesUnbounded $$ CL.mapM_ $ \line ->
+        writeChan resultChan (job, cons line)
+      hClose handle
+
 executeJob :: HostsPool -> Queue -> JobType -> JobInfo -> ResultsChan -> Daemon ()
 executeJob counters q jt job resultChan = do
   cfg <- askConfig
@@ -56,11 +74,7 @@ executeJob counters q jt job resultChan = do
   case mbHostName of
     Nothing -> do -- localhost
       let command = getCommand Nothing jt job
-      (ec, stdout, stderr) <- liftIO $ readCreateProcessWithExitCode (shell command) ""
-      now <- liftIO $ getCurrentTime
-      liftIO $ writeChan resultChan (job, StdoutLine (T.pack stdout))
-      liftIO $ writeChan resultChan (job, StderrLine (T.pack stderr))
-      liftIO $ writeChan resultChan (job, Exited ec (jtOnFail jt))
+      liftIO $ processOnLocalhost job (jtOnFail jt) command resultChan
 
     Just hostname -> do
       hostR <- liftIO $ loadHost hostname

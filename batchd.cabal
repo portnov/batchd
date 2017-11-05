@@ -78,6 +78,7 @@ executable batchd
   other-extensions:    TypeFamilies, DeriveDataTypeable, TemplateHaskell, StandaloneDeriving, RecordWildCards
   build-depends:       base >=4.7 && <5.0,
                        conduit >= 1.2,
+                       conduit-extra >= 1.1,
                        conduit-combinators >= 1.1,
                        persistent >= 2.2,
                        persistent-sqlite >= 2.2,
