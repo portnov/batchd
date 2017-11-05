@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
-
+-- | This module contains definitions for dealing with
+-- client configuration file.
 module Batchd.Client.Config where
 
 import GHC.Generics
@@ -19,21 +20,23 @@ import Batchd.Core.Common.Config
 import Batchd.Client.Types
 import Batchd.Client.CmdLine
 
+-- | Client configuration
 data ClientConfig = ClientConfig {
-    ccManagerUrl :: Maybe String,
-    ccQueue :: Maybe String,
-    ccType :: Maybe String,
-    ccHost :: Maybe String,
-    ccDisableAuth :: Bool,
-    ccCertificate :: Maybe FilePath,
-    ccKey :: Maybe FilePath,
-    ccCaCertificate :: Maybe FilePath,
-    ccDisableServerCertificateCheck :: Bool,
-    ccUsername :: Maybe String,
-    ccPassword :: Maybe String
+    ccManagerUrl :: Maybe String             -- ^ batchd manager URL
+  , ccQueue :: Maybe String                  -- ^ Default queue to put jobs to
+  , ccType :: Maybe String                   -- ^ Default job type
+  , ccHost :: Maybe String                   -- ^ Default host
+  , ccDisableAuth :: Bool                    -- ^ True if authentication is disabled
+  , ccCertificate :: Maybe FilePath          -- ^ Path to client HTTPS certificate file
+  , ccKey :: Maybe FilePath                  -- ^ Path to client HTTPS private key file
+  , ccCaCertificate :: Maybe FilePath        -- ^ Path to CA certificate for server certificate check
+  , ccDisableServerCertificateCheck :: Bool  -- ^ If true, then check of client certificate is disabled
+  , ccUsername :: Maybe String               -- ^ User name
+  , ccPassword :: Maybe String               -- ^ Password
   }
   deriving (Show, Data, Typeable, Generic)
 
+-- | Default client configuration
 defaultConfig :: ClientConfig
 defaultConfig = ClientConfig {
     ccManagerUrl = Nothing,
@@ -84,6 +87,7 @@ getConfigParam' cmdline varname cfg = do
         Just val -> return $ Just val
         Nothing -> return cfg
 
+-- | Load client configuration file.
 loadClientConfig :: IO ClientConfig
 loadClientConfig = do
   mbPath <- locateConfig "" "client.yaml"

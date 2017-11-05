@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
-
+-- | This module contains definitions for HTTP\/HTTPS protocol handling.
 module Batchd.Client.Http where
 
 import Control.Exception

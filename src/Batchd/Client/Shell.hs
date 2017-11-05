@@ -2,7 +2,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE RankNTypes #-}
-
+-- | This module contains definitions for client interactive shell implementation.
 module Batchd.Client.Shell (commandHandler) where
 
 import Control.Monad.State
@@ -31,6 +31,7 @@ detectMode mode mods cmd =
                   then Update
                   else View
 
+-- | Handle client command line.
 commandHandler :: Client ()
 commandHandler = do
   opts <- gets (cmdCommand . csCmdline)
@@ -75,6 +76,7 @@ errorHandler :: ClientException -> Client ()
 errorHandler (ClientException e) =
   liftIO $ TLIO.putStrLn =<< (__f "Error: {}" (Single e))
 
+-- | Interactive shell REPL.
 runShell :: Client ()
 runShell = do
   mbLine <- liftIO $ readline "batch> "

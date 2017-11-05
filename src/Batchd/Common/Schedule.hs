@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable, StandaloneDeriving, RecordWildCards, DeriveGeneric #-}
-
+-- | This module contains definitions for working with schedules
 module Batchd.Common.Schedule where
 
 import GHC.Generics
@@ -14,6 +14,7 @@ import Text.Parsec.String
 import Batchd.Common.Types (jsonOptions)
 import Batchd.Common.Data
 
+-- | Time period within day.
 data Period =
   Period {
     periodBegin :: TimeOfDay,

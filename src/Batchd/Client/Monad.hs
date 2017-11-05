@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
-
+-- | This module contains defintion of @Client@ data type and utility functions for it.
 module Batchd.Client.Monad where
 
 import Control.Monad.State
@@ -19,15 +19,17 @@ import Batchd.Client.Config
 import Batchd.Client.Types
 import Batchd.Client.CmdLine
 
+-- | Client state
 data ClientState = ClientState {
-    csCmdline :: CmdLine,
-    csConfig :: ClientConfig,
-    csCredentials :: Maybe Credentials,
-    csAuthMethods :: Maybe [AuthMethod],
-    csLogger :: Maybe SpecializedLogger,
-    csManager :: Maybe Manager
+    csCmdline :: CmdLine                 -- ^ Parsed command line
+  , csConfig :: ClientConfig             -- ^ Loaded configuration file
+  , csCredentials :: Maybe Credentials   -- ^ Cached user credentials
+  , csAuthMethods :: Maybe [AuthMethod]  -- ^ Cached list of authentication methods supported by server
+  , csLogger :: Maybe SpecializedLogger  -- ^ Logging function
+  , csManager :: Maybe Manager           -- ^ HTTP\/HTTPS manager
   }
 
+-- | Client monad
 type Client a = StateT ClientState IO a
 
 instance Localized (StateT ClientState IO) where
@@ -49,6 +51,7 @@ instance HasLogger (StateT ClientState IO) where
     modify $ \st -> st {csLogger = oldLogger}
     return result
 
+-- | Execute actions within Client monad.
 runClient :: ClientState -> Client a -> IO a
 runClient st action =
     evalStateT (withLogging (LoggingSettings logSettings) action) st
@@ -59,12 +62,14 @@ runClient st action =
     verbosity = logLevel $ cmdCommon $ csCmdline st
     logFormat = "{level:~l}: {message}\n"
 
+-- | Get manager base URL.
 getBaseUrl :: Client String
 getBaseUrl = do
   cfg <- gets csConfig
   opts <- gets csCmdline
   liftIO $ getManagerUrl opts cfg
 
+-- | Throw an exception.
 throwC :: TL.Text -> Client a
 throwC msg = lift $ throw $ ClientException msg
 
@@ -76,6 +81,7 @@ wrapClient wrapper actions = do
   put state'
   return result
 
+-- | Catch an exception.
 catchC :: Exception e
             => Client a
             -> (e -> Client a)

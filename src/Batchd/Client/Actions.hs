@@ -1,8 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
-
-
+-- | This module contains definitions of client actions.
+-- These functions prepare REST request structure, execute HTTP request
+-- and show response in human-readable form to stdout.
 module Batchd.Client.Actions where
 
 import Control.Monad
@@ -41,6 +42,7 @@ localTimeToUTC' (Just (Just local)) = do
     tz <- liftIO $ getCurrentTimeZone
     return $ Just $ Just $ localTimeToUTC tz local
 
+-- | Put job to the queue.
 doEnqueue :: Client ()
 doEnqueue = do
   cfg <- gets csConfig
@@ -85,6 +87,7 @@ printTable :: Int -> [[String]] -> IO ()
 printTable indent table =
     printBox $ emptyBox 0 indent <> mkTable table
 
+-- | List queues or jobs.
 doList :: Client ()
 doList = do
   baseUrl <- getBaseUrl
@@ -120,6 +123,7 @@ doList = do
                   forM_ (M.assocs $ jiParams job) $ \(name, value) -> do
                     printf "\t%s:\t%s\n" name value
 
+-- | Retrieve statistics
 doStats :: Client ()
 doStats = do
     baseUrl <- getBaseUrl
@@ -157,6 +161,7 @@ translateTable pairs =
     title <- ioTitle
     return [TL.unpack title ++ ":", value]
 
+-- | View job details or results.
 viewJob :: Client ()
 viewJob = do
     baseUrl <- getBaseUrl
@@ -250,6 +255,7 @@ checkModes list = go Nothing list
         Nothing -> go selected ms
         Just _ -> throwC =<< (__ "Only one mode can be selected")
 
+-- | Update job.
 updateJob :: Client ()
 updateJob = do
     baseUrl <- getBaseUrl
@@ -280,6 +286,7 @@ updateJob = do
                                 toList "start_time" jobStartTime
         else return Nothing
 
+-- | Delete job.
 deleteJob :: Client ()
 deleteJob = do
   baseUrl <- getBaseUrl
@@ -288,6 +295,7 @@ deleteJob = do
   let url = baseUrl </> "job" </> show (jobId command)
   doDelete url
 
+-- | Create queue.
 addQueue :: Client ()
 addQueue = do
   baseUrl <- getBaseUrl
@@ -304,6 +312,7 @@ addQueue = do
   let url = baseUrl </> "queue"
   doPost url queue
 
+-- | Update queue.
 updateQueue :: Client ()
 updateQueue = do
     baseUrl <- getBaseUrl
@@ -323,6 +332,7 @@ toList :: (ToJSON v, KeyValue t) => T.Text -> Maybe v -> [t]
 toList _ Nothing = []
 toList name (Just str) = [name .= str]
 
+-- | Delete queue.
 deleteQueue :: Client ()
 deleteQueue = do
   baseUrl <- getBaseUrl
@@ -332,6 +342,7 @@ deleteQueue = do
   let url = baseUrl </> "queue" </> queueObject command ++ forceStr
   doDelete url
 
+-- | List schedules
 doListSchedules :: Client ()
 doListSchedules = do
   baseUrl <- getBaseUrl
@@ -352,6 +363,7 @@ doListSchedules = do
                 Nothing -> putStrLn "\tany time of day"
                 Just lst -> putStrLn $ "\t" ++ intercalate ", " (map show lst)
 
+-- | Create a schedule.
 doAddSchedule :: Client ()
 doAddSchedule = do
   baseUrl <- getBaseUrl
@@ -372,6 +384,7 @@ doAddSchedule = do
                      }
       doPost url schedule
 
+-- | Delete schedule.
 doDeleteSchedule :: Client ()
 doDeleteSchedule = do
   baseUrl <- getBaseUrl
@@ -384,6 +397,7 @@ doDeleteSchedule = do
   let url = baseUrl </> "schedule" </> sname ++ forceStr
   doDelete url
 
+-- | List job types.
 doType :: Client ()
 doType = do
   baseUrl <- getBaseUrl
@@ -417,6 +431,7 @@ doType = do
                 let box = emptyBox 0 4 <> char '*' <+> mkTable (transpose paramsTable)
                 printBox box
 
+-- | List users.
 doListUsers :: Client ()
 doListUsers = do
   baseUrl <- getBaseUrl
@@ -425,6 +440,7 @@ doListUsers = do
   response <- doGet url
   liftIO $ forM_ (response :: [String]) $ \name -> putStrLn name
 
+-- | Create user
 doAddUser :: Client ()
 doAddUser = do
   baseUrl <- getBaseUrl
@@ -438,6 +454,7 @@ doAddUser = do
   let user = UserInfo name pwd
   doPost url user
 
+-- | Change user password
 doChangePassword :: Client ()
 doChangePassword = do
   baseUrl <- getBaseUrl
@@ -452,6 +469,7 @@ doChangePassword = do
   let user = UserInfo name pwd
   doPut url user
 
+-- | List user permissions
 doListPermissions :: Client ()
 doListPermissions = do
   baseUrl <- getBaseUrl
@@ -470,6 +488,7 @@ doListPermissions = do
               printTable 0 $ transpose table
               putStrLn ""
 
+-- | Add user permission
 doAddPermission :: Client ()
 doAddPermission = do
   baseUrl <- getBaseUrl
@@ -482,6 +501,7 @@ doAddPermission = do
             Nothing -> throwC =<< (__ "permission (-p) must be specified")
   doPost url perm
 
+-- | Revoke user permission.
 doRevokePermission :: Client ()
 doRevokePermission = do
   baseUrl <- getBaseUrl

@@ -136,7 +136,7 @@ verbose_level = Level "VERBOSE" 450 Syslog.Info
 
 -- | CONFIG logging level
 config_level :: Level
-config_level = Level "CONFIG" 700 Syslog.Info
+config_level = Level "CONFIG" 700 Syslog.Debug
 
 instance FromJSON Level where
   parseJSON (Aeson.String "config") = return config_level

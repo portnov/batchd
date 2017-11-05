@@ -1,4 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
+-- | This module contains definitions for logging in client.
+-- Log messages in client are localized.
 module Batchd.Client.Logging where
 
 import qualified Data.Text.Lazy as TL

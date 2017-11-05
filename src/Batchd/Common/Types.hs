@@ -27,7 +27,6 @@ module Batchd.Common.Types
     lookupParam, getParamType,
     parseUpdate, parseUpdateMaybe,
     parseUpdateStar, parseStatus,
-    bstrToString, stringToBstr,
     jsonOptions, authMethods,
     -- * Some default settings
     defaultManagerPort, zeroUtcTime,
@@ -59,7 +58,7 @@ import qualified System.Posix.Syslog as Syslog
 import System.Log.Heavy
 import System.Exit
 
-import Batchd.Core.Common.Types
+import Batchd.Core.Common.Types () -- import instances only
 
 -- | Default manager port - 9681.
 defaultManagerPort :: Int

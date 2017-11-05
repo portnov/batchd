@@ -13,7 +13,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
-
+-- | This module contains data type definitions for most entities stored in DB.
 module Batchd.Common.Data where
 
 import GHC.Generics

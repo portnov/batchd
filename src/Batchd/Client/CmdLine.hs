@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
-
+-- | This module contains definitions for client command-line parsing
+-- by using optparse-applicative package.
 module Batchd.Client.CmdLine where
 
 import Data.Generics hiding (Generic)
@@ -328,3 +329,4 @@ parserInfo = info (parser <**> helper)
 
 getCmdArgs :: IO CmdLine
 getCmdArgs = execParser parserInfo
+
