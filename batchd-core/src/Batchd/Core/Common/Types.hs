@@ -125,6 +125,7 @@ instance FromJSON Host where
             , hStartupCommands = startup_commands
             }
   parseJSON invalid = typeMismatch "host definition" invalid
+
 -- | EVENT logging level
 event_level :: Level
 event_level = Level "EVENT" 350 Syslog.Info
@@ -151,9 +152,11 @@ instance ToJSON Level where
       "ERROR" -> Aeson.String "error"
       name -> Aeson.String name
 
+-- | Utility conversion function. This assumes 1-byte encoding.
 bstrToString :: B.ByteString -> String
 bstrToString bstr = map (chr . fromIntegral) $ B.unpack bstr
 
+-- | Utility conversion function. This assumes 1-byte encoding.
 stringToBstr :: String -> B.ByteString
 stringToBstr str = B.pack $ map (fromIntegral . ord) str
 
