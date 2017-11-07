@@ -8,7 +8,10 @@ module Batchd.Daemon.Monitoring
     metricsDumper, metricsCleaner,
     getWaiMetricsMiddleware,
     Metrics.counter,
-    Metrics.gauge
+    Metrics.gauge,
+    Metrics.timed,
+    Metrics.distribution,
+    Metrics.label
   ) where
 
 import Control.Monad

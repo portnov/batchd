@@ -29,6 +29,7 @@ import Batchd.Common.Data
 import Batchd.Daemon.Types
 import Batchd.Core.Daemon.Hosts
 import Batchd.Daemon.SSH
+import Batchd.Daemon.Monitoring as Monitoring
 
 getCommand :: Maybe Host -> JobType -> JobInfo -> String
 getCommand mbHost jt job =
@@ -66,7 +67,7 @@ processOnLocalhost job onFail command resultChan = do
       hClose handle
 
 executeJob :: HostsPool -> Queue -> JobType -> JobInfo -> ResultsChan -> Daemon ()
-executeJob counters q jt job resultChan = do
+executeJob counters q jt job resultChan = Monitoring.timed "batchd.job.duration" $ do
   cfg <- askConfig
   let mbHostName = getHostName q jt job
       jid = JobKey (Sql.SqlBackendKey $ jiId job)

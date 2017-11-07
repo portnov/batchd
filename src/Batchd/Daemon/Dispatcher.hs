@@ -25,7 +25,7 @@ import Batchd.Daemon.Database
 import Batchd.Common.Schedule
 import Batchd.Daemon.Schedule
 import Batchd.Daemon.Executor
-import Batchd.Daemon.Hosts (hostCleaner)
+import Batchd.Daemon.Hosts (hostCleaner, hostsMetricDumper)
 import Batchd.Core.Daemon.Logging
 import Batchd.Core.Daemon.Hosts
 
@@ -51,6 +51,9 @@ runDispatcher = do
   withLogVariable "thread" ("host cleaner" :: String) $ do
       lts <- askLoggingStateM
       liftIO $ forkIO $ hostCleaner lts counters
+
+  withLogVariable "thread" ("host metric dumper" :: String) $ do
+    forkDaemon $ hostsMetricDumper counters
 
   dispatcher jobsChan
 

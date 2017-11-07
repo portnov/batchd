@@ -14,6 +14,7 @@ import Control.Monad.Trans
 import qualified Data.Map as M
 import qualified Data.HashMap.Strict as H
 import Data.Time
+import Data.Monoid ((<>))
 import Data.Aeson as Aeson
 import qualified Data.Text as T
 import Data.Text.Format.Heavy
@@ -22,11 +23,11 @@ import System.Log.Heavy
 
 import Batchd.Core.Common.Types
 import Batchd.Core.Common.Config
-import Batchd.Core.Common.Localize
 import Batchd.Daemon.Types
 import Batchd.Core.Daemon.Hosts
 import Batchd.Core.Daemon.Logging
 import Batchd.Common.Types
+import Batchd.Daemon.Monitoring as Monitoring
 
 #ifdef LIBVIRT
 import Batchd.Ext.LibVirt
@@ -203,6 +204,20 @@ withHost mvar host jtype actions = withLogVariable "host" (hName host) $ do
   lts <- askLoggingStateM
   connInfo <- askConnectionInfo
   liftIO $ try $ bracket_ (acquireHost lts mvar host jtype) (releaseHost lts mvar host) $ runDaemonIO connInfo lts actions
+
+hostsMetricDumper :: HostsPool -> Daemon ()
+hostsMetricDumper pool = forever $ do
+  liftIO $ threadDelay $ 10 * 1000 * 1000
+  hosts <- liftIO $ readMVar pool
+  statuses <- forM (M.assocs hosts) $ \(name, stVar) -> do
+                st <- liftIO $ readMVar stVar
+                Monitoring.gauge ("batchd.host." <> T.pack name <> ".jobs") $ hsJobCount st
+                Monitoring.label ("batchd.host." <> T.pack name <> ".status") $ T.pack $ show $ hsStatus st
+                return $ hsStatus st
+  let active = length $ filter (== Active) statuses
+  let busy = length $ filter (== Busy) statuses
+  Monitoring.gauge "batchd.hosts.active" active
+  Monitoring.gauge "batchd.hosts.busy" busy
 
 hostCleaner :: LoggingTState -> HostsPool -> IO ()
 hostCleaner lts mvar = forever $ do
