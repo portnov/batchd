@@ -200,11 +200,8 @@ releaseHost lts mvar host = do
 
 withHost :: HostsPool -> Host -> JobType -> Daemon a -> Daemon (Either SomeException a)
 withHost mvar host jtype actions = withLogVariable "host" (hName host) $ do
-  cfg <- askConfig
-  pool <- askPool
-  translations <- getTranslations
   lts <- askLoggingStateM
-  let connInfo = ConnectionInfo cfg (Just pool) (Just translations)
+  connInfo <- askConnectionInfo
   liftIO $ try $ bracket_ (acquireHost lts mvar host jtype) (releaseHost lts mvar host) $ runDaemonIO connInfo lts actions
 
 hostCleaner :: LoggingTState -> HostsPool -> IO ()

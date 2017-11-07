@@ -22,6 +22,7 @@ import Data.Time
 import Data.Dates
 import Database.Persist
 import Data.Maybe
+import Data.Int
 import Data.Aeson as Aeson
 import Data.Aeson.Types
 import qualified Data.Text as T
@@ -84,6 +85,20 @@ ScheduleWeekDay
   scheduleName String
   weekDay WeekDay
   Foreign Schedule schedule scheduleName
+
+MetricRecord
+  daemon DaemonMode
+  name T.Text
+  time UTCTime
+  value Int64 Maybe
+  text T.Text Maybe
+  mean Double Maybe
+  variance Double Maybe
+  count Int64 Maybe
+  sum Double Maybe
+  min Double Maybe
+  max Double Maybe
+  Primary daemon name time
 
 User
   name String

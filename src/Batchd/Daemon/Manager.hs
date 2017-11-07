@@ -30,6 +30,7 @@ import System.Log.Heavy
 import Batchd.Core.Common.Types
 import Batchd.Core.Common.Localize
 import Batchd.Core.Common.Config
+import Batchd.Core.Daemon.Logging
 import Batchd.Common.Types
 import Batchd.Common.Data
 import Batchd.Common.Config
@@ -37,7 +38,7 @@ import Batchd.Daemon.Types
 import Batchd.Daemon.Database
 import Batchd.Daemon.Schedule
 import Batchd.Daemon.Auth
-import Batchd.Core.Daemon.Logging
+import Batchd.Daemon.Monitoring
 
 corsPolicy :: GlobalConfig -> CorsResourcePolicy
 corsPolicy cfg =
@@ -49,12 +50,16 @@ corsPolicy cfg =
     corsMethods = ["GET", "POST", "PUT", "DELETE"]
   }
 
-routes :: GlobalConfig -> LoggingTState -> ScottyT Error Daemon ()
-routes cfg lts = do
+routes :: GlobalConfig -> LoggingTState -> Maybe Wai.Middleware -> ScottyT Error Daemon ()
+routes cfg lts mbWaiMetrics = do
   Scotty.defaultHandler raiseError
 
   Scotty.middleware $ cors $ const $ Just $ corsPolicy cfg
   Scotty.middleware $ requestLogger cfg lts
+  case mbWaiMetrics of
+    Nothing -> return ()
+    Just waiMetrics -> do
+      Scotty.middleware waiMetrics
   
   case dbcAuth cfg of
     AuthDisabled -> Scotty.middleware (noAuth cfg lts)
@@ -123,10 +128,13 @@ runManager = do
     cfg <- askConfig
     let options = def {Scotty.settings = setPort (dbcManagerPort cfg) defaultSettings}
     lts <- askLoggingStateM
+    waiMetrics <- getWaiMetricsMiddleware
     liftIO $ do
+      forkIO $ runDaemonIO connInfo lts metricsDumper
       forkIO $ runDaemonIO connInfo lts queueRunner
       forkIO $ runDaemonIO connInfo lts maintainer
-      scottyOptsT options (runService connInfo lts) $ routes cfg lts
+      forkIO $ runDaemonIO connInfo lts metricsCleaner
+      scottyOptsT options (runService connInfo lts) $ routes cfg lts waiMetrics
   where
     runService connInfo lts actions =
         runDaemonIO connInfo lts $

@@ -75,6 +75,7 @@ executable batchd
         Batchd.Common.Types
         Batchd.Daemon.Logging
         Batchd.Daemon.Types
+        Batchd.Daemon.Monitoring
   other-extensions:    TypeFamilies, DeriveDataTypeable, TemplateHaskell, StandaloneDeriving, RecordWildCards
   build-depends:       base >=4.7 && <5.0,
                        conduit >= 1.2,
@@ -104,6 +105,11 @@ executable batchd
                        wai-extra >= 3.0,
                        wai-cors >= 0.2.5,
                        wai-middleware-static >= 0.8.1,
+                       ekg-core >= 0.1.1.3,
+                       -- TODO: upgrade to 0.2.0.0 when it comes into Stackage LTS
+                       monad-metrics >= 0.1.0.2, 
+                       wai-middleware-metrics >= 0.2.4,
+                       microlens >= 0.4.8.1,
                        vault,
                        scotty >= 0.10,
                        warp >= 3.2,
@@ -169,6 +175,11 @@ executable batchd-admin
                        http-types >= 0.9,
                        wai >= 3.0,
                        wai-extra >= 3.0,
+                       ekg-core >= 0.1.1.3,
+                       -- TODO: upgrade to 0.2.0.0 when it comes into Stackage LTS
+                       monad-metrics >= 0.1.0.2, 
+                       wai-middleware-metrics >= 0.2.4,
+                       -- microlens >= 0.4.8.1,
                        vault,
                        scotty >= 0.10,
                        aeson >= 0.11,

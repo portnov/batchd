@@ -294,7 +294,7 @@ data DaemonMode =
     Manager     -- ^ Manager thread only
   | Dispatcher  -- ^ Dispatcher thread only
   | Both        -- ^ Both manager and dispatcher threads
-  deriving (Data, Typeable, Show, Eq, Generic)
+  deriving (Data, Typeable, Show, Read, Eq, Ord, Generic)
 
 instance ToJSON DaemonMode
 instance FromJSON DaemonMode
@@ -502,6 +502,7 @@ instance Show DownloadException where
 derivePersistField "WeekDay"
 derivePersistField "JobStatus"
 derivePersistField "ExitCode"
+derivePersistField "DaemonMode"
 
 -- | Supported user permissions.
 data Permission =

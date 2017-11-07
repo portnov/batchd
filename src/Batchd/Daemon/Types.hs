@@ -7,12 +7,14 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Except
 import Control.Monad.Trans.Resource
+import qualified Control.Monad.Metrics as Metrics
 import Control.Concurrent
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Format.Heavy as F
 import qualified Database.Persist.Sql as Sql
 import Network.Wai
+import Network.Wai.Metrics
 import qualified Web.Scotty.Trans as Scotty
 import qualified Web.Scotty.Internal.Types as SI
 import System.Exit (ExitCode (..))
@@ -53,6 +55,8 @@ data ConnectionInfo = ConnectionInfo {
     ciGlobalConfig :: GlobalConfig     -- ^ Global configuration
   , ciPool :: Maybe Sql.ConnectionPool -- ^ DB connection pool
   , ciTranslations :: Maybe Translations
+  , ciMetrics :: Maybe Metrics.Metrics
+  , ciWaiMetrics :: Maybe WaiMetrics
   }
 
 data JobResultUpdate =
@@ -252,29 +256,23 @@ runDaemon cfg mbPool backend daemon =
       withLogContext (LogContextFrame [] noChange) $ runDaemonT daemon
   where
     runner r = evalStateT r initState
-    initState = ConnectionInfo cfg mbPool Nothing
+    initState = ConnectionInfo cfg mbPool Nothing Nothing Nothing
     -- undefinedLogger = error "Internal error: logger is not defined yet"
 
 -- | Wrap Daemon action with some @with@-style function in IO monad.
 -- Example: @wrapDaemon (withResource x) $ \resource -> do ...@.
 wrapDaemon :: ((c -> IO a) -> IO a) -> (c -> Daemon a) -> Daemon a
 wrapDaemon wrapper daemon = do
-    cfg <- askConfig
-    pool <- askPool
-    translations <- getTranslations
     lts <- askLoggingStateM
-    let connInfo = ConnectionInfo cfg (Just pool) (Just translations)
+    connInfo <- askConnectionInfo
     result <- liftIO $ wrapper $ \c -> runDaemonIO connInfo lts (daemon c)
     return result
 
 -- | forkIO for Daemon monad.
 forkDaemon :: Daemon a -> Daemon ()
 forkDaemon daemon = do
-    cfg <- askConfig
-    pool <- askPool
-    translations <- getTranslations
     lts <- askLoggingStateM
-    let connInfo = ConnectionInfo cfg (Just pool) (Just translations)
+    connInfo <- askConnectionInfo
     liftIO $ forkIO $ do
                runDaemonIO connInfo lts daemon
                return ()

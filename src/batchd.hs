@@ -8,6 +8,7 @@ import Options.Applicative
 import Data.Text.Format.Heavy
 import System.Log.Heavy
 
+import Batchd.Core.Common.Types
 import Batchd.Core.Common.Localize
 import qualified Batchd.Core.Daemon.Logging as Log
 import Batchd.Daemon.Types (runDaemon, forkDaemon, setupTranslations)
@@ -15,6 +16,7 @@ import qualified Batchd.Daemon.Logging as Log
 import Batchd.Common.Config
 import Batchd.Common.Types
 import Batchd.Daemon.Database
+import Batchd.Daemon.Monitoring
 import Batchd.Daemon.Manager as Manager
 import Batchd.Daemon.Dispatcher as Dispatcher
 
@@ -40,16 +42,18 @@ main = do
   case cfgR of
     Left err -> fail $ show err
     Right cfg -> do
-      let mode = if cmd == Both
-                   then dbcDaemonMode cfg
-                   else cmd
-      let logSettings = Log.getLoggingSettings cfg
-      runDaemon cfg Nothing logSettings $ do
+      let cfg' = if cmd == Both
+                   then cfg
+                   else cfg {dbcDaemonMode = cmd}
+      let mode = dbcDaemonMode cfg'
+      let logSettings = Log.getLoggingSettings cfg'
+      runDaemon cfg' Nothing logSettings $ do
         Batchd.Daemon.Types.setupTranslations translationPolicy
         tr <- getTranslations
-        $(Log.debug) "Loaded translations: {}" (Single $ show tr)
-        $(Log.debug) "Loaded global configuration file: {}" (Single $ show cfg)
+        $(Log.putMessage config_level) "Loaded translations: {}" (Single $ show tr)
+        $(Log.putMessage config_level) "Loaded global configuration file: {}" (Single $ show cfg')
         connectPool
+        setupMetrics
         case mode of
           Manager    -> Manager.runManager
           Dispatcher -> Dispatcher.runDispatcher
