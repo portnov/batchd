@@ -21,6 +21,7 @@ module Batchd.Common.Types
     LogTarget (..), LogConfig (..),
     WebClientConfig (..),
     ManagerConfig (..), DispatcherConfig (..),
+    MetricsConfig (..),
     StorageConfig (..),
     GlobalConfig (..),
     ByStatus (..),
@@ -421,6 +422,7 @@ data GlobalConfig = GlobalConfig {
     , dbcLogging :: LogConfig          -- ^ Logging configuration
     , dbcManager :: ManagerConfig
     , dbcDispatcher :: DispatcherConfig
+    , dbcMetrics :: MetricsConfig
     , dbcStorage :: StorageConfig
   }
   deriving (Eq, Show, Typeable, Generic)
@@ -433,7 +435,22 @@ instance Default GlobalConfig where
         , dbcLogging = defaultLogConfig
         , dbcManager = def
         , dbcDispatcher = def
+        , dbcMetrics = def
         , dbcStorage = def
+        }
+
+data MetricsConfig = MetricsConfig {
+    mcGcMetrics :: Bool     -- ^ Whether to enable GC metrics (default true)
+  , mcHttpMetrics :: Bool   -- ^ Whether to enable HTTP metrics for manager REST API (default true)
+  , mcDumpTimeout :: Int    -- ^ How often to dump metrics data to DB, in seconds (default - each 10 seconds)
+  }
+  deriving (Eq, Show, Typeable, Generic)
+
+instance Default MetricsConfig where
+  def = MetricsConfig {
+          mcGcMetrics = True
+        , mcHttpMetrics = True
+        , mcDumpTimeout = 10
         }
 
 data WebClientConfig = WebClientConfig {
@@ -472,18 +489,31 @@ instance Default DispatcherConfig where
         }
 
 data StorageConfig = StorageConfig {
-    scDoneJobs :: Int -- ^ How long to store executed jobs, in days.
+    scDoneJobs :: Int      -- ^ How long to store executed jobs, in days.
+  , scMetricRecords :: Int -- ^ How long to store metric records, in days.
   }
   deriving (Eq, Show, Typeable, Generic)
 
 instance Default StorageConfig where
   def = StorageConfig {
           scDoneJobs = 2
+        , scMetricRecords = 3
         }
 
 -- | Default static salt value.
 defaultStaticSalt :: String
 defaultStaticSalt = "1234567890abcdef"
+
+instance ToJSON MetricsConfig where
+  toJSON = genericToJSON (jsonOptions "mc")
+
+instance FromJSON MetricsConfig where
+  parseJSON (Object v) =
+    MetricsConfig
+      <$> v .:? "gc_metrics" .!= mcGcMetrics def
+      <*> v .:? "http_metrics" .!= mcHttpMetrics def
+      <*> v .:? "dump_timeout" .!= mcDumpTimeout def
+  parseJSON invalid = typeMismatch "metrics configuration" invalid
 
 instance ToJSON WebClientConfig where
   toJSON = genericToJSON (jsonOptions "wc")
@@ -523,6 +553,7 @@ instance FromJSON StorageConfig where
   parseJSON (Object v) =
     StorageConfig
       <$> v .:? "done_jobs" .!= scDoneJobs def
+      <*> v .:? "metric_records" .!= scMetricRecords def
   parseJSON invalid = typeMismatch "storage configuration" invalid
 
 instance ToJSON GlobalConfig where
@@ -535,11 +566,11 @@ instance FromJSON GlobalConfig where
       <*> v .:? "driver" .!= dbcDriver def
       <*> v .:? "connection_string" .!= dbcConnectionString def
       <*> v .:? "logging" .!= defaultLogConfig
-      <*> v .: "manager"
-      <*> v .: "dispatcher"
-      <*> v .: "storage"
+      <*> v .:? "manager" .!= def
+      <*> v .:? "dispatcher" .!= def
+      <*> v .:? "metrics" .!= def
+      <*> v .:? "storage" .!= def
   parseJSON invalid = typeMismatch "global configuration" invalid
-
 
 deriving instance Data Syslog.Priority
 deriving instance Typeable Syslog.Priority

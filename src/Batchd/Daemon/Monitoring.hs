@@ -38,10 +38,14 @@ import Batchd.Daemon.Types
 setupMetrics :: Daemon ()
 setupMetrics = do
   store <- liftIO EKG.newStore
-  liftIO $ EKG.registerGcMetrics store
-  waiMetrics <- liftIO $ registerNamedWaiMetrics "batchd" store
+  cfg <- askConfig
+  when (mcGcMetrics $ dbcMetrics cfg) $ do
+      liftIO $ EKG.registerGcMetrics store
+  mbWaiMetrics <- if mcHttpMetrics $ dbcMetrics cfg
+                    then Just `fmap` (liftIO $ registerNamedWaiMetrics "batchd" store)
+                    else return Nothing
   metrics <- liftIO $ Metrics.initializeWith store
-  Daemon $ lift $ modify $ \st -> st {ciMetrics = Just metrics, ciWaiMetrics = Just waiMetrics}
+  Daemon $ lift $ modify $ \st -> st {ciMetrics = Just metrics, ciWaiMetrics = mbWaiMetrics}
 
 instance Metrics.MonadMetrics Daemon where
   getMetrics = do
@@ -59,10 +63,11 @@ getWaiMetricsMiddleware = do
 
 metricsDumper :: Daemon ()
 metricsDumper = do
-  ci <- askConnectionInfo
-  let mode = dbcDaemonMode $ ciGlobalConfig ci
+  cfg <- askConfig
+  let mode = dbcDaemonMode cfg
+  let timeout = mcDumpTimeout $ dbcMetrics cfg
   forever $ do
-    liftIO $ threadDelay $ 10 * 1000 * 1000
+    liftIO $ threadDelay $ timeout * 1000 * 1000
     metrics <- Metrics.getMetrics
     let store = metrics ^. Metrics.metricsStore
     sample <- liftIO $ EKG.sampleAll store
@@ -94,10 +99,12 @@ mkRecord mode time name value =
     emptyRecord = MetricRecord mode name time Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing
 
 metricsCleaner :: Daemon ()
-metricsCleaner = forever $ do
+metricsCleaner = do
+  cfg <- askConfig
+  let days = scMetricRecords $ dbcStorage cfg
+  forever $ do
     liftIO $ threadDelay $ 60 * 60 * 1000*1000
     now <- liftIO $ getCurrentTime
-    let days = 1
     let delta = fromIntegral $ days * 24 * 3600
     let edge = addUTCTime (negate delta) now
     r <- runDB $ do

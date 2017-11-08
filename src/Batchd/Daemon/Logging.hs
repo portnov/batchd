@@ -21,6 +21,7 @@ deriveLift ''LogTarget
 deriveLift ''F.FormatItem
 deriveLift ''F.Format
 deriveLift ''LogConfig
+deriveLift ''MetricsConfig
 deriveLift ''WebClientConfig
 deriveLift ''ManagerConfig
 deriveLift ''DispatcherConfig
