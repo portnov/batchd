@@ -98,7 +98,7 @@ MetricRecord
   sum Double Maybe
   min Double Maybe
   max Double Maybe
-  Primary daemon name time
+  Primary name time daemon
 
 User
   name String
