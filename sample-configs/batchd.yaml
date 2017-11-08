@@ -36,44 +36,48 @@ logging:
   #  SQL: debug
   #  Amazon: debug
 
-# Number of concurrent workers
-# workers: 1
+manager:
+    # Authentication setup
+    # You can disable authentication at all.
+    # In this mode, all users are unconditionally authenticated, and treated as superusers.
+    # This can be useful when running on localhost.
+    # auth: disable
 
-# How often to poll queues for new jobs, in seconds
-# poll_timeout: 10
+    auth:
+        # enable HTTP basic auth (by username and password)
+        # NB: in this mode, passwords are sent in clear text.
+        # So this is secure only if channel is secured with HTTPS.
+        basic: true
 
-# Authentication setup
-# You can disable authentication at all.
-# In this mode, all users are unconditionally authenticated, and treated as superusers.
-# This can be useful when running on localhost.
-# auth: disable
+        # enable unconditional authentication by X-Auth-User: HTTP header.
+        # Specified user will be treated as authenticated without any password or whatever.
+        # This mode is to be used when authentication is done by external system.
+        # For example, this is useful when HTTP client certificates are checked by nginx.
+        header: false
 
-auth:
-    # enable HTTP basic auth (by username and password)
-    # NB: in this mode, passwords are sent in clear text.
-    # So this is secure only if channel is secured with HTTPS.
-    basic: true
+        # Static salt parameter for password hashes.
+        # NB: this parameter is supposed to be set once, before first users are created.
+        # For security reasons it is better to specify unique value for each installation.
+        # If you change this parameter, all existing user passwords will become invalid!
+        static_salt: "sdjf@OIH&OIHjihhih8YY"
 
-    # enable unconditional authentication by X-Auth-User: HTTP header.
-    # Specified user will be treated as authenticated without any password or whatever.
-    # This mode is to be used when authentication is done by external system.
-    # For example, this is useful when HTTP client certificates are checked by nginx.
-    header: false
+    web_client:
+        # Path to web client files (batch.html and companion js and css files).
+        # If not specified, web client will not be available.
+        path: /usr/share/batchd/web/
+        
+        # Allowed origin for web client REST requests. This is to be set to
+        # domain where web client is available.
+        allowed_origin: http://localhost:9681/
 
-    # Static salt parameter for password hashes.
-    # NB: this parameter is supposed to be set once, before first users are created.
-    # For security reasons it is better to specify unique value for each installation.
-    # If you change this parameter, all existing user passwords will become invalid!
-    static_salt: "sdjf@OIH&OIHjihhih8YY"
+dispatcher:
+    # Number of concurrent workers
+    # workers: 1
 
-# Path to web client files (batch.html and companion js and css files).
-# If not specified, web client will not be available.
-web_client_path: /usr/share/batchd/web/
+    # How often to poll queues for new jobs, in seconds
+    poll_timeout: 10
 
-# Allowed origin for web client REST requests. This is to be set to
-# domain where web client is available.
-allowed_origin: http://localhost:9681/
-
-# How long to store executed (Done) jobs, in days
-# store_done: 10
+storage:
+    # How long to store executed (Done) jobs, in days
+    done_jobs: 10
 
