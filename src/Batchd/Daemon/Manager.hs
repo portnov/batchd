@@ -42,9 +42,9 @@ import Batchd.Daemon.Monitoring
 
 corsPolicy :: GlobalConfig -> CorsResourcePolicy
 corsPolicy cfg =
-  let origins = case dbcAllowedOrigin cfg of
+  let origins = case wcAllowedOrigin =<< (mcWebClient $ dbcManager cfg) of
                   Nothing -> Nothing
-                  Just url -> Just ([stringToBstr url], not (isAuthDisabled $ dbcAuth cfg))
+                  Just url -> Just ([stringToBstr url], not (isAuthDisabled $ mcAuth $ dbcManager cfg))
   in simpleCorsResourcePolicy {
     corsOrigins = origins,
     corsMethods = ["GET", "POST", "PUT", "DELETE"]
@@ -61,7 +61,7 @@ routes cfg lts mbWaiMetrics = do
     Just waiMetrics -> do
       Scotty.middleware waiMetrics
   
-  case dbcAuth cfg of
+  case mcAuth $ dbcManager cfg of
     AuthDisabled -> Scotty.middleware (noAuth cfg lts)
     AuthConfig {..} -> do
       when authHeaderEnabled $
@@ -69,7 +69,7 @@ routes cfg lts mbWaiMetrics = do
       when authBasicEnabled $
         Scotty.middleware (basicAuth cfg lts)
     
-  case dbcWebClientPath cfg of
+  case wcPath `fmap` (mcWebClient $ dbcManager cfg) of
     Just path -> do
         Scotty.middleware $ staticPolicy (addBase path)
         Scotty.get "/" $ file $ path </> "batch.html"
@@ -126,7 +126,7 @@ runManager :: Daemon ()
 runManager = do
     connInfo <- Daemon $ lift State.get
     cfg <- askConfig
-    let options = def {Scotty.settings = setPort (dbcManagerPort cfg) defaultSettings}
+    let options = def {Scotty.settings = setPort (mcPort $ dbcManager cfg) defaultSettings}
     lts <- askLoggingStateM
     waiMetrics <- getWaiMetricsMiddleware
     liftIO $ do
@@ -143,7 +143,7 @@ runManager = do
 maintainer :: Daemon ()
 maintainer = withLogVariable "thread" ("maintainer" :: String) $ forever $ do
   cfg <- askConfig
-  runDB $ cleanupJobResults (dbcStoreDone cfg)
+  runDB $ cleanupJobResults (scDoneJobs $ dbcStorage cfg)
   liftIO $ threadDelay $ 60 * 1000*1000
 
 queueRunner :: Daemon ()
@@ -220,7 +220,7 @@ getQueuesA = inUserContext $ do
   cfg <- askConfigA
   qes <- runDBA $ do
            super <- isSuperUser name
-           if super || isAuthDisabled (dbcAuth cfg)
+           if super || isAuthDisabled (mcAuth $ dbcManager cfg)
              then getAllQueues'
              else getAllowedQueues name ViewQueues
   -- let qnames = map (queueName . entityVal) qes
@@ -498,7 +498,7 @@ createUserA = inUserContext $ do
   checkSuperUser
   user <- jsonData
   cfg <- askConfigA
-  let staticSalt = authStaticSalt $ dbcAuth cfg
+  let staticSalt = authStaticSalt $ mcAuth $ dbcManager cfg
   name <- runDBA $ createUserDb (uiName user) (uiPassword user) staticSalt
   Scotty.json name
 
@@ -510,7 +510,7 @@ changePasswordA = inUserContext $ do
       checkSuperUser
   user <- jsonData
   cfg <- askConfigA
-  let staticSalt = authStaticSalt $ dbcAuth cfg
+  let staticSalt = authStaticSalt $ mcAuth $ dbcManager cfg
   runDBA $ changePasswordDb name (uiPassword user) staticSalt
   done
 
@@ -540,6 +540,6 @@ deletePermissionA = inUserContext $ do
 getAuthOptionsA :: Action ()
 getAuthOptionsA = inUserContext $ do
   cfg <- askConfigA
-  let methods = authMethods $ dbcAuth cfg
+  let methods = authMethods $ mcAuth $ dbcManager cfg
   Scotty.json methods
 

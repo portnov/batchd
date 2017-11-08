@@ -21,6 +21,10 @@ deriveLift ''LogTarget
 deriveLift ''F.FormatItem
 deriveLift ''F.Format
 deriveLift ''LogConfig
+deriveLift ''WebClientConfig
+deriveLift ''ManagerConfig
+deriveLift ''DispatcherConfig
+deriveLift ''StorageConfig
 deriveLift ''GlobalConfig
 
 -- | Get logging settings from global config.

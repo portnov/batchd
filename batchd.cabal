@@ -78,6 +78,7 @@ executable batchd
         Batchd.Daemon.Monitoring
   other-extensions:    TypeFamilies, DeriveDataTypeable, TemplateHaskell, StandaloneDeriving, RecordWildCards
   build-depends:       base >=4.7 && <5.0,
+                       data-default >= 0.7.1,
                        conduit >= 1.2,
                        conduit-extra >= 1.1,
                        conduit-combinators >= 1.1,
@@ -156,6 +157,7 @@ executable batchd-admin
         Batchd.Daemon.Types
   other-extensions:    TypeFamilies, DeriveDataTypeable, TemplateHaskell, StandaloneDeriving, RecordWildCards
   build-depends:       base >=4.7 && <5.0,
+                       data-default >= 0.7.1,
                        persistent >= 2.2,
                        persistent-sqlite >= 2.2,
                        persistent-postgresql >= 2.2,

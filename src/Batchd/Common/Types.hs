@@ -19,6 +19,9 @@ module Batchd.Common.Types
     DbDriver (..), DaemonMode (..),
     AuthMode (..), AuthMethod (..),
     LogTarget (..), LogConfig (..),
+    WebClientConfig (..),
+    ManagerConfig (..), DispatcherConfig (..),
+    StorageConfig (..),
     GlobalConfig (..),
     ByStatus (..),
     -- * Exceptions
@@ -51,6 +54,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import Data.Aeson as Aeson
 import Data.Aeson.Types
+import Data.Default
 import qualified Data.Text.Format.Heavy as F
 import qualified Data.Text.Format.Heavy.Parse.Braces as PF
 import Data.Dates
@@ -412,22 +416,114 @@ instance FromJSON LogConfig where
 -- | Global daemon configuration
 data GlobalConfig = GlobalConfig {
       dbcDaemonMode :: DaemonMode      -- ^ Daemon execution mode
-    , dbcManagerPort :: Int            -- ^ Network port for manager to listen
     , dbcDriver :: DbDriver            -- ^ Type of DB backend
     , dbcConnectionString :: T.Text    -- ^ DB connection string
-    , dbcWorkers :: Int                -- ^ Number of worker threads
-    , dbcPollTimeout :: Int            -- ^ Queue polling timeout, in seconds
     , dbcLogging :: LogConfig          -- ^ Logging configuration
-    , dbcAuth :: AuthMode              -- ^ Authentication configuration
-    , dbcWebClientPath :: Maybe String -- ^ Path to web client HTML\/JS\/CSS files
-    , dbcAllowedOrigin :: Maybe String -- ^ Allowed Origin for CORS
-    , dbcStoreDone :: Int              -- ^ How long to store executed jobs, in days.
+    , dbcManager :: ManagerConfig
+    , dbcDispatcher :: DispatcherConfig
+    , dbcStorage :: StorageConfig
   }
   deriving (Eq, Show, Typeable, Generic)
+
+instance Default GlobalConfig where
+  def = GlobalConfig {
+          dbcDaemonMode = Both
+        , dbcDriver = Sqlite
+        , dbcConnectionString = ":memory:"
+        , dbcLogging = defaultLogConfig
+        , dbcManager = def
+        , dbcDispatcher = def
+        , dbcStorage = def
+        }
+
+data WebClientConfig = WebClientConfig {
+    wcAllowedOrigin :: Maybe String  -- ^ Allowed Origin for CORS
+  , wcPath :: String                 -- ^ Path to web client HTML\/JS\/CSS files
+  }
+  deriving (Eq, Show, Typeable, Generic)
+
+instance Default WebClientConfig where
+  def = WebClientConfig Nothing ""
+
+data ManagerConfig = ManagerConfig {
+    mcPort :: Int                  -- ^ Network port for manager to listen
+  , mcAuth :: AuthMode             -- ^ Authentication configuration
+  , mcWebClient :: Maybe WebClientConfig
+  }
+  deriving (Eq, Show, Typeable, Generic)
+
+instance Default ManagerConfig where
+  def = ManagerConfig {
+          mcPort = defaultManagerPort
+        , mcAuth = defaultAuthMode
+        , mcWebClient = Nothing
+        }
+
+data DispatcherConfig = DispatcherConfig {
+    dcWorkers :: Int
+  , dcPollTimeout :: Int
+  }
+  deriving (Eq, Show, Typeable, Generic)
+
+instance Default DispatcherConfig where
+  def = DispatcherConfig {
+          dcWorkers = 1
+        , dcPollTimeout = 10
+        }
+
+data StorageConfig = StorageConfig {
+    scDoneJobs :: Int -- ^ How long to store executed jobs, in days.
+  }
+  deriving (Eq, Show, Typeable, Generic)
+
+instance Default StorageConfig where
+  def = StorageConfig {
+          scDoneJobs = 2
+        }
 
 -- | Default static salt value.
 defaultStaticSalt :: String
 defaultStaticSalt = "1234567890abcdef"
+
+instance ToJSON WebClientConfig where
+  toJSON = genericToJSON (jsonOptions "wc")
+
+instance FromJSON WebClientConfig where
+  parseJSON (Object v) =
+    WebClientConfig
+      <$> v .:? "allowed_origin"
+      <*> v .: "path"
+  parseJSON invalid = typeMismatch "web client configuration" invalid
+
+instance ToJSON ManagerConfig where
+  toJSON = genericToJSON (jsonOptions "mc")
+
+instance FromJSON ManagerConfig where
+  parseJSON (Object v) =
+    ManagerConfig
+      <$> v .:? "port" .!= defaultManagerPort
+      <*> v .:? "auth" .!= defaultAuthMode
+      <*> v .:? "web_client"
+  parseJSON invalid = typeMismatch "manager configuration" invalid
+
+instance ToJSON DispatcherConfig where
+  toJSON = genericToJSON (jsonOptions "dc")
+  
+instance FromJSON DispatcherConfig where
+  parseJSON (Object v) =
+    DispatcherConfig
+      <$> v .:? "workers" .!= dcWorkers def
+      <*> v .:? "poll_timeout" .!= dcPollTimeout def
+  parseJSON invalid = typeMismatch "dispatcher configuration" invalid
+
+instance ToJSON StorageConfig where
+  toJSON = genericToJSON (jsonOptions "sc")
+  
+instance FromJSON StorageConfig where
+  parseJSON (Object v) =
+    StorageConfig
+      <$> v .:? "done_jobs" .!= scDoneJobs def
+  parseJSON invalid = typeMismatch "storage configuration" invalid
 
 instance ToJSON GlobalConfig where
   toJSON = genericToJSON (jsonOptions "dbc")
@@ -435,17 +531,13 @@ instance ToJSON GlobalConfig where
 instance FromJSON GlobalConfig where
   parseJSON (Object v) =
     GlobalConfig
-      <$> v .:? "daemon" .!= Both
-      <*> v .:? "manager_port" .!= defaultManagerPort
-      <*> v .:? "driver" .!= Sqlite
-      <*> v .:? "connection_string" .!= ":memory:"
-      <*> v .:? "workers" .!= 1
-      <*> v .:? "poll_timeout" .!= 10
+      <$> v .:? "daemon" .!= dbcDaemonMode def
+      <*> v .:? "driver" .!= dbcDriver def
+      <*> v .:? "connection_string" .!= dbcConnectionString def
       <*> v .:? "logging" .!= defaultLogConfig
-      <*> v .:? "auth" .!= defaultAuthMode
-      <*> v .:? "web_client_path"
-      <*> v .:? "allowed_origin"
-      <*> v .:? "store_done" .!= 2
+      <*> v .: "manager"
+      <*> v .: "dispatcher"
+      <*> v .: "storage"
   parseJSON invalid = typeMismatch "global configuration" invalid
 
 

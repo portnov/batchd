@@ -64,7 +64,7 @@ createUser :: GlobalConfig
            -> IO Bool
 createUser gcfg lts name password = do
   pool <- getPool gcfg lts
-  let staticSalt = authStaticSalt $ dbcAuth gcfg
+  let staticSalt = authStaticSalt $ mcAuth $ dbcManager gcfg
   res <- runDBIO gcfg pool lts (createUserDb name password staticSalt)
   case res of
     Left _ -> return False
@@ -78,7 +78,7 @@ createSuperUser :: GlobalConfig
                 -> IO Bool
 createSuperUser gcfg lts name password = do
   pool <- getPool gcfg lts
-  let staticSalt = authStaticSalt $ dbcAuth gcfg
+  let staticSalt = authStaticSalt $ mcAuth $ dbcManager gcfg
   res <- runDBIO gcfg pool lts (createSuperUserDb name password staticSalt)
   case res of
     Left _ -> return False
@@ -132,7 +132,7 @@ changePassword :: GlobalConfig
                 -> IO Bool
 changePassword gcfg lts name password = do
   pool <- getPool gcfg lts
-  let staticSalt = authStaticSalt $ dbcAuth gcfg
+  let staticSalt = authStaticSalt $ mcAuth $ dbcManager gcfg
   res <- runDBIO gcfg pool lts (changePasswordDb name password staticSalt)
   case res of
     Left _ -> return False
@@ -165,7 +165,7 @@ checkUser gcfg lts nameBstr passwordBstr = do
   pool <- getPool gcfg lts
   let name = bstrToString nameBstr
       password = bstrToString passwordBstr
-      salt = authStaticSalt $ dbcAuth gcfg
+      salt = authStaticSalt $ mcAuth $ dbcManager gcfg
   res <- runDBIO gcfg pool lts (checkUserDb name password salt)
   case res of
     Left _ -> return False
@@ -294,7 +294,7 @@ isSuperUser name = do
 checkSuperUser :: Action ()
 checkSuperUser = do
   cfg <- askConfigA
-  when (not $ isAuthDisabled $ dbcAuth cfg) $ do
+  when (not $ isAuthDisabled $ mcAuth $ dbcManager cfg) $ do
       user <- getAuthUser
       ok <- runDBA $ isSuperUser (userName user)
       when (not ok) $ do
@@ -394,7 +394,7 @@ checkPermission :: String      -- ^ Error message for case of insufficient privi
                 -> Action ()
 checkPermission message perm qname = do
   cfg <- askConfigA
-  when (not $ isAuthDisabled $ dbcAuth cfg) $ do
+  when (not $ isAuthDisabled $ mcAuth $ dbcManager cfg) $ do
       user <- getAuthUser
       ok <- runDBA $ hasPermission (userName user) perm qname
       when (not ok) $ do
@@ -407,7 +407,7 @@ checkCanCreateJobs :: String -- ^ Queue name
                    -> Action ()
 checkCanCreateJobs qname typename hostname = do
   cfg <- askConfigA
-  when (not $ isAuthDisabled $ dbcAuth cfg) $ do
+  when (not $ isAuthDisabled $ mcAuth $ dbcManager cfg) $ do
       user <- getAuthUser
       ok <- runDBA $ hasCreatePermission (userName user) qname (Just typename) (Just hostname)
       when (not ok) $ do
@@ -419,7 +419,7 @@ checkPermissionToList :: String     -- ^ Error message for case of insufficient 
                       -> Action ()
 checkPermissionToList message perm = do
   cfg <- askConfigA
-  when (not $ isAuthDisabled $ dbcAuth cfg) $ do
+  when (not $ isAuthDisabled $ mcAuth $ dbcManager cfg) $ do
       user <- getAuthUser
       ok <- runDBA $ hasPermissionToList (userName user) perm
       when (not ok) $ do

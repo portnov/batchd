@@ -36,11 +36,11 @@ runDispatcher = do
   jobsChan <- liftIO newChan
   resChan <- liftIO newChan
   counters <- liftIO $ newMVar M.empty
-  $info "Starting {} workers..." (Single $ dbcWorkers cfg)
+  $info "Starting {} workers..." (Single $ dcWorkers $ dbcDispatcher cfg)
   -- Each worker will run in separate thread.
   -- All workers read jobs to be executed from single Chan.
   -- So job put into Chan will be executed by first worker who sees it.
-  forM_ [1.. dbcWorkers cfg] $ \idx -> do
+  forM_ [1.. dcWorkers (dbcDispatcher cfg)] $ \idx -> do
     $debug "  Starting worker #{}" (Single idx)
     forkDaemon $ worker idx counters jobsChan resChan
 
@@ -82,7 +82,7 @@ dispatcher jobsChan = withLogVariable "thread" ("dispatcher" :: String) $ do
                     setJobStatus job Waiting
                     liftIO $ writeChan jobsChan (entityVal qe, job)
         -- Sleep for poll timeout
-        liftIO $ threadDelay $ (dbcPollTimeout cfg) * 1000*1000
+        liftIO $ threadDelay $ (dcPollTimeout $ dbcDispatcher cfg) * 1000*1000
 
 -- | This listens for job results Chan and writes results to DB.
 -- It also reschedules failed jobs if needed.
