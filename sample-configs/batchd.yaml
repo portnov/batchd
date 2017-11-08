@@ -77,7 +77,23 @@ dispatcher:
     # How often to poll queues for new jobs, in seconds
     poll_timeout: 10
 
+# Monitoring metrics configuration
+metrics:
+  # Enable GC metrics.
+  # Note: you have to either compile batchd with --ghc-options=-with-rtsopts=-T,
+  # or run it with +RTS -T for this to work.
+  gc_metrics: true
+
+  # Enable HTTP metrics for manager REST API
+  http_metrics: true
+
+  # How often to dump metrics data to DB, in seconds
+  dump_timeout: 10
+
 storage:
     # How long to store executed (Done) jobs, in days
     done_jobs: 10
+
+    # How long to store metric records, in days
+    metric_records: 2
 
