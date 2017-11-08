@@ -74,8 +74,12 @@ metricsDumper = do
     now <- liftIO $ getCurrentTime
     r <- runDB $ do
             forM_ (H.toList sample) $ \(name, value) -> do
-              let record = mkRecord mode now name value
-              insert_ record
+              let ok = case mcStorePrefixOnly $ dbcMetrics cfg of
+                         Nothing -> True
+                         Just prefix -> prefix `T.isPrefixOf` name
+              when ok $ do
+                  let record = mkRecord mode now name value
+                  insert_ record
     case r of
       Left err -> $reportError "Can't insert metric record to DB: {}" (Single $ show err)
       Right _ -> return ()

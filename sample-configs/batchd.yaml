@@ -87,6 +87,9 @@ metrics:
   # Enable HTTP metrics for manager REST API
   http_metrics: true
 
+  # Only store metrics, names of which starts with specified prefix
+  #store_prefix_only: batchd.jobs
+
   # How often to dump metrics data to DB, in seconds
   dump_timeout: 10
 

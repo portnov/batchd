@@ -442,6 +442,7 @@ instance Default GlobalConfig where
 data MetricsConfig = MetricsConfig {
     mcGcMetrics :: Bool     -- ^ Whether to enable GC metrics (default true)
   , mcHttpMetrics :: Bool   -- ^ Whether to enable HTTP metrics for manager REST API (default true)
+  , mcStorePrefixOnly :: Maybe T.Text -- ^ Only store metrics, names of which starts with specified prefix.
   , mcDumpTimeout :: Int    -- ^ How often to dump metrics data to DB, in seconds (default - each 10 seconds)
   }
   deriving (Eq, Show, Typeable, Generic)
@@ -450,6 +451,7 @@ instance Default MetricsConfig where
   def = MetricsConfig {
           mcGcMetrics = True
         , mcHttpMetrics = True
+        , mcStorePrefixOnly = Nothing
         , mcDumpTimeout = 10
         }
 
@@ -512,6 +514,7 @@ instance FromJSON MetricsConfig where
     MetricsConfig
       <$> v .:? "gc_metrics" .!= mcGcMetrics def
       <*> v .:? "http_metrics" .!= mcHttpMetrics def
+      <*> v .:? "store_prefix_only" .!= mcStorePrefixOnly def
       <*> v .:? "dump_timeout" .!= mcDumpTimeout def
   parseJSON invalid = typeMismatch "metrics configuration" invalid
 
