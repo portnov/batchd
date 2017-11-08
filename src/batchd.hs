@@ -37,6 +37,9 @@ main = do
         Batchd.Daemon.Types.setupTranslations translationPolicy
         tr <- getTranslations
         $(Log.putMessage config_level) "Loaded translations: {}" (Single $ show tr)
+        case globalConfigPath $ daemonCommon cmdline of
+          Nothing -> return ()
+          Just path -> $(Log.putMessage config_level) "Using global configuration file: {}" (Single path)
         $(Log.putMessage config_level) "Loaded global configuration file: {}" (Single $ show cfg')
         connectPool
         setupMetrics
