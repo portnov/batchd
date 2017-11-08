@@ -7,11 +7,12 @@ module Batchd.Daemon.Manager where
 
 import Control.Concurrent
 import Control.Monad
+import Control.Applicative (optional)
 import Control.Monad.Reader
 import qualified Control.Monad.State as State
 import qualified Data.ByteString as B
 import qualified Data.Text.Lazy as TL
-import Data.Text.Format.Heavy
+import Data.Text.Format.Heavy hiding (optional)
 import Data.Text.Format.Heavy.Parse
 import Data.Maybe
 import Data.Default
@@ -26,6 +27,7 @@ import System.FilePath
 import System.FilePath.Glob
 import System.Log.Heavy.Types
 import System.Log.Heavy
+import System.Metrics.Json as EKG
 
 import Batchd.Core.Common.Types
 import Batchd.Core.Common.Localize
@@ -112,6 +114,9 @@ routes cfg lts mbWaiMetrics = do
   Scotty.get "/user/:name/permissions" getPermissionsA
   Scotty.post "/user/:name/permissions" createPermissionA
   Scotty.delete "/user/:name/permissions/:id" deletePermissionA
+
+  Scotty.get "/monitor/current" currentMetricsA 
+  Scotty.get "/monitor/:prefix/current" currentMetricsA 
 
   Scotty.options "/" $ getAuthOptionsA
   Scotty.options (Scotty.regex "/.*") $ done
@@ -542,4 +547,10 @@ getAuthOptionsA = inUserContext $ do
   cfg <- askConfigA
   let methods = authMethods $ mcAuth $ dbcManager cfg
   Scotty.json methods
+
+currentMetricsA :: Action ()
+currentMetricsA = inUserContext $ do
+  mbPrefix <- optional $ Scotty.param "prefix"
+  metrics <- lift $ getCurrentMetrics mbPrefix
+  Scotty.json $ EKG.sampleToJson metrics
 

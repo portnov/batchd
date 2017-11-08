@@ -7,6 +7,7 @@ module Batchd.Daemon.Monitoring
     setupMetrics,
     metricsDumper, metricsCleaner,
     getWaiMetricsMiddleware,
+    getCurrentMetrics,
     Metrics.counter,
     Metrics.gauge,
     Metrics.timed,
@@ -61,6 +62,16 @@ getWaiMetricsMiddleware = do
     Nothing -> return Nothing
     Just wm -> return $ Just $ metrics wm
 
+getCurrentMetrics :: Maybe T.Text -> Daemon EKG.Sample
+getCurrentMetrics mbPrefix = do
+    metrics <- Metrics.getMetrics
+    let store = metrics ^. Metrics.metricsStore
+    sample <- liftIO $ EKG.sampleAll store
+    let good = case mbPrefix of
+                 Just prefix -> H.filterWithKey (\name _ -> prefix `T.isPrefixOf` name) sample
+                 Nothing -> sample
+    return good
+
 metricsDumper :: Daemon ()
 metricsDumper = do
   cfg <- askConfig
@@ -68,10 +79,8 @@ metricsDumper = do
   let timeout = mcDumpTimeout $ dbcMetrics cfg
   forever $ do
     liftIO $ threadDelay $ timeout * 1000 * 1000
-    metrics <- Metrics.getMetrics
-    let store = metrics ^. Metrics.metricsStore
-    sample <- liftIO $ EKG.sampleAll store
     now <- liftIO $ getCurrentTime
+    sample <- getCurrentMetrics Nothing
     r <- runDB $ do
             forM_ (H.toList sample) $ \(name, value) -> do
               let ok = case mcStorePrefixOnly $ dbcMetrics cfg of
