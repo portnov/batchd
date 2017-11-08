@@ -90,6 +90,7 @@ MetricRecord
   daemon DaemonMode
   name T.Text
   time UTCTime
+  kind MetricKind
   value Int64 Maybe
   text T.Text Maybe
   mean Double Maybe

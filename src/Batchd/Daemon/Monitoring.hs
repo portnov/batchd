@@ -96,11 +96,11 @@ metricsDumper = do
 mkRecord :: DaemonMode -> UTCTime -> T.Text -> EKG.Value -> MetricRecord
 mkRecord mode time name value =
     case value of
-      EKG.Counter n -> emptyRecord {metricRecordValue = Just n}
-      EKG.Gauge n   -> emptyRecord {metricRecordValue = Just n}
-      EKG.Label text -> emptyRecord {metricRecordText = Just text}
+      EKG.Counter n  -> (emptyRecord Counter) {metricRecordValue = Just n}
+      EKG.Gauge n    -> (emptyRecord Gauge)   {metricRecordValue = Just n}
+      EKG.Label text -> (emptyRecord Label)   {metricRecordText = Just text}
       EKG.Distribution st ->
-        emptyRecord {
+        (emptyRecord Distribution) {
           metricRecordMean = Just $ EKG.mean st,
           metricRecordVariance = Just $ EKG.variance st,
           metricRecordCount = Just $ EKG.count st,
@@ -109,7 +109,7 @@ mkRecord mode time name value =
           metricRecordMax = Just $ EKG.max st
         }
   where
-    emptyRecord = MetricRecord mode name time Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing
+    emptyRecord kind = MetricRecord mode name time kind Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing
 
 metricsCleaner :: Daemon ()
 metricsCleaner = do

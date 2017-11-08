@@ -24,6 +24,7 @@ module Batchd.Common.Types
     MetricsConfig (..),
     StorageConfig (..),
     GlobalConfig (..),
+    MetricKind (..),
     ByStatus (..),
     -- * Exceptions
     UploadException (..), DownloadException (..), ExecException (..),
@@ -575,6 +576,13 @@ instance FromJSON GlobalConfig where
       <*> v .:? "storage" .!= def
   parseJSON invalid = typeMismatch "global configuration" invalid
 
+data MetricKind =
+    Counter
+  | Gauge
+  | Label
+  | Distribution
+  deriving (Eq, Ord, Show, Read)
+
 deriving instance Data Syslog.Priority
 deriving instance Typeable Syslog.Priority
 
@@ -629,6 +637,7 @@ derivePersistField "WeekDay"
 derivePersistField "JobStatus"
 derivePersistField "ExitCode"
 derivePersistField "DaemonMode"
+derivePersistField "MetricKind"
 
 -- | Supported user permissions.
 data Permission =
