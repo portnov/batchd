@@ -8,6 +8,7 @@ module Batchd.Daemon.Monitoring
     metricsDumper, metricsCleaner,
     getWaiMetricsMiddleware,
     getCurrentMetrics,
+    metricRecordToJson,
     Metrics.counter,
     Metrics.gauge,
     Metrics.timed,
@@ -21,9 +22,12 @@ import Control.Concurrent
 import qualified Control.Monad.Metrics as Metrics
 import Lens.Micro
 import Data.Time
+import Data.Aeson as Aeson
+import Data.Aeson.Types as Aeson
 import qualified Data.Text as T
 import Data.Text.Format.Heavy
 import qualified Data.HashMap.Lazy as H
+import qualified Data.HashMap.Strict as M
 import Database.Persist
 import qualified System.Metrics as EKG
 import qualified System.Metrics.Distribution as EKG
@@ -109,7 +113,7 @@ mkRecord mode time name value =
           metricRecordMax = Just $ EKG.max st
         }
   where
-    emptyRecord kind = MetricRecord mode name time kind Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing
+    emptyRecord kind = MetricRecord name time mode kind Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing
 
 metricsCleaner :: Daemon ()
 metricsCleaner = do
@@ -126,3 +130,32 @@ metricsCleaner = do
       Left err -> $reportError "Can't clean metrics history: {}" (Single $ show err)
       Right _ -> return ()
 
+metricRecordToJson :: MetricRecord -> Aeson.Value
+metricRecordToJson r =
+  let metricValue = case metricRecordKind r of
+                      Counter -> object ["type" .= ("c" :: T.Text), "val" .= metricRecordValue r]
+                      Gauge   -> object ["type" .= ("g" :: T.Text), "val" .= metricRecordValue r]
+                      Label   -> object ["type" .= ("l" :: T.Text), "val" .= metricRecordText r]
+                      Distribution ->
+                        object [
+                          "type" .= ("d" :: T.Text), 
+                          "mean" .= metricRecordMean r,
+                          "variance" .= metricRecordVariance r,
+                          "count" .= metricRecordCount r,
+                          "sum" .= metricRecordSum r,
+                          "min" .= metricRecordMin r,
+                          "max" .= metricRecordMax r
+                        ]
+
+      build :: Aeson.Value -> T.Text -> Aeson.Value -> Aeson.Value
+      build m name val = go m (T.splitOn "." name) val
+
+      go :: Aeson.Value -> [T.Text] -> Aeson.Value -> Aeson.Value
+      go (Aeson.Object m) [str] val      = Aeson.Object $ M.insert str val m
+      go (Aeson.Object m) (str:rest) val = case M.lookup str m of
+          Nothing -> Aeson.Object $ M.insert str (go Aeson.emptyObject rest val) m
+          Just m' -> Aeson.Object $ M.insert str (go m' rest val) m
+      go v _ _                        = error $ "metricToRecordJson.go: unexpected: " ++ show v
+
+  in  build Aeson.emptyObject (metricRecordName r) metricValue
+                                

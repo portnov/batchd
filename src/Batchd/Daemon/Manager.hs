@@ -117,6 +117,7 @@ routes cfg lts mbWaiMetrics = do
 
   Scotty.get "/monitor/current" currentMetricsA 
   Scotty.get "/monitor/:prefix/current" currentMetricsA 
+  Scotty.get "/monitor/:name/last" lastMetricA 
 
   Scotty.options "/" $ getAuthOptionsA
   Scotty.options (Scotty.regex "/.*") $ done
@@ -196,6 +197,7 @@ raiseError :: Error -> Action ()
 raiseError (QueueNotExists name) = raise404 (__ "Queue not found: `{}'") (Just name)
 raiseError JobNotExists   = raise404 (__ "Specified job not found") Nothing
 raiseError (FileNotExists name)  = raise404 (__ "File not found: `{}'") (Just name)
+raiseError (MetricNotExists name)  = raise404 (__ "Metric not found: `{}'") (Just name)
 raiseError QueueNotEmpty  = Scotty.status status403
 raiseError (InsufficientRights msg) = do
   Scotty.status status403
@@ -554,3 +556,9 @@ currentMetricsA = inUserContext $ do
   metrics <- lift $ getCurrentMetrics mbPrefix
   Scotty.json $ EKG.sampleToJson metrics
 
+lastMetricA :: Action ()
+lastMetricA = inUserContext $ do
+  name <- Scotty.param "name"
+  metric <- runDBA $ getLastMetric name
+  Scotty.json $ metricRecordToJson metric
+  

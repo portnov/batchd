@@ -87,9 +87,9 @@ ScheduleWeekDay
   Foreign Schedule schedule scheduleName
 
 MetricRecord
-  daemon DaemonMode
   name T.Text
   time UTCTime
+  daemon DaemonMode
   kind MetricKind
   value Int64 Maybe
   text T.Text Maybe

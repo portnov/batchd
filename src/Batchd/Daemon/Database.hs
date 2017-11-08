@@ -24,6 +24,7 @@ import Database.Persist
 import Data.Maybe
 import Data.Int
 import qualified Data.Map as M
+import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 
 import           Database.Persist.Sql as Sql
@@ -478,4 +479,26 @@ cleanupJobResults days = do
   -- let deleteResults = "delete from job_result where job_id in (select job_id from job_result where time < ?)"
   -- Sql.rawExecute deleteResults [toPersistValue edge]
   -- let deleteJobs = "delete from job where time 
+
+getMetrics :: Maybe T.Text -> DB [MetricRecord]
+getMetrics mbPrefix = do
+  lst <- E.select $
+         E.from $ \record -> do
+           case mbPrefix of
+             Nothing -> return ()
+             Just prefix -> E.where_ (record ^. MetricRecordName `E.like` E.val prefix)
+           E.orderBy [E.desc (record ^. MetricRecordTime), E.asc (record ^. MetricRecordName)]
+           return record
+  return $ map entityVal lst
+
+getLastMetric :: T.Text -> DB MetricRecord
+getLastMetric name = do
+  lst <- E.select $
+         E.from $ \record -> do
+           E.where_ (record ^. MetricRecordName `equals` E.val name)
+           E.orderBy [E.desc (record ^. MetricRecordTime), E.asc (record ^. MetricRecordName)]
+           return record
+  case lst of
+    [] -> throwR $ MetricNotExists (T.unpack name)
+    (r:_) -> return $ entityVal r
 
