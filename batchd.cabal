@@ -76,6 +76,7 @@ executable batchd
         Batchd.Daemon.Logging
         Batchd.Daemon.Types
         Batchd.Daemon.Monitoring
+        Batchd.Daemon.CmdLine
   other-extensions:    TypeFamilies, DeriveDataTypeable, TemplateHaskell, StandaloneDeriving, RecordWildCards
   build-depends:       base >=4.7 && <5.0,
                        data-default >= 0.7.1,
@@ -155,6 +156,7 @@ executable batchd-admin
         Batchd.Common.Types
         Batchd.Daemon.Logging
         Batchd.Daemon.Types
+        Batchd.Daemon.CmdLine
   other-extensions:    TypeFamilies, DeriveDataTypeable, TemplateHaskell, StandaloneDeriving, RecordWildCards
   build-depends:       base >=4.7 && <5.0,
                        data-default >= 0.7.1,

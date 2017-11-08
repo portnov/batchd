@@ -17,9 +17,11 @@ loadTemplate :: String -> IO (Either Error JobType)
 loadTemplate name = loadConfig "jobtypes" name InvalidJobType
 
 -- | Load global config file (@"batchd.yaml"@)
-loadGlobalConfig :: IO (Either Error GlobalConfig)
-loadGlobalConfig = do
-  mbPath <- locateConfig "" "batchd.yaml"
+loadGlobalConfig :: Maybe FilePath -> IO (Either Error GlobalConfig)
+loadGlobalConfig mbCmdlinePath = do
+  mbPath <- case mbCmdlinePath of
+              Just path -> return $ Just path
+              Nothing   -> locateConfig "" "batchd.yaml"
   case mbPath of
     Nothing -> return $ Left $ FileNotExists "batchd.yaml"
     Just path -> do

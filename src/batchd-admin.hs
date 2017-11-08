@@ -4,7 +4,6 @@
 
 import Control.Monad.Trans
 import Control.Monad.Reader
-import Data.Semigroup ((<>))
 import Options.Applicative
 import qualified Database.Persist.Sql as Sql
 import System.Log.Heavy
@@ -14,36 +13,13 @@ import Batchd.Common.Data (migrateAll)
 import Batchd.Daemon.Logging (getLoggingSettings)
 import Batchd.Daemon.Database
 import Batchd.Daemon.Auth
-
-data Admin =
-    CreateSuperuser {username :: String}
-  | Passwd {username :: String}
-  | Migrate
-  deriving (Show)
-
-createSuperuser :: Parser Admin
-createSuperuser = CreateSuperuser
-  <$> strArgument (metavar "NAME" <> help "name of user to create" <> value "root" <> showDefault)
-
-passwd :: Parser Admin
-passwd = Passwd <$> strArgument (metavar "NAME" <> help "name of user to update" <> value "root" <> showDefault)
-
-parser :: Parser Admin
-parser =
-  hsubparser
-    (  command "create-superuser" (info createSuperuser (progDesc "create super user"))
-    <> command "passwd" (info passwd (progDesc "change user password"))
-    <> command "upgrade-db" (info (pure Migrate) (progDesc "upgrade database to current version of batchd")))
-
-parserInfo :: ParserInfo Admin
-parserInfo = info (parser <**> helper)
-               (fullDesc
-               <> header "batchd-admin - the batchd toolset administrative utility")
+import Batchd.Daemon.CmdLine
 
 main :: IO ()
 main = do
-  cmd <- execParser parserInfo
-  cfgR <- loadGlobalConfig
+  cmdline <- execParser adminParserInfo
+  cfgR <- loadGlobalConfig (globalConfigPath $ adminCommon cmdline)
+  let cmd = adminCommand cmdline
   case cfgR of
     Left err -> fail $ show err
     Right cfg -> do
