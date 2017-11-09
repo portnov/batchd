@@ -431,6 +431,29 @@ doType = do
                 let box = emptyBox 0 4 <> char '*' <+> mkTable (transpose paramsTable)
                 printBox box
 
+doMonitor :: Client ()
+doMonitor = do
+  baseUrl <- getBaseUrl
+  opts <- gets csCmdline
+  let command = cmdCommand opts
+  let monitor = baseUrl </> "monitor"
+  url <- case metricTime command of
+           LastSample -> case metricPrefix command of
+                           Nothing -> fail "metric name must be specified for --last mode"
+                           Just name -> return $ monitor </> name </> "last"
+           CurrentSample -> 
+             let byPrefix = case metricPrefix command of
+                              Nothing -> monitor </> "current"
+                              Just prefix -> monitor </> prefix </> "current"
+             in return $ case metricView command of
+                          Plain -> byPrefix </> "plain"
+                          Tree  -> byPrefix </> "tree"
+  response <- doGet url
+  liftIO $ putStrLn $ show (response :: Value)
+--   liftIO $ forM_ (response :: [(String, Value)]) $ \(name, value) -> do
+--       putStrLn name
+--       putStrLn $ show (value :: Value)
+
 -- | List users.
 doListUsers :: Client ()
 doListUsers = do

@@ -79,6 +79,11 @@ data Command =
       weekdays :: [WeekDay],
       force :: Bool
     }
+  | Monitor {
+      metricPrefix :: Maybe String,
+      metricView :: MetricView,
+      metricTime :: MetricTime
+    }
   | User {
       userMode :: CrudMode,
       objectUserName :: [String]
@@ -99,6 +104,12 @@ data Command =
       queueToStat :: [String]
     }
   | Shell
+  deriving (Eq, Show, Data, Typeable)
+
+data MetricTime = CurrentSample | LastSample
+  deriving (Eq, Show, Data, Typeable)
+
+data MetricView = Tree | Plain
   deriving (Eq, Show, Data, Typeable)
 
 defaultUrl :: String
@@ -143,6 +154,14 @@ verbosity =
       flag' debug_level (short 'd' <> long "debug" <> help "enable client debug output")
   <|> flag' verbose_level (short 'v' <> long "verbose" <> help "be verbose")
   <|> flag info_level disable_logging (short 'q' <> long "quiet" <> help "be quiet")
+
+pMetricView :: Parser MetricView
+pMetricView =
+      flag Plain Tree (short 't' <> long "tree" <> help "output data in tree view")
+
+pMetricTime :: Parser MetricTime
+pMetricTime =
+      flag CurrentSample LastSample (short 'l' <> long "last" <> help "retrieve last metrics sample from database")
 
 required :: Read a => String -> Char -> String -> String -> Parser a
 required longName shortName meta helpText =
@@ -291,6 +310,12 @@ stats :: Parser Command
 stats = Stats
   <$> many (strArgument (metavar "QUEUE"))
 
+monitor :: Parser Command
+monitor = Monitor
+  <$> (optional $ strArgument (metavar "PREFIX" <> help "prefix of names of metrics to retrieve, for example batchd.wai"))
+  <*> pMetricView
+  <*> pMetricTime
+
 shell :: Parser Command
 shell = pure Shell
 
@@ -313,6 +338,7 @@ commands = hsubparser
     <> cmd "job" job "update or delete jobs"
     <> cmd "queue" queue "create, update or delete queues"
     <> cmd "schedule" schedule "create, update or delete schedules"
+    <> cmd "monitor" monitor "retrieve monitoring metrics"
     <> cmd "type" typesList "view job types"
     <> cmd "stats" stats "print statistics on queue or on all jobs"
     <> cmd "user" user "create, update or delete users"
