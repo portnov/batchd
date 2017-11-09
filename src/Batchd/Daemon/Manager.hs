@@ -115,8 +115,10 @@ routes cfg lts mbWaiMetrics = do
   Scotty.post "/user/:name/permissions" createPermissionA
   Scotty.delete "/user/:name/permissions/:id" deletePermissionA
 
-  Scotty.get "/monitor/current" currentMetricsA 
-  Scotty.get "/monitor/:prefix/current" currentMetricsA 
+  Scotty.get "/monitor/current/tree" currentMetricsTreeA 
+  Scotty.get "/monitor/:prefix/current/tree" currentMetricsTreeA 
+  Scotty.get "/monitor/current/plain" currentMetricsPlainA
+  Scotty.get "/monitor/:prefix/current/plain" currentMetricsPlainA
   Scotty.get "/monitor/:name/last" lastMetricA 
 
   Scotty.options "/" $ getAuthOptionsA
@@ -550,8 +552,14 @@ getAuthOptionsA = inUserContext $ do
   let methods = authMethods $ mcAuth $ dbcManager cfg
   Scotty.json methods
 
-currentMetricsA :: Action ()
-currentMetricsA = inUserContext $ do
+currentMetricsPlainA :: Action ()
+currentMetricsPlainA = inUserContext $ do
+  mbPrefix <- optional $ Scotty.param "prefix"
+  metrics <- lift $ getCurrentMetrics mbPrefix
+  Scotty.json $ sampleToJsonPlain metrics
+
+currentMetricsTreeA :: Action ()
+currentMetricsTreeA = inUserContext $ do
   mbPrefix <- optional $ Scotty.param "prefix"
   metrics <- lift $ getCurrentMetrics mbPrefix
   Scotty.json $ EKG.sampleToJson metrics
@@ -560,5 +568,5 @@ lastMetricA :: Action ()
 lastMetricA = inUserContext $ do
   name <- Scotty.param "name"
   metric <- runDBA $ getLastMetric name
-  Scotty.json $ metricRecordToJson metric
+  Scotty.json $ metricRecordToJsonTree metric
   
