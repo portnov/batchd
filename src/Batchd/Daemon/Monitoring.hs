@@ -33,7 +33,6 @@ import qualified Data.HashMap.Strict as M
 import Database.Persist
 import qualified System.Metrics as EKG
 import qualified System.Metrics.Distribution as EKG
-import System.Metrics.Json (valueToJson)
 import qualified Network.Wai as Wai
 import Network.Wai.Metrics
 
@@ -41,7 +40,6 @@ import Batchd.Core.Daemon.Logging
 import Batchd.Common.Types
 import Batchd.Common.Data
 import Batchd.Daemon.Types
--- import Batchd.Daemon.
 
 setupMetrics :: Daemon ()
 setupMetrics = do
@@ -133,36 +131,34 @@ metricsCleaner = do
       Left err -> $reportError "Can't clean metrics history: {}" (Single $ show err)
       Right _ -> return ()
 
-metricValueToJson :: MetricRecord -> Aeson.Value
-metricValueToJson r =
-  case metricRecordKind r of
-    Counter -> object ["type" .= ("c" :: T.Text), "val" .= metricRecordValue r]
-    Gauge   -> object ["type" .= ("g" :: T.Text), "val" .= metricRecordValue r]
-    Label   -> object ["type" .= ("l" :: T.Text), "val" .= metricRecordText r]
-    Distribution ->
-      object [
-        "type" .= ("d" :: T.Text), 
-        "mean" .= metricRecordMean r,
-        "variance" .= metricRecordVariance r,
-        "count" .= metricRecordCount r,
-        "sum" .= metricRecordSum r,
-        "min" .= metricRecordMin r,
-        "max" .= metricRecordMax r
-      ]
+-- metricValueToJson :: MetricRecord -> Aeson.Value
+-- metricValueToJson r =
+--   case metricRecordKind r of
+--     Counter -> object ["type" .= ("c" :: T.Text), "val" .= metricRecordValue r]
+--     Gauge   -> object ["type" .= ("g" :: T.Text), "val" .= metricRecordValue r]
+--     Label   -> object ["type" .= ("l" :: T.Text), "val" .= metricRecordText r]
+--     Distribution ->
+--       object [
+--         "type" .= ("d" :: T.Text), 
+--         "mean" .= metricRecordMean r,
+--         "variance" .= metricRecordVariance r,
+--         "count" .= metricRecordCount r,
+--         "sum" .= metricRecordSum r,
+--         "min" .= metricRecordMin r,
+--         "max" .= metricRecordMax r
+--       ]
 
 metricRecordToJsonPlain :: MetricRecord -> Aeson.Value
-metricRecordToJsonPlain r =
-  let metricValue = metricValueToJson r
-  in  object ["name" .= metricRecordName r, "value" .= metricValue]
+metricRecordToJsonPlain r = toJSON r
 
-sampleToJsonPlain :: EKG.Sample -> Aeson.Value
-sampleToJsonPlain sample = Aeson.Array $ V.fromList $ map convert $ H.toList sample
+sampleToJsonPlain :: UTCTime -> EKG.Sample -> Aeson.Value
+sampleToJsonPlain time sample = Aeson.Array $ V.fromList $ map convert $ H.toList sample
   where
-    convert (name, value) = object ["name" .= name, "value" .= valueToJson value]
+    convert (name, value) = toJSON $ mkRecord Manager time name value
 
 metricRecordToJsonTree :: MetricRecord -> Aeson.Value
 metricRecordToJsonTree r =
-  let metricValue = metricValueToJson r
+  let metricValue = toJSON r
 
       build :: Aeson.Value -> T.Text -> Aeson.Value -> Aeson.Value
       build m name val = go m (T.splitOn "." name) val

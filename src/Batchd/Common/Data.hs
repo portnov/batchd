@@ -26,6 +26,7 @@ import Data.Int
 import Data.Aeson as Aeson
 import Data.Aeson.Types
 import qualified Data.Text as T
+import Data.Text.Format.Heavy
 import Data.Generics hiding (Generic)
 
 import Database.Persist.TH
@@ -121,6 +122,8 @@ deriving instance Eq ScheduleTime
 deriving instance Show ScheduleTime
 
 deriving instance Generic Queue
+deriving instance Generic MetricKind
+deriving instance Generic MetricRecord
 
 instance ToJSON Queue where
   toJSON = genericToJSON (jsonOptions "queue")
@@ -207,6 +210,36 @@ instance FromJSON JobUpdate where
             upd <- parseJSON o
             return $ UpdateJob upd
   parseJSON invalid = typeMismatch "job update query" invalid
+
+instance ToJSON MetricKind where
+  toJSON Counter = Aeson.String "c"
+  toJSON Gauge = Aeson.String "g"
+  toJSON Label = Aeson.String "l"
+  toJSON Distribution = Aeson.String "d"
+
+instance FromJSON MetricKind where
+  parseJSON (Aeson.String "c") = pure Counter
+  parseJSON (Aeson.String "g") = pure Gauge
+  parseJSON (Aeson.String "l") = pure Label
+  parseJSON (Aeson.String "d") = pure Distribution
+  parseJSON v = typeMismatch "metric kind" v
+
+instance ToJSON MetricRecord where
+  toJSON = genericToJSON (jsonOptions "metricRecord")
+
+instance FromJSON MetricRecord where
+  parseJSON = genericParseJSON (jsonOptions "metricRecord")
+
+instance VarContainer MetricRecord where
+  lookupVar "value" r = Just $ Variable $ metricRecordValue r
+  lookupVar "text" r = Just $ Variable $ metricRecordText r
+  lookupVar "mean" r = Just $ Variable $ metricRecordMean r
+  lookupVar "variance" r = Just $ Variable $ metricRecordVariance r
+  lookupVar "count" r = Just $ Variable $ metricRecordCount r
+  lookupVar "sum" r = Just $ Variable $ metricRecordSum r
+  lookupVar "min" r = Just $ Variable $ metricRecordMin r
+  lookupVar "max" r = Just $ Variable $ metricRecordMax r
+  lookupVar _ _ = Nothing
 
 -- instance ToJSON JobUpdate where
 --   toJSON (Prioritize action) = object ["priority" .= action]

@@ -17,6 +17,7 @@ import Data.Text.Format.Heavy.Parse
 import Data.Maybe
 import Data.Default
 import Data.Yaml
+import Data.Time
 import Network.HTTP.Types
 import qualified Network.Wai as Wai
 import Network.Wai.Handler.Warp (defaultSettings, setPort)
@@ -556,7 +557,8 @@ currentMetricsPlainA :: Action ()
 currentMetricsPlainA = inUserContext $ do
   mbPrefix <- optional $ Scotty.param "prefix"
   metrics <- lift $ getCurrentMetrics mbPrefix
-  Scotty.json $ sampleToJsonPlain metrics
+  now <- liftIO $ getCurrentTime
+  Scotty.json $ sampleToJsonPlain now metrics
 
 currentMetricsTreeA :: Action ()
 currentMetricsTreeA = inUserContext $ do
