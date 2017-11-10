@@ -10,7 +10,10 @@ import Control.Monad
 import Control.Applicative (optional)
 import Control.Monad.Reader
 import qualified Control.Monad.State as State
+import Data.Monoid ((<>))
+import qualified Data.Map as M
 import qualified Data.ByteString as B
+import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import Data.Text.Format.Heavy hiding (optional)
 import Data.Text.Format.Heavy.Parse
@@ -41,7 +44,7 @@ import Batchd.Daemon.Types
 import Batchd.Daemon.Database
 import Batchd.Daemon.Schedule
 import Batchd.Daemon.Auth
-import Batchd.Daemon.Monitoring
+import Batchd.Daemon.Monitoring as Monitoring
 
 corsPolicy :: GlobalConfig -> CorsResourcePolicy
 corsPolicy cfg =
@@ -139,6 +142,7 @@ runManager = do
     lts <- askLoggingStateM
     waiMetrics <- getWaiMetricsMiddleware
     liftIO $ do
+      forkIO $ runDaemonIO connInfo lts jobMetricsCalculator
       forkIO $ runDaemonIO connInfo lts metricsDumper
       forkIO $ runDaemonIO connInfo lts queueRunner
       forkIO $ runDaemonIO connInfo lts maintainer
@@ -148,6 +152,23 @@ runManager = do
     runService connInfo lts actions =
         runDaemonIO connInfo lts $
           withLogVariable "thread" ("REST service" :: String) $ actions
+
+jobMetricsCalculator :: Daemon ()
+jobMetricsCalculator =
+  withLogVariable "thread" ("job metrics calculator" :: String) $ forever $ do
+    liftIO $ threadDelay $ 60 * 1000*1000
+    r <- runDB getStats
+    case r of
+      Left err -> $reportError "Can't get job statistics" ()
+      Right byQueue -> do
+        forM_ (M.assocs byQueue) $ \(name, ByStatus byStatus) -> do
+          forM_ (M.assocs byStatus) $ \(status, count) -> do
+            let gname = "batchd.queue." <> T.pack name <> ".jobs." <> T.pack (show status)
+            Monitoring.gauge gname count
+        let totals = M.unionsWith (+) [byStatus | ByStatus byStatus <- M.elems byQueue]
+        forM_ (M.assocs totals) $ \(status, count) -> do
+          let gname = "batchd.jobs." <> T.pack (show status)
+          Monitoring.gauge gname count
 
 maintainer :: Daemon ()
 maintainer = withLogVariable "thread" ("maintainer" :: String) $ forever $ do
