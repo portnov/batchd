@@ -141,12 +141,12 @@ runManager = do
     let options = def {Scotty.settings = setPort (mcPort $ dbcManager cfg) defaultSettings}
     lts <- askLoggingStateM
     waiMetrics <- getWaiMetricsMiddleware
+    forkDaemon "job metrics calculator" jobMetricsCalculator
+    forkDaemon "metrics dumper"         metricsDumper
+    forkDaemon "queue runner"           queueRunner
+    forkDaemon "maintainer"             maintainer
+    forkDaemon "metrics cleaner"        metricsCleaner
     liftIO $ do
-      forkIO $ runDaemonIO connInfo lts jobMetricsCalculator
-      forkIO $ runDaemonIO connInfo lts metricsDumper
-      forkIO $ runDaemonIO connInfo lts queueRunner
-      forkIO $ runDaemonIO connInfo lts maintainer
-      forkIO $ runDaemonIO connInfo lts metricsCleaner
       scottyOptsT options (runService connInfo lts) $ routes cfg lts waiMetrics
   where
     runService connInfo lts actions =
@@ -154,8 +154,7 @@ runManager = do
           withLogVariable "thread" ("REST service" :: String) $ actions
 
 jobMetricsCalculator :: Daemon ()
-jobMetricsCalculator =
-  withLogVariable "thread" ("job metrics calculator" :: String) $ forever $ do
+jobMetricsCalculator = forever $ do
     liftIO $ threadDelay $ 60 * 1000*1000
     r <- runDB getStats
     case r of
@@ -171,13 +170,13 @@ jobMetricsCalculator =
           Monitoring.gauge gname count
 
 maintainer :: Daemon ()
-maintainer = withLogVariable "thread" ("maintainer" :: String) $ forever $ do
+maintainer = forever $ do
   cfg <- askConfig
   runDB $ cleanupJobResults (scDoneJobs $ dbcStorage cfg)
   liftIO $ threadDelay $ 60 * 1000*1000
 
 queueRunner :: Daemon ()
-queueRunner = withLogVariable "thread" ("queue starter" :: String) $ forever $ do
+queueRunner = forever $ do
   qesr <- runDB getDisabledQueues'
   case qesr of
     Left err -> $reportError "Can't get list of disabled queues: {}" (Single $ show err)

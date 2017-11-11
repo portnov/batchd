@@ -47,6 +47,6 @@ main = do
           Manager    -> Manager.runManager
           Dispatcher -> Dispatcher.runDispatcher
           Both -> do
-            forkDaemon $ Manager.runManager
+            forkDaemon "manager" $ Manager.runManager
             Dispatcher.runDispatcher
 
