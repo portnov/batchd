@@ -10,13 +10,17 @@ import Control.Monad
 import Control.Applicative (optional)
 import Control.Monad.Reader
 import qualified Control.Monad.State as State
+import Data.Monoid ((<>))
+import qualified Data.Map as M
 import qualified Data.ByteString as B
+import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import Data.Text.Format.Heavy hiding (optional)
 import Data.Text.Format.Heavy.Parse
 import Data.Maybe
 import Data.Default
 import Data.Yaml
+import Data.Time
 import Network.HTTP.Types
 import qualified Network.Wai as Wai
 import Network.Wai.Handler.Warp (defaultSettings, setPort)
@@ -40,7 +44,7 @@ import Batchd.Daemon.Types
 import Batchd.Daemon.Database
 import Batchd.Daemon.Schedule
 import Batchd.Daemon.Auth
-import Batchd.Daemon.Monitoring
+import Batchd.Daemon.Monitoring as Monitoring
 
 corsPolicy :: GlobalConfig -> CorsResourcePolicy
 corsPolicy cfg =
@@ -115,8 +119,10 @@ routes cfg lts mbWaiMetrics = do
   Scotty.post "/user/:name/permissions" createPermissionA
   Scotty.delete "/user/:name/permissions/:id" deletePermissionA
 
-  Scotty.get "/monitor/current" currentMetricsA 
-  Scotty.get "/monitor/:prefix/current" currentMetricsA 
+  Scotty.get "/monitor/current/tree" currentMetricsTreeA 
+  Scotty.get "/monitor/:prefix/current/tree" currentMetricsTreeA 
+  Scotty.get "/monitor/current/plain" currentMetricsPlainA
+  Scotty.get "/monitor/:prefix/current/plain" currentMetricsPlainA
   Scotty.get "/monitor/:name/last" lastMetricA 
 
   Scotty.options "/" $ getAuthOptionsA
@@ -135,25 +141,42 @@ runManager = do
     let options = def {Scotty.settings = setPort (mcPort $ dbcManager cfg) defaultSettings}
     lts <- askLoggingStateM
     waiMetrics <- getWaiMetricsMiddleware
+    forkDaemon "job metrics calculator" jobMetricsCalculator
+    forkDaemon "metrics dumper"         metricsDumper
+    forkDaemon "queue runner"           queueRunner
+    forkDaemon "maintainer"             maintainer
+    forkDaemon "metrics cleaner"        metricsCleaner
     liftIO $ do
-      forkIO $ runDaemonIO connInfo lts metricsDumper
-      forkIO $ runDaemonIO connInfo lts queueRunner
-      forkIO $ runDaemonIO connInfo lts maintainer
-      forkIO $ runDaemonIO connInfo lts metricsCleaner
       scottyOptsT options (runService connInfo lts) $ routes cfg lts waiMetrics
   where
     runService connInfo lts actions =
         runDaemonIO connInfo lts $
           withLogVariable "thread" ("REST service" :: String) $ actions
 
+jobMetricsCalculator :: Daemon ()
+jobMetricsCalculator = forever $ do
+    liftIO $ threadDelay $ 60 * 1000*1000
+    r <- runDB getStats
+    case r of
+      Left err -> $reportError "Can't get job statistics" ()
+      Right byQueue -> do
+        forM_ (M.assocs byQueue) $ \(name, ByStatus byStatus) -> do
+          forM_ (M.assocs byStatus) $ \(status, count) -> do
+            let gname = "batchd.queue." <> T.pack name <> ".jobs." <> T.pack (show status)
+            Monitoring.gauge gname count
+        let totals = M.unionsWith (+) [byStatus | ByStatus byStatus <- M.elems byQueue]
+        forM_ (M.assocs totals) $ \(status, count) -> do
+          let gname = "batchd.jobs." <> T.pack (show status)
+          Monitoring.gauge gname count
+
 maintainer :: Daemon ()
-maintainer = withLogVariable "thread" ("maintainer" :: String) $ forever $ do
+maintainer = forever $ do
   cfg <- askConfig
   runDB $ cleanupJobResults (scDoneJobs $ dbcStorage cfg)
   liftIO $ threadDelay $ 60 * 1000*1000
 
 queueRunner :: Daemon ()
-queueRunner = withLogVariable "thread" ("queue starter" :: String) $ forever $ do
+queueRunner = forever $ do
   qesr <- runDB getDisabledQueues'
   case qesr of
     Left err -> $reportError "Can't get list of disabled queues: {}" (Single $ show err)
@@ -550,8 +573,15 @@ getAuthOptionsA = inUserContext $ do
   let methods = authMethods $ mcAuth $ dbcManager cfg
   Scotty.json methods
 
-currentMetricsA :: Action ()
-currentMetricsA = inUserContext $ do
+currentMetricsPlainA :: Action ()
+currentMetricsPlainA = inUserContext $ do
+  mbPrefix <- optional $ Scotty.param "prefix"
+  metrics <- lift $ getCurrentMetrics mbPrefix
+  now <- liftIO $ getCurrentTime
+  Scotty.json $ sampleToJsonPlain now metrics
+
+currentMetricsTreeA :: Action ()
+currentMetricsTreeA = inUserContext $ do
   mbPrefix <- optional $ Scotty.param "prefix"
   metrics <- lift $ getCurrentMetrics mbPrefix
   Scotty.json $ EKG.sampleToJson metrics
@@ -560,5 +590,5 @@ lastMetricA :: Action ()
 lastMetricA = inUserContext $ do
   name <- Scotty.param "name"
   metric <- runDBA $ getLastMetric name
-  Scotty.json $ metricRecordToJson metric
+  Scotty.json $ metricRecordToJsonTree metric
   

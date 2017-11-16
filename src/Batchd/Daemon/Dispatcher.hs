@@ -42,18 +42,17 @@ runDispatcher = do
   -- So job put into Chan will be executed by first worker who sees it.
   forM_ [1.. dcWorkers (dbcDispatcher cfg)] $ \idx -> do
     $debug "  Starting worker #{}" (Single idx)
-    forkDaemon $ worker idx counters jobsChan resChan
+    forkDaemon "worker" $ worker idx counters jobsChan resChan
 
   -- Listen for job results
-  forkDaemon $ callbackListener resChan
+  forkDaemon "job results listener" $ callbackListener resChan
 
   -- Stop hosts when they are not needed anymore
   withLogVariable "thread" ("host cleaner" :: String) $ do
       lts <- askLoggingStateM
       liftIO $ forkIO $ hostCleaner lts counters
 
-  withLogVariable "thread" ("host metric dumper" :: String) $ do
-    forkDaemon $ hostsMetricDumper counters
+  forkDaemon "hosts metrics dumper" $ hostsMetricDumper counters
 
   dispatcher jobsChan
 
@@ -87,7 +86,7 @@ dispatcher jobsChan = withLogVariable "thread" ("dispatcher" :: String) $ do
 -- | This listens for job results Chan and writes results to DB.
 -- It also reschedules failed jobs if needed.
 callbackListener :: ResultsChan -> Daemon ()
-callbackListener resChan = withLogVariable "thread" ("job result listener" :: String) $ forever $ do
+callbackListener resChan = forever $ do
     (job, command) <- liftIO $ readChan resChan
     let jid = jiId job
     let jkey = JobKey (Sql.SqlBackendKey jid)

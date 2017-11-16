@@ -14,6 +14,7 @@ import Data.Time.Clock
 import Data.Time.LocalTime
 import qualified Data.Map as M
 import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.IO as TLIO
 import Data.Text.Format.Heavy
@@ -433,6 +434,34 @@ doType = do
                                 ]
                 let box = emptyBox 0 4 <> char '*' <+> mkTable (transpose paramsTable)
                 printBox box
+
+doMonitor :: Client ()
+doMonitor = do
+  baseUrl <- getBaseUrl
+  opts <- gets csCmdline
+  let command = cmdCommand opts
+  let monitor = baseUrl </> "monitor"
+  url <- case metricTime command of
+           LastSample -> case metricPrefix command of
+                           Nothing -> fail "metric name must be specified for --last mode"
+                           Just name -> return $ monitor </> name </> "last"
+           CurrentSample -> 
+             let byPrefix = case metricPrefix command of
+                              Nothing -> monitor </> "current"
+                              Just prefix -> monitor </> prefix </> "current"
+             in return $ case metricView command of
+                          Plain -> byPrefix </> "plain"
+                          Tree  -> byPrefix </> "tree"
+  response <- doGet url
+--   liftIO $ putStrLn $ show (response :: Value)
+  liftIO $ forM_ (response :: [Database.MetricRecord]) $ \r -> do
+      TIO.putStr $ Database.metricRecordName r `T.append` ": "
+      case Database.metricRecordKind r of
+        Counter -> TLIO.putStrLn =<< (__f "count: {value}" r)
+        Gauge -> TLIO.putStrLn =<< (__f "value: {value}" r)
+        Label -> TLIO.putStrLn =<< (__f "text: {text}" r)
+        Distribution -> do
+          TLIO.putStrLn =<< (__f "mean: {mean}; variance: {variance}; count: {count}; sum: {sum}; min: {min}; max: {max}" r)
 
 -- | List users.
 doListUsers :: Client ()

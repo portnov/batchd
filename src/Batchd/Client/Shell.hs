@@ -57,6 +57,7 @@ commandHandler = do
         View -> doListSchedules
         Add -> doAddSchedule
         Delete -> doDeleteSchedule
+    Monitor {} -> doMonitor
     User {} ->
       case userMode opts of
         View -> doListUsers
