@@ -307,6 +307,11 @@ leq :: (PersistField typ, E.Esqueleto query expr backend) =>
 leq = (E.<=.)
 infix 4 `leq`
 
+geq :: (PersistField typ, E.Esqueleto query expr backend) =>
+             expr (E.Value typ) -> expr (E.Value typ) -> expr (E.Value Bool)
+geq = (E.>=.)
+infix 4 `geq`
+
 eand :: E.Esqueleto query expr backend =>
               expr (E.Value Bool) -> expr (E.Value Bool) -> expr (E.Value Bool)
 eand = (E.&&.)
@@ -502,4 +507,15 @@ getLastMetric name = do
   case lst of
     [] -> throwR $ MetricNotExists (T.unpack name)
     (r:_) -> return $ entityVal r
+
+queryMetric :: T.Text -> UTCTime -> UTCTime -> DB [MetricRecord]
+queryMetric name from to = do
+  lst <- E.select $
+         E.from $ \record -> do
+           E.where_ ((record ^. MetricRecordName `equals` E.val name)
+                     `eand` (record ^. MetricRecordTime `geq` E.val from)
+                     `eand` (record ^. MetricRecordTime `leq` E.val to))
+           E.orderBy [E.asc (record ^. MetricRecordTime)]
+           return record
+  return $ map entityVal lst
 

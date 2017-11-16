@@ -17,6 +17,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import Data.Text.Format.Heavy hiding (optional)
 import Data.Text.Format.Heavy.Parse
+import Data.Char (isDigit)
 import Data.Maybe
 import Data.Default
 import Data.Yaml
@@ -124,6 +125,7 @@ routes cfg lts mbWaiMetrics = do
   Scotty.get "/monitor/current/plain" currentMetricsPlainA
   Scotty.get "/monitor/:prefix/current/plain" currentMetricsPlainA
   Scotty.get "/monitor/:name/last" lastMetricA 
+  Scotty.get "/monitor/:name/query" queryMetricA
 
   Scotty.options "/" $ getAuthOptionsA
   Scotty.options (Scotty.regex "/.*") $ done
@@ -591,4 +593,39 @@ lastMetricA = inUserContext $ do
   name <- Scotty.param "name"
   metric <- runDBA $ getLastMetric name
   Scotty.json $ metricRecordToJsonTree metric
-  
+
+queryMetricA :: Action ()
+queryMetricA = inUserContext $ do
+    name <- Scotty.param "name"
+    mbLast <- getUrlParam "last"
+    mbFrom <- getUrlParam "from"
+    mbTo <- getUrlParam "to"
+    now <- liftIO $ getCurrentTime
+    (from, to) <- case (mbFrom, mbTo, mbLast) of
+                    (Just f, Nothing, Nothing) -> liftM2 (,) (parse f) (return now)
+                    (Just f, Just t, Nothing) -> liftM2 (,) (parse f) (parse t)
+                    (Nothing, Nothing, Just l) -> getLast l now
+                    _ -> raise $ UnknownError "Time period is not specified for metrics request"
+    records <- runDBA $ queryMetric name from to
+    Scotty.json $ map metricRecordToJsonPlain records
+
+  where
+
+    parse :: B.ByteString -> Action UTCTime
+    parse bstr = do
+      let str = bstrToString bstr
+      local <- case readSTime True defaultTimeLocale "%FT%T" str of
+                [(result, "")] -> return result
+                _ -> raise $ UnknownError $ "Can't parse time: " ++ str 
+      tz <- liftIO $ getCurrentTimeZone
+      return $ localTimeToUTC tz local
+
+    getLast :: B.ByteString -> UTCTime -> Action (UTCTime, UTCTime)
+    getLast bstr now = do
+      let str = bstrToString bstr
+      seconds <- if all isDigit str
+                   then return $ read str
+                   else raise $ UnknownError $ "Can't parse period: " ++ str
+      let start = addUTCTime (fromIntegral $ negate seconds) now
+      return (start, now)
+

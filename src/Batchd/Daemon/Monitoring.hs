@@ -9,6 +9,7 @@ module Batchd.Daemon.Monitoring
     getWaiMetricsMiddleware,
     getCurrentMetrics,
     metricRecordToJsonTree,
+    metricRecordToJsonPlain,
     sampleToJsonPlain,
     Metrics.counter,
     Metrics.gauge,
