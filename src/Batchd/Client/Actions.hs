@@ -69,6 +69,7 @@ doEnqueue = do
           jiStatus = New,
           jiTryCount = 0,
           jiHostName = host,
+          jiNotes = jobNotes (cmdCommand opts),
           jiResultTime = Nothing,
           jiExitCode = Nothing,
           jiStdout = Nothing,
@@ -119,7 +120,7 @@ doList = do
         response <- doGet url
 
         liftIO $ forM_ (response :: [JobInfo]) $ \job -> do
-                  printf "#%d: [%d]\t%s\t%s\n" (jiId job) (jiSeq job) (jiType job) (show $ jiStatus job)
+                  printf "#%d: [%d]\t%s\t%s\t%s\n" (jiId job) (jiSeq job) (jiType job) (show $ jiStatus job) (fromMaybe "" $ jiNotes job)
                   forM_ (M.assocs $ jiParams job) $ \(name, value) -> do
                     printf "\t%s:\t%s\n" name value
 
@@ -206,6 +207,7 @@ viewJob = do
                   ((__ "Type"),  jiType job),
                   ((__ "Queue"),  jiQueue job),
                   ((__ "Host"), host),
+                  ((__ "Notes"), fromMaybe "-" $ jiNotes job),
                   ((__ "User"),  jiUserName job),
                   ((__ "Created"),  show $ jiCreateTime job),
                   ((__ "Start"),  maybe "*" show $ jiStartTime job),
@@ -283,6 +285,7 @@ updateJob = do
              return $ Just $ object $
                                 toList "status" (status command) ++
                                 toList "host_name" (hostName command) ++
+                                toList "notes" (jobNotes command) ++
                                 toList "start_time" jobStartTime
         else return Nothing
 

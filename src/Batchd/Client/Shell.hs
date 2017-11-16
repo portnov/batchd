@@ -41,7 +41,7 @@ commandHandler = do
     Stats {} -> doStats
     Type {} -> doType
     Job {} -> do
-      let mode = detectMode (jobMode opts) [isJust . status, isJust . hostName, isJust . startTime, isJust . queueName, isJust . prioritize] opts
+      let mode = detectMode (jobMode opts) [isJust . status, isJust . hostName, isJust . jobNotes, isJust . startTime, isJust . queueName, isJust . prioritize] opts
       case mode of
         View -> viewJob
         Update -> updateJob

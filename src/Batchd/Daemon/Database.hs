@@ -70,6 +70,7 @@ buildJobInfo jid j mbr params =
       jiStatus = jobStatus j,
       jiTryCount = jobTryCount j,
       jiHostName = jobHostName j,
+      jiNotes = jobNotes j,
       jiResultTime = fmap jobResultTime mbr,
       jiExitCode = jobResultExitCode =<< mbr,
       jiStdout = fmap jobResultStdout mbr,
@@ -428,7 +429,7 @@ enqueue username qname jinfo = do
       seq <- getLastJobSeq qname
       now <- liftIO getCurrentTime
       checkStartTime (jiStartTime jinfo) (queueSchedule qe)
-      let job = Job (jiType jinfo) qname (seq+1) username now (jiStartTime jinfo) (jiStatus jinfo) (jiTryCount jinfo) (jiHostName jinfo)
+      let job = Job (jiType jinfo) qname (seq+1) username now (jiStartTime jinfo) (jiStatus jinfo) (jiTryCount jinfo) (jiHostName jinfo) (jiNotes jinfo)
       jid <- insert job
       forM_ (M.assocs $ jiParams jinfo) $ \(name,value) -> do
         let param = JobParam jid name value

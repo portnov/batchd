@@ -50,6 +50,7 @@ Job
   status JobStatus default='New'
   tryCount Int default=0
   hostName String Maybe
+  notes String Maybe
   UniqJobSeq queueName seq
   Foreign User user userName
 
@@ -150,15 +151,15 @@ instance FromJSON (UpdateList Job) where
     uQueue <- parseUpdate JobQueueName "queue_name" o
     uStatus <- parseUpdate JobStatus "status" o
     uHost   <- parseUpdateStar JobHostName "host_name" o
+    uNotes  <- parseUpdateMaybe JobNotes "notes" o
     uStart  <- parseUpdateMaybe JobStartTime "start_time" o
-    return $ UpdateList $ catMaybes [uQueue, uStatus, uHost, uStart]
+    return $ UpdateList $ catMaybes [uQueue, uStatus, uHost, uNotes, uStart]
 
 deriving instance Generic JobResult
 deriving instance Generic UserPermission
 
 instance ToJSON JobResult where
   toJSON = genericToJSON (jsonOptions "jobResult")
-
 
 instance FromJSON JobResult where
   parseJSON = genericParseJSON (jsonOptions "jobResult")

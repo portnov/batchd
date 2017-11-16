@@ -229,6 +229,7 @@ data JobInfo = JobInfo {
     jiStatus :: JobStatus,
     jiTryCount :: Int,
     jiHostName :: Maybe String,
+    jiNotes :: Maybe String,
     jiResultTime :: Maybe UTCTime,
     jiExitCode :: Maybe ExitCode,
     jiStdout :: Maybe T.Text,
@@ -256,6 +257,7 @@ instance FromJSON JobInfo where
       <*> v .:? "status" .!= New
       <*> v .:? "try_count" .!= 0
       <*> v .:? "host_name"
+      <*> v .:? "notes"
       <*> v .:? "result_time"
       <*> v .:? "exit_code"
       <*> v .:? "stdout"

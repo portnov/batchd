@@ -43,6 +43,7 @@ data Command =
       typeName :: Maybe String,
       hostName :: Maybe String,
       startTime :: Maybe (Maybe LocalTime),
+      jobNotes :: Maybe String,
       jobCommand :: [String],
       parameters :: [String]
     }
@@ -67,6 +68,7 @@ data Command =
       startTime :: Maybe (Maybe LocalTime),
       status :: Maybe String,
       hostName :: Maybe String,
+      jobNotes :: Maybe String,
       viewDescription :: Bool,
       viewResult :: Bool,
       viewAll :: Bool,
@@ -166,6 +168,7 @@ enqueue = Enqueue
   <*> optionalString "type"  't' "TYPE"  "job type name"
   <*> optionalString "host"  'h' "HOST"  "worker host name"
   <*> (optional $ option timeReader (long "at" <> long "start" <> metavar "YYYY-MM-DD HH:MM:SS" <> help "set job start time"))
+  <*> optionalString "notes" 'n' "TEXT" "job description"
   <*> many (strArgument  (metavar "COMMAND"))
   <*> many (requiredString "parameter" 'p' "NAME=VALUE" "job parameters specified by name")
 
@@ -255,6 +258,7 @@ job = Job
   <*> (optional $ option timeReader (long "at" <> long "start" <> metavar "YYYY-MM-DD HH:MM:SS" <> help "set job start time. Use `any' to specify that job can be run at any time."))
   <*> optionalString "status" 's' "STATUS" "set job status"
   <*> optionalString "host" 'h' "HOST" "set job host"
+  <*> optionalString "notes" 'n' "TEXT" "job description"
   <*> switch (long "description" <> help "view job description")
   <*> switch (long "result" <> short 'r' <> help "view job result")
   <*> switch (long "all" <> short 'a' <> help "view all job results")
