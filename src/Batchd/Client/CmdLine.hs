@@ -227,7 +227,7 @@ startupTime = unsafePerformIO $ getCurrentDateTime
 {-# NOINLINE startupTime #-}
 
 timeReader :: ReadM (Maybe LocalTime)
-timeReader = (Just <$> toUtc <$> eitherReader readDateTime) <|> (maybeReader nothing)
+timeReader = (maybeReader nothing) <|> (Just <$> toUtc <$> eitherReader readDateTime)
   where
     toUtc :: DateTime -> LocalTime
     toUtc dt = LocalTime day time
