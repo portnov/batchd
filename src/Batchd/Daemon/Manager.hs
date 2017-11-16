@@ -125,7 +125,7 @@ routes cfg lts mbWaiMetrics = do
   Scotty.get "/monitor/current/plain" currentMetricsPlainA
   Scotty.get "/monitor/:prefix/current/plain" currentMetricsPlainA
   Scotty.get "/monitor/:name/last" lastMetricA 
-  Scotty.get "/monitor/:name/query" queryMetricA
+  Scotty.get "/monitor/:prefix/query" queryMetricA
 
   Scotty.options "/" $ getAuthOptionsA
   Scotty.options (Scotty.regex "/.*") $ done
@@ -596,7 +596,7 @@ lastMetricA = inUserContext $ do
 
 queryMetricA :: Action ()
 queryMetricA = inUserContext $ do
-    name <- Scotty.param "name"
+    prefix <- Scotty.param "prefix"
     mbLast <- getUrlParam "last"
     mbFrom <- getUrlParam "from"
     mbTo <- getUrlParam "to"
@@ -606,7 +606,7 @@ queryMetricA = inUserContext $ do
                     (Just f, Just t, Nothing) -> liftM2 (,) (parse f) (parse t)
                     (Nothing, Nothing, Just l) -> getLast l now
                     _ -> raise $ UnknownError "Time period is not specified for metrics request"
-    records <- runDBA $ queryMetric name from to
+    records <- runDBA $ queryMetric prefix from to
     Scotty.json $ map metricRecordToJsonPlain records
 
   where

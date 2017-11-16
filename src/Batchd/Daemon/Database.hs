@@ -23,6 +23,7 @@ import Data.Time
 import Database.Persist
 import Data.Maybe
 import Data.Int
+import Data.Monoid ((<>))
 import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
@@ -492,7 +493,7 @@ getMetrics mbPrefix = do
          E.from $ \record -> do
            case mbPrefix of
              Nothing -> return ()
-             Just prefix -> E.where_ (record ^. MetricRecordName `E.like` E.val prefix)
+             Just prefix -> E.where_ (record ^. MetricRecordName `E.like` E.val (prefix <> "%"))
            E.orderBy [E.desc (record ^. MetricRecordTime), E.asc (record ^. MetricRecordName)]
            return record
   return $ map entityVal lst
@@ -509,10 +510,10 @@ getLastMetric name = do
     (r:_) -> return $ entityVal r
 
 queryMetric :: T.Text -> UTCTime -> UTCTime -> DB [MetricRecord]
-queryMetric name from to = do
+queryMetric prefix from to = do
   lst <- E.select $
          E.from $ \record -> do
-           E.where_ ((record ^. MetricRecordName `equals` E.val name)
+           E.where_ ((record ^. MetricRecordName `E.like` E.val (prefix <> "%"))
                      `eand` (record ^. MetricRecordTime `geq` E.val from)
                      `eand` (record ^. MetricRecordTime `leq` E.val to))
            E.orderBy [E.asc (record ^. MetricRecordTime)]
