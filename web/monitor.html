@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>batchd monitoring</title>
+
+    <!-- jQuery -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+
+    <!-- jQuery rest -->
+    <script src="/js/jquery.rest.min.js"></script>
+
+    <!-- D3 -->
+    <script src="https://d3js.org/d3.v3.min.js"></script>
+
+    <!-- C3 -->
+    <script src="/js/c3.min.js"></script>
+
+    <link rel='stylesheet' type='text/css' href='/css/style.css'/>
+    <link rel='stylesheet' type='text/css' href='/css/c3.min.css'/>
+
+  </head>
+  <body>
+    <h1>batchd monitoring</h1>
+
+    <div class='content'>
+      <h3>Jobs by status</h3>
+      <div id='jobs_stats'></div>
+
+      <h3>Hosts usage</h3>
+      <div id='hosts_usage'></div>
+
+      <h3>Memory usage</h3>
+      <div id='memory_used'></div>
+
+      <h3>HTTP requests</h3>
+      <div id='http_requests'></div>
+    </div>
+
+
+    <script>
+$.batchd = new $.RestClient('/');
+$.batchd.add('monitor');
+$.batchd.monitor.add('query');
+
+$.charts = {};
+
+function plotMetric(prefix, divId) {
+  var times = {};
+  var values = {};
+  var names = [];
+  $.batchd.monitor.query.read(prefix, {last: 60}).done(function(response) {
+    $.each(response, function(k, record) {
+      names.push(record.name);
+      if (times.hasOwnProperty(record.name)) {
+        times[record.name].push(new Date(record.time));
+        values[record.name].push(record.value);
+      } else {
+        times[record.name] = [];
+        values[record.name] = [];
+      }
+    });
+    var xData = [];
+    xData.push('x');
+    xData = xData.concat(times[names[0]]);
+    //console.log(xData);
+    var yData = [];
+    for (var metric in values) {
+      yData.push([metric].concat(values[metric]));
+    }
+    var columnsData = [];
+    columnsData.push(xData);
+    columnsData = columnsData.concat(yData);
+    //console.log(columnsData);
+
+    if ($.charts.hasOwnProperty(divId)) {
+      $.charts[divId].load({
+        columns: columnsData
+      });
+    } else {
+      $.charts[divId] = c3.generate({
+        bindto: divId,
+        data: {
+          x: 'x',
+          //xFormat: '%Y-%m-%dT%H:%M:%S.%fZ',
+          columns: columnsData
+        },
+        axis: {
+            x: {
+                type: 'timeseries',
+                tick: {
+                    format: '%H:%M:%S'
+                }
+            },
+            y: {
+              tick: {
+                format: d3.format('s')
+              }
+            }
+        }
+      });
+    }
+  });
+};
+
+function updateMonitoring() {
+  plotMetric('rts.gc.current_bytes_used', '#memory_used');
+  plotMetric('batchd.wai.response_status_', '#http_requests');
+  plotMetric('batchd.hosts', '#hosts_usage');
+  plotMetric('batchd.jobs', '#jobs_stats');
+}
+
+setInterval(updateMonitoring, 5*1000);
+
+$(document).ready(function() {
+  updateMonitoring();
+});
+    </script>
+  </body>
+</html>
+

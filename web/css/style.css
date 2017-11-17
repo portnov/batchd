@@ -89,3 +89,7 @@ div#stderr, div#stdout {
   max-height: 30ex;
   overflow: auto;
 }
+
+.c3-tooltip-container {
+  color: black;
+}
