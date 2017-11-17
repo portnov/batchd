@@ -80,6 +80,7 @@ routes cfg lts mbWaiMetrics = do
     Just path -> do
         Scotty.middleware $ staticPolicy (addBase path)
         Scotty.get "/" $ file $ path </> "batch.html"
+        Scotty.get "/monitor" $ file $ path </> "monitor.html"
     Nothing -> return ()
 
   Scotty.get "/stats" getStatsA
