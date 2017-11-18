@@ -510,10 +510,10 @@ getLastMetric name = do
     (r:_) -> return $ entityVal r
 
 queryMetric :: T.Text -> UTCTime -> UTCTime -> DB [MetricRecord]
-queryMetric prefix from to = do
+queryMetric nameLike from to = do
   lst <- E.select $
          E.from $ \record -> do
-           E.where_ ((record ^. MetricRecordName `E.like` E.val (prefix <> "%"))
+           E.where_ ((record ^. MetricRecordName `E.like` E.val nameLike)
                      `eand` (record ^. MetricRecordTime `geq` E.val from)
                      `eand` (record ^. MetricRecordTime `leq` E.val to))
            E.orderBy [E.asc (record ^. MetricRecordTime)]

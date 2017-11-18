@@ -598,17 +598,21 @@ lastMetricA = inUserContext $ do
 queryMetricA :: Action ()
 queryMetricA = inUserContext $ do
     prefix <- Scotty.param "prefix"
+    (from, to) <- getPeriod
+    records <- runDBA $ queryMetric (prefix <> "%") from to
+    Scotty.json $ map metricRecordToJsonPlain records
+
+getPeriod :: Action (UTCTime, UTCTime)
+getPeriod = do
     mbLast <- getUrlParam "last"
     mbFrom <- getUrlParam "from"
     mbTo <- getUrlParam "to"
     now <- liftIO $ getCurrentTime
-    (from, to) <- case (mbFrom, mbTo, mbLast) of
-                    (Just f, Nothing, Nothing) -> liftM2 (,) (parse f) (return now)
-                    (Just f, Just t, Nothing) -> liftM2 (,) (parse f) (parse t)
-                    (Nothing, Nothing, Just l) -> getLast l now
-                    _ -> raise $ UnknownError "Time period is not specified for metrics request"
-    records <- runDBA $ queryMetric prefix from to
-    Scotty.json $ map metricRecordToJsonPlain records
+    case (mbFrom, mbTo, mbLast) of
+      (Just f, Nothing, Nothing) -> liftM2 (,) (parse f) (return now)
+      (Just f, Just t, Nothing) -> liftM2 (,) (parse f) (parse t)
+      (Nothing, Nothing, Just l) -> getLast l now
+      _ -> raise $ UnknownError "Time period is not specified for metrics request"
 
   where
 
