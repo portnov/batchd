@@ -28,6 +28,8 @@ import Network.Wai.Handler.Warp (defaultSettings, setPort)
 import Network.Wai.Middleware.Cors
 import Network.Wai.Middleware.Static as Static
 import Web.Scotty.Trans as Scotty
+import qualified Text.Parsec as Parsec
+import qualified Text.Parsec.Text as Parsec
 import System.FilePath
 import System.FilePath.Glob
 import System.Log.Heavy.Types
@@ -122,8 +124,9 @@ routes cfg lts mbWaiMetrics = do
   Scotty.delete "/user/:name/permissions/:id" deletePermissionA
 
   Scotty.get "/monitor/current/tree" currentMetricsTreeA 
-  Scotty.get "/monitor/:prefix/current/tree" currentMetricsTreeA 
   Scotty.get "/monitor/current/plain" currentMetricsPlainA
+  Scotty.get "/monitor/jobs" getQueueJobsCountA
+  Scotty.get "/monitor/:prefix/current/tree" currentMetricsTreeA 
   Scotty.get "/monitor/:prefix/current/plain" currentMetricsPlainA
   Scotty.get "/monitor/:name/last" lastMetricA 
   Scotty.get "/monitor/:prefix/query" queryMetricA
@@ -634,3 +637,33 @@ getPeriod = do
       let start = addUTCTime (fromIntegral $ negate seconds) now
       return (start, now)
 
+getQueueJobsCountA :: Action ()
+getQueueJobsCountA = do
+    (from, to) <- getPeriod
+    records <- runDBA $ queryMetric "batchd.queue.%.jobs.%" from to
+    result <- forM records parseRecord
+    Scotty.json result
+  where
+    
+    parseRecord :: MetricRecord -> Action Data.Yaml.Value
+    parseRecord r = do
+      (queue, status) <- parseName (metricRecordName r)
+      return $ object [
+        "time" .= metricRecordTime r,
+        "queue" .= queue,
+        "status" .= status,
+        "jobs" .= metricRecordValue r]
+    
+    parseName :: T.Text -> Action (T.Text, JobStatus)
+    parseName name = case Parsec.runParser pName () "<metric name>" name of
+                       Left err -> raise $ UnknownError $ show err
+                       Right res -> return res
+
+    pName :: Parsec.Parser (T.Text, JobStatus)
+    pName = do
+      Parsec.string "batchd.queue."
+      queue <- Parsec.many1 (Parsec.noneOf ".")
+      Parsec.string ".jobs."
+      status <- Parsec.many1 Parsec.alphaNum
+      return (T.pack queue, read status)
+    
