@@ -14,6 +14,7 @@ module Batchd.Daemon.Monitoring
     Metrics.counter,
     Metrics.gauge,
     Metrics.timed,
+    timedN,
     Metrics.distribution,
     Metrics.label
   ) where
@@ -22,6 +23,7 @@ import Control.Monad
 import Control.Monad.State
 import Control.Concurrent
 import qualified Control.Monad.Metrics as Metrics
+import Control.Monad.Catch as MC
 import Lens.Micro
 import Data.Time
 import qualified Data.Vector as V
@@ -172,4 +174,7 @@ metricRecordToJsonTree r =
       go v _ _                        = error $ "metricToRecordJson.go: unexpected: " ++ show v
 
   in  build Aeson.emptyObject (metricRecordName r) metricValue
+
+timedN :: (MonadIO m, Metrics.MonadMetrics m, MonadMask m) => [T.Text] -> m a -> m a
+timedN = Metrics.timedList Metrics.Seconds
 

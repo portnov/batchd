@@ -7,6 +7,8 @@ import Control.Monad
 import Control.Monad.Trans
 import Control.Concurrent
 import Data.Conduit
+import Data.Maybe (fromMaybe)
+import Data.Monoid ((<>))
 import qualified Data.Conduit.Combinators as C
 import qualified Data.Conduit.List as CL
 import Data.Conduit.Binary (sourceHandle)
@@ -67,28 +69,32 @@ processOnLocalhost job onFail command resultChan = do
       hClose handle
 
 executeJob :: HostsPool -> Queue -> JobType -> JobInfo -> ResultsChan -> Daemon ()
-executeJob counters q jt job resultChan = Monitoring.timed "batchd.job.duration" $ do
-  cfg <- askConfig
+executeJob counters q jt job resultChan = do
   let mbHostName = getHostName q jt job
-      jid = JobKey (Sql.SqlBackendKey $ jiId job)
-  liftIO $ writeChan resultChan (job, StartExecution)
-  case mbHostName of
-    Nothing -> do -- localhost
-      let command = getCommand Nothing jt job
-      liftIO $ processOnLocalhost job (jtOnFail jt) command resultChan
+      hostForMetric = T.pack $ fromMaybe "localhost" mbHostName
+  let metrics = ["batchd.job.duration", 
+                 "batchd.job.duration.host." <> hostForMetric,
+                 "batchd.job.duration.type." <> T.pack (jtName jt)]
+  Monitoring.timedN metrics $ do
+    cfg <- askConfig
+    liftIO $ writeChan resultChan (job, StartExecution)
+    let jid = JobKey (Sql.SqlBackendKey $ jiId job)
+    case mbHostName of
+      Nothing -> do -- localhost
+        let command = getCommand Nothing jt job
+        liftIO $ processOnLocalhost job (jtOnFail jt) command resultChan
 
-    Just hostname -> do
-      hostR <- liftIO $ loadHost hostname
-      case hostR of
-        Right host -> do
-          let command = getCommand (Just host) jt job
-          now <- liftIO $ getCurrentTime
-          -- let result = JobResult jid now (ExitFailure (-2)) T.empty T.empty
-          processOnHost counters host jt job resultChan command
-          return ()
-        Left err -> do
-          $reportError "Error while executing job: {}" (Single $ Shown err)
-          liftIO $ writeChan resultChan (job, ExecError (T.pack $ show err) (jtOnFail jt))
-          return ()
-
+      Just hostname -> do
+        hostR <- liftIO $ loadHost hostname
+        case hostR of
+          Right host -> do
+            let command = getCommand (Just host) jt job
+            now <- liftIO $ getCurrentTime
+            -- let result = JobResult jid now (ExitFailure (-2)) T.empty T.empty
+            processOnHost counters host jt job resultChan command
+            return ()
+          Left err -> do
+            $reportError "Error while executing job: {}" (Single $ Shown err)
+            liftIO $ writeChan resultChan (job, ExecError (T.pack $ show err) (jtOnFail jt))
+            return ()
 
