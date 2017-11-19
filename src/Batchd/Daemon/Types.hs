@@ -6,6 +6,7 @@ import Control.Exception (catch)
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Except
+import qualified Control.Monad.Catch as MC
 import Control.Monad.Trans.Resource
 import qualified Control.Monad.Metrics as Metrics
 import Control.Concurrent
@@ -69,12 +70,18 @@ data JobResultUpdate =
 
 type ResultsChan = Chan (JobInfo, JobResultUpdate)
 
+deriving instance MonadThrow m => MC.MonadThrow (LoggingT m)
+deriving instance MC.MonadCatch m => MC.MonadCatch (LoggingT m)
+deriving instance MC.MonadMask m => MC.MonadMask (LoggingT m)
+
 -- | Main monad for daemon actions (both Manager and Dispatcher). This handles logging
 -- and DB connection.
 newtype Daemon a = Daemon {
     runDaemonT :: LoggingT (StateT ConnectionInfo IO) a
   }
-  deriving (Applicative,Functor,Monad,MonadIO, MonadReader LoggingTState, HasLogContext, HasLogger)
+  deriving (Applicative,Functor,Monad,MonadIO, MonadReader LoggingTState,
+            MC.MonadThrow, MC.MonadCatch, MC.MonadMask,
+            HasLogContext, HasLogger)
 
 instance Localized Daemon where
   getLanguage = liftIO $ languageFromLocale
