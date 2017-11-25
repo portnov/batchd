@@ -427,6 +427,7 @@ data GlobalConfig = GlobalConfig {
     , dbcDispatcher :: DispatcherConfig
     , dbcMetrics :: MetricsConfig
     , dbcStorage :: StorageConfig
+    , dbcVariables :: Variables
   }
   deriving (Eq, Show, Typeable, Generic)
 
@@ -440,6 +441,7 @@ instance Default GlobalConfig where
         , dbcDispatcher = def
         , dbcMetrics = def
         , dbcStorage = def
+        , dbcVariables = def
         }
 
 data MetricsConfig = MetricsConfig {
@@ -576,6 +578,7 @@ instance FromJSON GlobalConfig where
       <*> v .:? "dispatcher" .!= def
       <*> v .:? "metrics" .!= def
       <*> v .:? "storage" .!= def
+      <*> v .:? "variables" .!= def
   parseJSON invalid = typeMismatch "global configuration" invalid
 
 data MetricKind =

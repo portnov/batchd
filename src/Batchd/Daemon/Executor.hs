@@ -33,11 +33,11 @@ import Batchd.Core.Daemon.Hosts
 import Batchd.Daemon.SSH
 import Batchd.Daemon.Monitoring as Monitoring
 
-getCommand :: Maybe Host -> JobType -> JobInfo -> String
-getCommand mbHost jt job =
+getCommand :: GlobalConfig -> Maybe Host -> JobType -> JobInfo -> String
+getCommand cfg mbHost jt job =
     TL.unpack $ format (parseShellFormat' $ TL.pack $ jtTemplate jt) (mkContext $ hostContext mbHost jt $ jiParams job)
   where
-    mkContext m = optional $ m `ThenCheck` hostVars
+    mkContext m = optional $ m `ThenCheck` hostVars `ThenCheck` dbcVariables cfg
     hostVars = fromMaybe M.empty $ hVariables `fmap` mbHost
 
 getHostName :: Queue -> JobType -> JobInfo -> Maybe String
@@ -81,14 +81,14 @@ executeJob counters q jt job resultChan = do
     let jid = JobKey (Sql.SqlBackendKey $ jiId job)
     case mbHostName of
       Nothing -> do -- localhost
-        let command = getCommand Nothing jt job
+        let command = getCommand cfg Nothing jt job
         liftIO $ processOnLocalhost job (jtOnFail jt) command resultChan
 
       Just hostname -> do
         hostR <- liftIO $ loadHost hostname
         case hostR of
           Right host -> do
-            let command = getCommand (Just host) jt job
+            let command = getCommand cfg (Just host) jt job
             now <- liftIO $ getCurrentTime
             -- let result = JobResult jid now (ExitFailure (-2)) T.empty T.empty
             $(putMessage config_level) "Loaded host configuration: {}" (Single $ show host)
