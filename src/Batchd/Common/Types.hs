@@ -64,7 +64,7 @@ import qualified System.Posix.Syslog as Syslog
 import System.Log.Heavy
 import System.Exit
 
-import Batchd.Core.Common.Types () -- import instances only
+import Batchd.Core.Common.Types
 
 -- | Default manager port - 9681.
 defaultManagerPort :: Int
@@ -80,10 +80,10 @@ data ParamType =
 
 -- | Description of job parameter
 data ParamDesc = ParamDesc {
-    piName :: String       -- ^ Parameter name (identifier)
+    piName :: TL.Text       -- ^ Parameter name (identifier)
   , piType :: ParamType    -- ^ Parameter type
-  , piTitle :: String      -- ^ Parameter title (to show in client)
-  , piDefault :: String    -- ^ Default value of the parameter
+  , piTitle :: TL.Text      -- ^ Parameter title (to show in client)
+  , piDefault :: T.Text    -- ^ Default value of the parameter
   }
   deriving (Eq, Show, Data, Typeable, Generic)
 
@@ -213,7 +213,7 @@ instance ToJSON WeekDay
 instance FromJSON WeekDay
 
 -- | Job parameter values
-type JobParamInfo = M.Map String String
+type JobParamInfo = Variables
 
 -- | Job information. This data type
 -- unites information from @Job@ and connected
@@ -278,7 +278,7 @@ instance FromJSON UserInfo where
   parseJSON = genericParseJSON (jsonOptions "ui")
 
 -- | Lookup for parameter description by name.
-lookupParam :: String       -- ^ Parameter name
+lookupParam :: TL.Text       -- ^ Parameter name
             -> [ParamDesc]  -- ^ List of parameter descriptions
             -> Maybe ParamDesc
 lookupParam _ [] = Nothing
@@ -287,7 +287,7 @@ lookupParam name (p:ps)
   | otherwise = lookupParam name ps
 
 -- | Lookup for parameter type by name
-getParamType :: JobType -> String -> Maybe ParamType
+getParamType :: JobType -> TL.Text -> Maybe ParamType
 getParamType jt name = piType `fmap` lookupParam name (jtParams jt)
 
 -- | Supported database drivers

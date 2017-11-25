@@ -101,11 +101,11 @@ retrieveOutput job jtype commandHandle commandOutput resultChan = do
 
 getInputFiles :: JobType -> JobInfo -> [FilePath]
 getInputFiles jt job =
-  [value | (name, value) <- M.assocs (jiParams job), getParamType jt name == Just InputFile]
+  [T.unpack value | (name, value) <- M.assocs (jiParams job), getParamType jt name == Just InputFile]
 
 getOutputFiles :: JobType -> JobInfo -> [FilePath]
 getOutputFiles jt job =
-  [value | (name, value) <- M.assocs (jiParams job), getParamType jt name == Just OutputFile]
+  [T.unpack value | (name, value) <- M.assocs (jiParams job), getParamType jt name == Just OutputFile]
 
 uploadFiles :: [FilePath] -> FilePath -> Session -> Daemon ()
 uploadFiles files input_directory session =

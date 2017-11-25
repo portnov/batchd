@@ -14,6 +14,7 @@ import Data.Time.Clock
 import Data.Time.LocalTime
 import qualified Data.Map as M
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
 import qualified Data.Text.IO as TIO
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.IO as TLIO
@@ -216,7 +217,7 @@ viewJob = do
                   ((__ "Try count"),  show $ jiTryCount job)
                 ]
       printTable 0 $ transpose table
-      let params = [[name ++ ":", value] | (name, value) <- M.assocs (jiParams job)]
+      let params = [[TL.unpack name ++ ":", T.unpack value] | (name, value) <- M.assocs (jiParams job)]
       printTable 4 $ transpose params
 
     printLastResult :: JobInfo -> IO ()
@@ -427,10 +428,10 @@ doType = do
               TLIO.putStrLn $ "    " `TL.append` paramsLine
               forM_ (jtParams jt) $ \desc -> do
                 paramsTable <- translateTable $ [
-                                  (__ "Name", piName desc),
+                                  (__ "Name", TL.unpack $ piName desc),
                                   (__ "Type", show (piType desc)),
-                                  (__ "Title",  piTitle desc),
-                                  (__ "Default",  piDefault desc)
+                                  (__ "Title",  TL.unpack $ piTitle desc),
+                                  (__ "Default",  T.unpack $ piDefault desc)
                                 ]
                 let box = emptyBox 0 4 <> char '*' <+> mkTable (transpose paramsTable)
                 printBox box

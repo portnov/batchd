@@ -11,6 +11,8 @@ import Data.Int
 import Data.Time.LocalTime
 import Data.Dates
 import Data.Char (toLower)
+import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
 import Data.Semigroup ((<>))
 import Options.Applicative
 import System.Log.Heavy
@@ -44,7 +46,7 @@ data Command =
       hostName :: Maybe String,
       startTime :: Maybe (Maybe LocalTime),
       jobNotes :: Maybe String,
-      jobCommand :: [String],
+      jobCommand :: [T.Text],
       parameters :: [String]
     }
   | List {
@@ -330,10 +332,10 @@ parseParams desc e =
         byName = M.fromList $ map parseOne (parameters e)
     in  M.union byName ordered
   where
-    parseOne :: String -> (String, String)
+    parseOne :: String -> (TL.Text, T.Text)
     parseOne s = case break (== '=') s of
-                   (key, (_:value)) -> (key, value)
-                   (key, []) -> (key, "")
+                   (key, (_:value)) -> (TL.pack key, T.pack value)
+                   (key, []) -> (TL.pack key, T.empty)
 
 commands :: Parser Command
 commands = hsubparser 

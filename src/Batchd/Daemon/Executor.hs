@@ -37,8 +37,8 @@ getCommand :: Maybe Host -> JobType -> JobInfo -> String
 getCommand mbHost jt job =
     TL.unpack $ format (parseShellFormat' $ TL.pack $ jtTemplate jt) (mkContext $ hostContext mbHost jt $ jiParams job)
   where
-    mkContext m = optional $ map go $ M.assocs m :: ThenCheck [(TL.Text, String)] DefaultValue
-    go (key, value) = (TL.pack key, value)
+    mkContext m = optional $ m `ThenCheck` hostVars
+    hostVars = fromMaybe M.empty $ hVariables `fmap` mbHost
 
 getHostName :: Queue -> JobType -> JobInfo -> Maybe String
 getHostName q jt job =
@@ -50,8 +50,8 @@ hostContext (Just host) jt params = M.fromList $ map update $ M.assocs params
   where
     update (key, value) =
       case getParamType jt key of
-        Just InputFile -> (key, hInputDirectory host </> takeFileName value)
-        Just OutputFile -> (key, hOutputDirectory host </> takeFileName value)
+        Just InputFile -> (key, T.pack $ hInputDirectory host </> takeFileName (T.unpack value))
+        Just OutputFile -> (key, T.pack $ hOutputDirectory host </> takeFileName (T.unpack value))
         _ -> (key, value)
 
 processOnLocalhost :: JobInfo -> OnFailAction -> String -> ResultsChan -> IO ()
@@ -91,6 +91,7 @@ executeJob counters q jt job resultChan = do
             let command = getCommand (Just host) jt job
             now <- liftIO $ getCurrentTime
             -- let result = JobResult jid now (ExitFailure (-2)) T.empty T.empty
+            $(putMessage config_level) "Loaded host configuration: {}" (Single $ show host)
             processOnHost counters host jt job resultChan command
             return ()
           Left err -> do

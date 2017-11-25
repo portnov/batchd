@@ -26,6 +26,7 @@ import Data.Int
 import Data.Aeson as Aeson
 import Data.Aeson.Types
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
 import Data.Text.Format.Heavy
 import Data.Generics hiding (Generic)
 
@@ -37,8 +38,8 @@ import Batchd.Common.Types
 share [mkPersist sqlSettings, mkMigrate "migrateAll", mkDeleteCascade sqlSettings] [persistLowerCase|
 JobParam
   jobId JobId
-  name String
-  value String
+  name TL.Text
+  value T.Text
   UniqParam jobId name
 
 Job

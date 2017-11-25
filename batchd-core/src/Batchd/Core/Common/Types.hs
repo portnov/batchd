@@ -3,7 +3,7 @@
 module Batchd.Core.Common.Types
   (
     -- * Data types
-    Host (..),
+    Host (..), Variables,
     -- * Exceptions
     Error (..),
     -- * Utility functions
@@ -16,7 +16,10 @@ import GHC.Generics
 import Control.Exception
 import Data.Generics hiding (Generic)
 import Data.Char
+import qualified Data.Map as M
 import qualified Data.ByteString as B
+import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
 import Data.Aeson as Aeson
 import Data.Aeson.Types
 import Data.Yaml (ParseException (..))
@@ -67,6 +70,8 @@ instance Show Error where
 
 instance Exception Error
 
+type Variables = M.Map TL.Text T.Text
+
 -- | Remote host description
 data Host = Host {
     hName :: String               -- ^ Name (identifier)
@@ -89,6 +94,7 @@ data Host = Host {
   , hInputDirectory :: String     -- ^ Directory (on the host) for input files. Default is @"."@.
   , hOutputDirectory :: String    -- ^ Directory (on the host) with output files. Default is @"."@.
   , hStartupCommands :: [String]
+  , hVariables :: Variables
   }
   deriving (Eq, Show, Data, Typeable, Generic)
 
@@ -109,6 +115,7 @@ instance FromJSON Host where
     input_directory <- v .:? "input_directory" .!= "."
     output_directory <- v .:? "output_directory" .!= "."
     startup_commands <- v .:? "startup_commands" .!= []
+    variables <- v .:? "variables" .!= M.empty
     return $ Host {
               hName = name
             , hHostName = host_name
@@ -125,6 +132,7 @@ instance FromJSON Host where
             , hInputDirectory = input_directory
             , hOutputDirectory = output_directory
             , hStartupCommands = startup_commands
+            , hVariables = variables
             }
   parseJSON invalid = typeMismatch "host definition" invalid
 

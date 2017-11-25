@@ -10,6 +10,7 @@ packages:
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 extra-deps: 
+  - optparse-applicative-0.14.0.0
   - dates-0.2.2.1
   - docker-0.4.1.1
   - libvirt-hs-0.2.1
