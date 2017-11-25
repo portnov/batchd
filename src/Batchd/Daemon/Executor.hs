@@ -38,7 +38,7 @@ getCommand cfg mbHost jt job =
     TL.unpack $ format (parseShellFormat' $ TL.pack $ jtTemplate jt) (mkContext $ hostContext mbHost jt $ jiParams job)
   where
     mkContext m = optional $ m `ThenCheck` hostVars `ThenCheck` dbcVariables cfg
-    hostVars = fromMaybe M.empty $ hVariables `fmap` mbHost
+    hostVars = maybe M.empty hVariables mbHost
 
 getHostName :: Queue -> JobType -> JobInfo -> Maybe String
 getHostName q jt job =
