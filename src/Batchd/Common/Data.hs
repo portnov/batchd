@@ -243,6 +243,9 @@ instance VarContainer MetricRecord where
   lookupVar "max" r = Just $ Variable $ metricRecordMax r
   lookupVar _ _ = Nothing
 
+instance ClosedVarContainer MetricRecord where
+  allVarNames _ = ["value", "text", "mean", "variance", "count", "sum", "min", "max"]
+
 -- instance ToJSON JobUpdate where
 --   toJSON (Prioritize action) = object ["priority" .= action]
 --   toJSON (Move qname) = object ["move" .= qname]

@@ -153,6 +153,9 @@ instance F.VarContainer Request where
   lookupVar "useragent" rq = Just $ F.Variable $ requestHeaderUserAgent rq
   lookupVar _ rq = Nothing
 
+instance F.ClosedVarContainer Request where
+  allVarNames _ = ["method", "path", "secure", "referer", "useragent"]
+
 -- | Set up translations
 setupTranslations :: LocatePolicy -> Daemon ()
 setupTranslations p = do

@@ -20,9 +20,9 @@ extra-deps:
   - select-0.4.0.1
   - monad-metrics-0.2.1.0
   - haskell-gettext-0.1.1.0
-  - text-format-heavy-0.1.5.0
+  - text-format-heavy-0.1.5.1
   - localize-0.2.0.0
-  - heavy-logger-0.3.1.0
+  - heavy-logger-0.3.2.0
   - heavy-logger-amazon-0.1.0.0
 
 # Override default flag values for local packages and extra-deps

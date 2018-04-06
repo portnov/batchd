@@ -34,7 +34,7 @@ translateString :: Localized m => String -> m TL.Text
 translateString str = translate $ stringToBstr str
 
 -- | Write a message to log within IO monad.
-logIO :: (F.VarContainer vars, MonadIO m) => LoggingTState -> Loc -> Level -> TL.Text -> vars -> m ()
+logIO :: (F.ClosedVarContainer vars, MonadIO m) => LoggingTState -> Loc -> Level -> TL.Text -> vars -> m ()
 logIO lts loc level msg vars = Trans.liftIO $
   do
     let src = splitDots (loc_module loc)
@@ -43,7 +43,7 @@ logIO lts loc level msg vars = Trans.liftIO $
         ltsLogger lts message
 
 -- | Write a debug message to log within IO monad.
-debugIO :: (F.VarContainer vars, MonadIO m)
+debugIO :: (F.ClosedVarContainer vars, MonadIO m)
         => LoggingTState                     -- ^ Logging state
         -> Loc                               -- ^ Message location in Haskell source. Usually filled by @\$(here)@ TH macros.
         -> TL.Text                           -- ^ Message string, with placeholders if needed.
@@ -52,7 +52,7 @@ debugIO :: (F.VarContainer vars, MonadIO m)
 debugIO lts loc = logIO lts loc debug_level
 
 -- | Write an info message to log within IO monad.
-infoIO :: (F.VarContainer vars, MonadIO m)
+infoIO :: (F.ClosedVarContainer vars, MonadIO m)
        => LoggingTState -- ^ Logging state
        -> Loc           -- ^ Message location in Haskell source. Usually filled by @\$(here)@ TH macros.
        -> TL.Text       -- ^ Message string, with placeholders if needed.
@@ -61,7 +61,7 @@ infoIO :: (F.VarContainer vars, MonadIO m)
 infoIO lts loc = logIO lts loc info_level
 
 -- | Write an error message to log within IO monad.
-reportErrorIO :: (F.VarContainer vars, MonadIO m)
+reportErrorIO :: (F.ClosedVarContainer vars, MonadIO m)
               => LoggingTState -- ^ Logging state
               -> Loc           -- ^ Message location in Haskell source. Usually filled by @\$(here)@ TH macros.
               -> TL.Text       -- ^ Message string, with placeholders if needed.
