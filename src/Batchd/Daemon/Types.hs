@@ -20,6 +20,7 @@ import qualified Web.Scotty.Trans as Scotty
 import qualified Web.Scotty.Internal.Types as SI
 import System.Exit (ExitCode (..))
 import System.Log.Heavy
+import System.Log.Heavy.Instances.UnliftIO () -- import instances only
 import Text.Localize
 import Text.Localize.IO
 
@@ -29,6 +30,8 @@ import Batchd.Common.Types
 instance Scotty.ScottyError Error where
   stringError e = UnknownError e
   showError e = TL.pack (show e)
+
+-- deriving instance MonadUnliftIO (LoggingT (ResourceT IO))
 
 -- | Standard monad for database actions
 type DB a = ReaderT Sql.SqlBackend (LoggingT (ExceptT Error (ResourceT IO))) a

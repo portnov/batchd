@@ -13,6 +13,7 @@ module Batchd.Ext.Docker
 import Control.Monad (when)
 import Control.Monad.Trans
 import Control.Monad.Catch
+import Control.Monad.IO.Unlift
 import Control.Exception
 import Data.Maybe
 import Data.Typeable
@@ -46,7 +47,7 @@ instance FromJSON DockerSettings where
 defaultDockerUrl :: URL
 defaultDockerUrl = baseUrl defaultClientOpts
 
-getHttpHandler :: (MonadIO m, MonadMask m) => DockerSettings -> m (HttpHandler m)
+getHttpHandler :: (MonadIO m, MonadMask m, MonadUnliftIO m) => DockerSettings -> m (HttpHandler m)
 getHttpHandler d = do
   case dUnixSocket d of
     Nothing -> defaultHttpHandler

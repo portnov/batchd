@@ -6,6 +6,7 @@
 -- and show response in human-readable form to stdout.
 module Batchd.Client.Actions where
 
+import Prelude hiding ((<>))
 import Control.Monad
 import Control.Monad.State
 import Data.Int
