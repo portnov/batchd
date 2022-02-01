@@ -15,7 +15,7 @@
 # resolver:
 #  name: custom-snapshot
 #  location: "./custom-snapshot.yaml"
-resolver: lts-9.10
+resolver: lts-18.16
 
 # User packages to be built.
 # Various formats can be used as shown in the example below.
@@ -42,7 +42,7 @@ packages:
 # (e.g., acme-missiles-0.3)
 extra-deps:
   - libvirt-hs-0.2.1
-  - dates-0.2.2.1
+  - dates-0.2.3.2
   - libssh2-0.2.0.5
   - localize-0.2.0.0
   - haskell-gettext-0.1.1.0

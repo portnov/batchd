@@ -15,7 +15,7 @@
 # resolver:
 #  name: custom-snapshot
 #  location: "./custom-snapshot.yaml"
-resolver: lts-9.10
+resolver: lts-18.16
 
 # User packages to be built.
 # Various formats can be used as shown in the example below.
@@ -41,13 +41,15 @@ packages:
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 extra-deps:
-  - dates-0.2.2.1
+  - dates-0.2.3.2
   - libssh2-0.2.0.5
   - localize-0.2.0.0
   - haskell-gettext-0.1.1.0
   - text-format-heavy-0.1.5.0
   - heavy-logger-0.3.1.0
   - heavy-logger-amazon-0.1.0.0
+  - amazonka-1.6.1
+  - amazonka-ec2-1.6.1
 
 # Override default flag values for local packages and extra-deps
 flags: {}

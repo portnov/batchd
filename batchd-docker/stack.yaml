@@ -15,7 +15,7 @@
 # resolver:
 #  name: custom-snapshot
 #  location: "./custom-snapshot.yaml"
-resolver: lts-9.10
+resolver: lts-18.16
 
 # User packages to be built.
 # Various formats can be used as shown in the example below.
@@ -41,8 +41,8 @@ packages:
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 extra-deps:
-  - docker-0.4.1.1
-  - dates-0.2.2.1
+  - docker-0.6.0.6
+  - dates-0.2.3.2
   - localize-0.2.0.0
   - text-format-heavy-0.1.5.0
   - haskell-gettext-0.1.1.0
