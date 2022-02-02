@@ -7,7 +7,9 @@ import Control.Monad.Reader
 import Options.Applicative
 import qualified Database.Persist.Sql as Sql
 import System.Log.Heavy
+import Text.Localize.IO (setupTranslations)
 
+import Batchd.Core.Common.Localize (translationPolicy)
 import Batchd.Common.Config
 import Batchd.Common.Data (migrateAll)
 import Batchd.Daemon.Logging (getLoggingSettings)
@@ -19,6 +21,7 @@ main :: IO ()
 main = do
   cmdline <- execParser adminParserInfo
   cfgR <- loadGlobalConfig (globalConfigPath $ adminCommon cmdline)
+  setupTranslations translationPolicy
   let cmd = adminCommand cmdline
   case cfgR of
     Left err -> fail $ show err
