@@ -6,6 +6,7 @@ packages:
   - batchd-docker/
   - batchd-libvirt/
   - batchd-amazonka/
+  - batchd-linode/
 
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
@@ -35,6 +36,8 @@ extra-deps:
     subdirs:
       - amazonka
       - amazonka-ec2
+  - git: git@github.com:portnov/linode-openapi-hs.git
+    commit: 366ebbf46bcf8f2bc1f2fa477ee1ec83b22c6adf
 
 # Override default flag values for local packages and extra-deps
 flags: {}

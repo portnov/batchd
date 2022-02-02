@@ -38,6 +38,9 @@ import Batchd.Ext.Docker
 #ifdef AWSEC2
 import Batchd.Ext.AWS
 #endif
+#ifdef LINODE
+import Batchd.Ext.Linode
+#endif
 
 supportedDrivers :: [HostDriver]
 supportedDrivers =
@@ -50,6 +53,9 @@ supportedDrivers =
 #endif
 #ifdef AWSEC2
    awsEc2Driver,
+#endif
+#ifdef LINODE
+    linodeDriver,
 #endif
    localDriver
   ]

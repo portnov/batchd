@@ -1,8 +1,8 @@
-name:                batchd-amazonka
+name:                batchd-linode
 version:             0.1.0.0
-synopsis:            batchd host controller for AWS EC2 hosts
+synopsis:            batchd host controller for Linode.com hosts
 -- description:
-homepage:            https://github.com/githubuser/batchd-amazonka#readme
+homepage:            https://github.com/portnov/batchd#readme
 license:             BSD3
 license-file:        LICENSE
 author:              IlyaPortnov
@@ -15,21 +15,20 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Batchd.Ext.AWS
+  exposed-modules:     Batchd.Ext.Linode
   build-depends:       base >= 4.7 && < 5,
+                       containers >= 0.4,
                        mtl >= 2.2.1,
                        text >= 1.2.2.2,
                        lens >= 4.15.4,
                        aeson >= 1.1.2.0,
                        batchd-core >= 0.1.0.0,
-                       amazonka-core >= 1.6.1,
-                       amazonka >= 1.6.1,
-                       amazonka-ec2 >= 1.6.1,
                        text-format-heavy >= 0.1.5.0,
                        heavy-logger >= 0.3.1.0,
-                       heavy-logger-amazon >= 0.1.0.0
+                       linode-openapi >= 0.1.0.0,
+                       http-client >= 0.6.4
   default-language:    Haskell2010
 
 source-repository head
   type:     git
-  location: https://github.com/githubuser/batchd-amazonka
+  location: https://github.com/portnov/batchd
