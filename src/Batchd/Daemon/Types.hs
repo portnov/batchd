@@ -5,6 +5,7 @@ module Batchd.Daemon.Types where
 import Control.Exception (catch)
 import Control.Monad.Reader
 import Control.Monad.State
+import qualified Control.Monad.State.Strict as SSt
 import Control.Monad.Except
 import qualified Control.Monad.Catch as MC
 import Control.Monad.Trans.Resource
@@ -77,12 +78,14 @@ deriving instance MonadThrow m => MC.MonadThrow (LoggingT m)
 deriving instance MC.MonadCatch m => MC.MonadCatch (LoggingT m)
 deriving instance MC.MonadMask m => MC.MonadMask (LoggingT m)
 
+deriving instance MonadFail m => MonadFail (LoggingT m)
+
 -- | Main monad for daemon actions (both Manager and Dispatcher). This handles logging
 -- and DB connection.
 newtype Daemon a = Daemon {
     runDaemonT :: LoggingT (StateT ConnectionInfo IO) a
   }
-  deriving (Applicative,Functor,Monad,MonadIO, MonadReader LoggingTState,
+  deriving (Applicative,Functor,Monad,MonadIO, MonadFail, MonadReader LoggingTState,
             MC.MonadThrow, MC.MonadCatch, MC.MonadMask,
             HasLogContext, HasLogger)
 
@@ -122,8 +125,10 @@ instance HasLogContext (Scotty.ActionT Error Daemon) where
   getLogContext = lift getLogContext
 
   withLogContext frame actions =
-      SI.ActionT $ ExceptT $ ReaderT $ \env -> StateT $ \rs ->
-        withLogContext frame $ runStateT (runReaderT (runExcept $ SI.runAM actions) env) rs
+      SI.ActionT $ ExceptT $ ReaderT $ \env -> SSt.StateT $ \rs ->
+        let actions' = SI.runAM actions
+            r = (runReaderT (runExcept actions') env)
+        in withLogContext frame $ SSt.runStateT r rs
     where
       runExcept (ExceptT m) = m
 
@@ -131,8 +136,8 @@ instance HasLogger (Scotty.ActionT Error Daemon) where
   getLogger = lift getLogger
 
   localLogger logger actions = 
-      SI.ActionT $ ExceptT $ ReaderT $ \env -> StateT $ \rs ->
-        localLogger logger $ runStateT (runReaderT (runExcept $ SI.runAM actions) env) rs
+      SI.ActionT $ ExceptT $ ReaderT $ \env -> SSt.StateT $ \rs ->
+        localLogger logger $ SSt.runStateT (runReaderT (runExcept $ SI.runAM actions) env) rs
     where
       runExcept (ExceptT m) = m
 
@@ -142,7 +147,7 @@ instance HasLogContext (ReaderT Sql.SqlBackend (LoggingT (ExceptT Error (Resourc
   withLogContext frame actions =
       ReaderT $ \backend -> withLogContext frame $ runReaderT actions backend
 
-instance HasLogger (ReaderT Sql.SqlBackend (LoggingT (ExceptT Error (ResourceT IO)))) where
+instance HasLogger (ReaderT Sql.SqlBackend (LoggingT (ExceptT Error (ResourceT IO)))) where 
   getLogger = lift getLogger
 
   localLogger logger actions = 

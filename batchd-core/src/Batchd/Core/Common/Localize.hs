@@ -24,10 +24,10 @@ translationPolicy =
   in  global {lcBasePaths = lcBasePaths local ++ lcBasePaths global}
 
 -- | Variant of @__@, returning String.
-__s :: Localized m => TranslationSource -> m String
+__s :: (Localized m, MonadFail m) => TranslationSource -> m String
 __s str = TL.unpack `fmap` (__ str)
 
 -- | Variant of @__f@, returning String.
-__sf :: (Localized m, VarContainer vars) => TranslationSource -> vars -> m String
+__sf :: (Localized m, MonadFail m, VarContainer vars) => TranslationSource -> vars -> m String
 __sf str vars = TL.unpack `fmap` (__f str vars)
 

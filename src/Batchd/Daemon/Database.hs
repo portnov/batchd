@@ -31,6 +31,7 @@ import qualified Data.Text.Encoding as TE
 import           Database.Persist.Sql as Sql
 import           Database.Persist.Sqlite as Sqlite
 import           Database.Persist.Postgresql as Postgres
+import qualified Database.Persist.SqlBackend as SqlBackend
 import qualified Database.Esqueleto as E
 import Database.Esqueleto ((^.))
 import System.Log.Heavy
@@ -97,7 +98,7 @@ canLock :: DB Bool
 canLock = do
   -- Dirty hack: we can't do "for update" in sqlite
   backend <- ask
-  return $ connRDBMS backend /= "sqlite"
+  return $ SqlBackend.getRDBMS backend /= "sqlite"
 
 lockJob :: JobInfo -> DB ()
 lockJob ji = do
@@ -298,28 +299,26 @@ getJobResults jid = do
   res <- selectList [JobResultJobId ==. jkey] [Asc JobResultTime]
   return $ map entityVal res
 
-equals :: (PersistField typ, E.Esqueleto query expr backend) =>
-                expr (E.Value typ) -> expr (E.Value typ) -> expr (E.Value Bool)
+equals :: (PersistField typ) =>
+                E.SqlExpr (E.Value typ) -> E.SqlExpr (E.Value typ) -> E.SqlExpr (E.Value Bool)
 equals = (E.==.)
 infix 4 `equals`
 
-leq :: (PersistField typ, E.Esqueleto query expr backend) =>
-             expr (E.Value typ) -> expr (E.Value typ) -> expr (E.Value Bool)
+leq :: (PersistField typ) =>
+             E.SqlExpr (E.Value typ) -> E.SqlExpr (E.Value typ) -> E.SqlExpr (E.Value Bool)
 leq = (E.<=.)
 infix 4 `leq`
 
-geq :: (PersistField typ, E.Esqueleto query expr backend) =>
-             expr (E.Value typ) -> expr (E.Value typ) -> expr (E.Value Bool)
+geq :: (PersistField typ) =>
+             E.SqlExpr (E.Value typ) -> E.SqlExpr (E.Value typ) -> E.SqlExpr (E.Value Bool)
 geq = (E.>=.)
 infix 4 `geq`
 
-eand :: E.Esqueleto query expr backend =>
-              expr (E.Value Bool) -> expr (E.Value Bool) -> expr (E.Value Bool)
+eand :: E.SqlExpr (E.Value Bool) -> E.SqlExpr (E.Value Bool) -> E.SqlExpr (E.Value Bool)
 eand = (E.&&.)
 infixr 3 `eand`
 
-eor :: E.Esqueleto query expr backend =>
-             expr (E.Value Bool) -> expr (E.Value Bool) -> expr (E.Value Bool)
+eor :: E.SqlExpr (E.Value Bool) -> E.SqlExpr (E.Value Bool) -> E.SqlExpr (E.Value Bool)
 eor = (E.||.)
 infixr 3 `eor`
 

@@ -10,7 +10,7 @@ import Data.Maybe
 import qualified Data.Text.Lazy.IO as TLIO
 import Data.Text.Format.Heavy
 import Options.Applicative
-import System.Console.Readline (readline, addHistory)
+import System.Console.Haskeline
 import System.Environment (getProgName)
 
 import Batchd.Core.Common.Localize
@@ -79,25 +79,26 @@ errorHandler (ClientException e) =
 
 -- | Interactive shell REPL.
 runShell :: Client ()
-runShell = do
-  mbLine <- liftIO $ readline "batch> "
-  case mbLine of
-    Nothing -> return ()
-    Just "exit" -> return ()
-    Just "quit" -> return ()
-    Just "" -> runShell
-    Just line -> do
-        liftIO $ addHistory line
-        let res = execParserPure defaultPrefs parserInfo (words line)
-        case res of
-          (Success cmd) -> do
-            modify $ \st -> st {csCmdline = cmd}
-            commandHandler `catchC` errorHandler
-          (Failure failure) -> do
-            progn <- liftIO $ getProgName
-            let (msg,_) = renderFailure failure progn
-            liftIO $ putStrLn msg
-          (CompletionInvoked _) -> do
-            liftIO $ putStrLn "bash-completion is not supported in interactive shell."
-        runShell
+runShell = runInputT defaultSettings loop
+  where
+    loop = do
+      mbLine <- getInputLine "batch> "
+      case mbLine of
+        Nothing -> return ()
+        Just "exit" -> return ()
+        Just "quit" -> return ()
+        Just "" -> loop
+        Just line -> do
+            let res = execParserPure Options.Applicative.defaultPrefs parserInfo (words line)
+            case res of
+              (Success cmd) -> lift $ do
+                modify $ \st -> st {csCmdline = cmd}
+                commandHandler `catchC` errorHandler
+              (Failure failure) -> do
+                progn <- liftIO $ getProgName
+                let (msg,_) = renderFailure failure progn
+                liftIO $ putStrLn msg
+              (CompletionInvoked _) -> do
+                liftIO $ putStrLn "bash-completion is not supported in interactive shell."
+            loop
 
