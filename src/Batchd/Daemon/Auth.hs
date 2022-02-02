@@ -182,10 +182,16 @@ checkUserExists gcfg lts nameBstr = do
 
 ------------------ Authentication ---------------------
 
+anonymousUserName :: String
+anonymousUserName = "anonymous"
+
+anonymousUser :: User
+anonymousUser = User anonymousUserName "" ""
+
 extractBasicUser :: Request -> String
 extractBasicUser req =
   case (lookup hAuthorization $ requestHeaders req) >>= HA.extractBasicAuth of
-    Nothing -> "anonymous"
+    Nothing -> anonymousUserName
     Just (name,_) -> bstrToString name
 
 -- | Returns true if this is OPTIONS request for @/@
@@ -269,14 +275,18 @@ getAuthUserName = do
 -- Fail if user was not authenticated.
 getAuthUser :: Action User
 getAuthUser = do
-  mbName <- getAuthUserName
-  case mbName of
-    Nothing -> Scotty.raise $ InsufficientRights "user has to be authenticated"
-    Just name -> do
-        mbUser <- runDBA $ get (UserKey name)
-        case mbUser of
-          Nothing -> Scotty.raise $ UnknownError "user does not exist"
-          Just user -> return user
+  cfg <- askConfigA
+  if isAuthDisabled $ mcAuth $ dbcManager cfg
+    then return anonymousUser
+    else do
+      mbName <- getAuthUserName
+      case mbName of
+        Nothing -> Scotty.raise $ InsufficientRights "user has to be authenticated"
+        Just name -> do
+            mbUser <- runDBA $ get (UserKey name)
+            case mbUser of
+              Nothing -> Scotty.raise $ UnknownError $ "user does not exist: " <> name
+              Just user -> return user
 
 isAuthDisabled :: AuthMode -> Bool
 isAuthDisabled AuthDisabled = True
