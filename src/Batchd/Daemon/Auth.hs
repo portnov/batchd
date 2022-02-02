@@ -64,7 +64,7 @@ createUser :: GlobalConfig
            -> IO Bool
 createUser gcfg lts name password = do
   pool <- getPool gcfg lts
-  let staticSalt = authStaticSalt $ mcAuth $ dbcManager gcfg
+  let staticSalt = getAuthStaticSalt $ mcAuth $ dbcManager gcfg
   res <- runDBIO gcfg pool lts (createUserDb name password staticSalt)
   case res of
     Left _ -> return False
@@ -78,7 +78,7 @@ createSuperUser :: GlobalConfig
                 -> IO Bool
 createSuperUser gcfg lts name password = do
   pool <- getPool gcfg lts
-  let staticSalt = authStaticSalt $ mcAuth $ dbcManager gcfg
+  let staticSalt = getAuthStaticSalt $ mcAuth $ dbcManager gcfg
   res <- runDBIO gcfg pool lts (createSuperUserDb name password staticSalt)
   case res of
     Left _ -> return False
@@ -132,7 +132,7 @@ changePassword :: GlobalConfig
                 -> IO Bool
 changePassword gcfg lts name password = do
   pool <- getPool gcfg lts
-  let staticSalt = authStaticSalt $ mcAuth $ dbcManager gcfg
+  let staticSalt = getAuthStaticSalt $ mcAuth $ dbcManager gcfg
   res <- runDBIO gcfg pool lts (changePasswordDb name password staticSalt)
   case res of
     Left _ -> return False
@@ -165,7 +165,7 @@ checkUser gcfg lts nameBstr passwordBstr = do
   pool <- getPool gcfg lts
   let name = bstrToString nameBstr
       password = bstrToString passwordBstr
-      salt = authStaticSalt $ mcAuth $ dbcManager gcfg
+      salt = getAuthStaticSalt $ mcAuth $ dbcManager gcfg
   res <- runDBIO gcfg pool lts (checkUserDb name password salt)
   case res of
     Left _ -> return False

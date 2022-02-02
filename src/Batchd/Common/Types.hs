@@ -37,6 +37,7 @@ module Batchd.Common.Types
     defaultManagerPort, zeroUtcTime,
     defaultAuthMode, defaultLogConfig,
     defaultLogFormat, defaultStaticSalt,
+    getAuthStaticSalt
   ) where
 
 import GHC.Generics
@@ -316,6 +317,10 @@ data AuthMode =
   , authStaticSalt :: String  -- ^ Static salt value
   }
   deriving (Data, Typeable, Show, Eq, Generic)
+
+getAuthStaticSalt :: AuthMode -> String
+getAuthStaticSalt AuthDisabled = defaultStaticSalt
+getAuthStaticSalt auth = authStaticSalt auth
 
 instance ToJSON AuthMode where
   toJSON AuthDisabled = Aeson.String "disable"

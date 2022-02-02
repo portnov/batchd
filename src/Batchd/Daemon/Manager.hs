@@ -534,7 +534,7 @@ createUserA = inUserContext $ do
   checkSuperUser
   user <- jsonData
   cfg <- askConfigA
-  let staticSalt = authStaticSalt $ mcAuth $ dbcManager cfg
+  let staticSalt = getAuthStaticSalt $ mcAuth $ dbcManager cfg
   name <- runDBA $ createUserDb (uiName user) (uiPassword user) staticSalt
   Scotty.json name
 
@@ -546,7 +546,7 @@ changePasswordA = inUserContext $ do
       checkSuperUser
   user <- jsonData
   cfg <- askConfigA
-  let staticSalt = authStaticSalt $ mcAuth $ dbcManager cfg
+  let staticSalt = getAuthStaticSalt $ mcAuth $ dbcManager cfg
   runDBA $ changePasswordDb name (uiPassword user) staticSalt
   done
 
