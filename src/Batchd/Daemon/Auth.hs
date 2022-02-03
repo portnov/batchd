@@ -6,6 +6,7 @@ import Control.Monad
 import Control.Monad.Reader
 import Data.Maybe
 import Data.Int
+import qualified Data.Text as T
 import qualified Data.Vault.Lazy as V
 import Database.Persist
 import Database.Persist.Sql as Sql hiding (Single)
@@ -333,16 +334,12 @@ hasPermission name perm qname = do
           any <- selectList [UserPermissionUserName ==. name, UserPermissionPermission ==. perm, UserPermissionQueueName ==. Nothing] []
           return $ not $ null any
 
--- | Special constant for default host of the queue
-defaultHostOfQueue :: String
-defaultHostOfQueue = "__default__"
-
 -- | Check if user has permissions to create jobs in certain queue
 hasCreatePermission :: String -- ^ User name
                     -> String -- ^ Queue name
                     -> Maybe String -- ^ Just type name, or Nothing if you want to check that user has permission
                                     -- to create jobs of at least some type
-                    -> Maybe String -- ^ Just host name, or Nothing if you want to check that user has permission
+                    -> Maybe T.Text -- ^ Just host name, or Nothing if you want to check that user has permission
                                     -- to create jobs on at least some host. Use special @__default__@ value
                                     -- for default host of queue.
                     -> DB Bool
@@ -368,7 +365,7 @@ hasCreatePermission name qname mbTypename mbHostname = do
 listAllowedHosts :: String -- ^ User name
                  -> String -- ^ Queue name
                  -> String -- ^ Job type name
-                 -> DB (Maybe [String])
+                 -> DB (Maybe [T.Text])
 listAllowedHosts name qname typename = do
   super <- isSuperUser name
   if super
@@ -413,7 +410,7 @@ checkPermission message perm qname = do
 -- | Check if user can create jobs in given conditions. Fail otherwise.
 checkCanCreateJobs :: String -- ^ Queue name
                    -> String -- ^ Job type name
-                   -> String -- ^ Host name. Use @__default__@ for default host of queue.
+                   -> T.Text -- ^ Host name. Use @__default__@ for default host of queue.
                    -> Action ()
 checkCanCreateJobs qname typename hostname = do
   cfg <- askConfigA

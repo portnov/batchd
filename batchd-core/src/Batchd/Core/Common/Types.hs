@@ -74,26 +74,26 @@ type Variables = M.Map TL.Text T.Text
 
 -- | Remote host description
 data Host = Host {
-    hName :: String               -- ^ Name (identifier)
-  , hHostName :: String           -- ^ Network host name
-  , hControllerId :: String       -- ^ ID by which this host is known to the controller
-  , hPublicKey :: Maybe String    -- ^ Path to SSH public key file
-  , hPrivateKey :: Maybe String   -- ^ Path to SSH private key file
-  , hPassphrase :: String         -- ^ Passphrase for SSH private key
-  , hUserName :: String           -- ^ SSH user name
+    hName :: T.Text               -- ^ Name (identifier)
+  , hHostName :: T.Text           -- ^ Network host name
+  , hControllerId :: T.Text       -- ^ ID by which this host is known to the controller
+  , hPublicKey :: Maybe FilePath    -- ^ Path to SSH public key file
+  , hPrivateKey :: Maybe FilePath   -- ^ Path to SSH private key file
+  , hPassphrase :: T.Text         -- ^ Passphrase for SSH private key
+  , hUserName :: T.Text           -- ^ SSH user name
   , hPort :: Int                  -- ^ SSH port (default 22)
   , hMaxJobs :: Maybe Int         -- ^ Maximum number of jobs which this host can execute
                                   --   in parallel.
-  , hController :: String         -- ^ Name of host controller. Default is local.
+  , hController :: T.Text         -- ^ Name of host controller. Default is local.
   , hStartupTime :: Int           -- ^ Startup\/initialization time, in seconds.
                                   --   Batchd will wait this time after host starttup
                                   --   before executing actual commands. Default is 5.
   , hShutdownTimeout :: Int       -- ^ Only shut down the host if it is not used for this
                                   --   time (in seconds). This is used to prevent too
                                   --   frequent shutdown\/start of one host. Default is 5*60.
-  , hInputDirectory :: String     -- ^ Directory (on the host) for input files. Default is @"."@.
-  , hOutputDirectory :: String    -- ^ Directory (on the host) with output files. Default is @"."@.
-  , hStartupCommands :: [String]
+  , hInputDirectory :: FilePath     -- ^ Directory (on the host) for input files. Default is @"."@.
+  , hOutputDirectory :: FilePath    -- ^ Directory (on the host) with output files. Default is @"."@.
+  , hStartupCommands :: [T.Text]
   , hVariables :: Variables
   }
   deriving (Eq, Show, Data, Typeable, Generic)

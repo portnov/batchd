@@ -21,6 +21,7 @@ module Batchd.Core.Daemon.Hosts
 
 import Control.Concurrent
 import qualified Data.Map as M
+import qualified Data.Text as T
 import Data.Time
 import Data.Aeson as Aeson
 import System.Log.Heavy
@@ -45,7 +46,7 @@ data HostState = HostState {
   deriving (Show)
 
 -- | Host name
-type HostName = String
+type HostName = T.Text
 
 -- | Pool of used hosts and their states.
 type HostsPool = MVar (M.Map HostName (MVar HostState))

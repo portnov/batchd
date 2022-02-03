@@ -68,7 +68,7 @@ selectDriver name = go supportedDrivers
       | driverName driver == name = Just driver
       | otherwise = go rest
 
-loadHostController :: LoggingTState -> FilePath -> IO HostController
+loadHostController :: LoggingTState -> T.Text -> IO HostController
 loadHostController lts "local" = do
   case initController localDriver lts undefined of
     Right controller -> return controller
@@ -199,7 +199,7 @@ releaseHost lts mvar host = do
   let name = hName host
   counter <- withMVar mvar $ \m -> do
                case M.lookup name m of
-                 Nothing -> fail $ "Can't release host: " ++ name ++ "; map: " ++ show (M.keys m)
+                 Nothing -> fail $ "Can't release host: " <> T.unpack name <> "; map: " <> show (M.keys m)
                  Just c -> return c
   modifyMVar_ counter $ \st -> do
     decreaseJobCount lts st
@@ -217,8 +217,8 @@ hostsMetricDumper pool = forever $ do
   hosts <- liftIO $ readMVar pool
   statuses <- forM (M.assocs hosts) $ \(name, stVar) -> do
                 st <- liftIO $ readMVar stVar
-                Monitoring.gauge ("batchd.host." <> T.pack name <> ".jobs") $ hsJobCount st
-                Monitoring.label ("batchd.host." <> T.pack name <> ".status") $ T.pack $ show $ hsStatus st
+                Monitoring.gauge ("batchd.host." <> name <> ".jobs") $ hsJobCount st
+                Monitoring.label ("batchd.host." <> name <> ".status") $ T.pack $ show $ hsStatus st
                 return $ hsStatus st
   let active = length $ filter (== Active) statuses
   let busy = length $ filter (== Busy) statuses

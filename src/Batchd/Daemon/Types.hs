@@ -297,3 +297,7 @@ forkDaemon name daemon = do
                    return ()
     return ()
 
+-- | Special constant for default host of the queue
+defaultHostOfQueue :: T.Text
+defaultHostOfQueue = "__default__"
+

@@ -40,8 +40,8 @@ getCommand cfg mbHost jt job =
     mkContext m = optional $ m `ThenCheck` hostVars `ThenCheck` dbcVariables cfg
     hostVars = maybe M.empty hVariables mbHost
 
-getHostName :: Queue -> JobType -> JobInfo -> Maybe String
-getHostName q jt job =
+getHostName :: Queue -> JobType -> JobInfo -> Maybe T.Text
+getHostName q jt job = T.pack <$>
   msum [jiHostName job, jtHostName jt, queueHostName q]
 
 hostContext :: Maybe Host -> JobType -> JobParamInfo -> JobParamInfo
@@ -71,7 +71,7 @@ processOnLocalhost job onFail command resultChan = do
 executeJob :: HostsPool -> Queue -> JobType -> JobInfo -> ResultsChan -> Daemon ()
 executeJob counters q jt job resultChan = do
   let mbHostName = getHostName q jt job
-      hostForMetric = T.pack $ fromMaybe "localhost" mbHostName
+      hostForMetric = fromMaybe "localhost" mbHostName
   let metrics = ["batchd.job.duration", 
                  "batchd.job.duration.host." <> hostForMetric,
                  "batchd.job.duration.type." <> T.pack (jtName jt)]

@@ -5,6 +5,7 @@ module Batchd.Core.Common.Config where
 
 import Control.Monad
 import Data.Yaml
+import qualified Data.Text as T
 import System.FilePath
 import System.Environment
 import System.Directory
@@ -27,12 +28,13 @@ getConfigDirs t = do
 -- | Locate config file of certain type.
 -- Returns Nothing if no files found.
 locateConfig :: String    -- ^ Config type
-             -> String    -- ^ Config file name (e.g. @"host.yaml"@)
+             -> T.Text    -- ^ Config file name (e.g. @"host.yaml"@)
              -> IO (Maybe FilePath)
 locateConfig t name = do
   paths <- getConfigDirs t
+  let nameStr = T.unpack name
   rs <- forM paths $ \path -> do
-          let file = path </> name
+          let file = path </> nameStr
           ex <- doesFileExist file
           return $ if ex then [file] else []
   case concat rs of
@@ -42,13 +44,13 @@ locateConfig t name = do
 -- | Load configuration file of certain type.
 loadConfig :: FromJSON config
            => String                    -- ^ Config type
-           -> String                    -- ^ Config file name without extension (@"host"@)
+           -> T.Text                    -- ^ Config file name without extension (@"host"@)
            -> (ParseException -> Error) -- ^ Wrap YAML parsing error. This is usually one of @Error@ constructors.
            -> IO (Either Error config)
 loadConfig t name exc = do
-  mbPath <- locateConfig t (name ++ ".yaml")
+  mbPath <- locateConfig t (name <> ".yaml")
   case mbPath of
-    Nothing -> return $ Left $ FileNotExists (name ++ ".yaml")
+    Nothing -> return $ Left $ FileNotExists (T.unpack name ++ ".yaml")
     Just path -> do
       r <- decodeFileEither path
       case r of
@@ -56,10 +58,10 @@ loadConfig t name exc = do
         Right cfg -> return $ Right cfg
 
 -- | Load config file of host controller.
-loadHostControllerConfig :: FromJSON config => String -> IO (Either Error config)
+loadHostControllerConfig :: FromJSON config => T.Text -> IO (Either Error config)
 loadHostControllerConfig name = loadConfig "controllers" name InvalidHostControllerConfig
 
 -- | Load host config file
-loadHost :: String -> IO (Either Error Host)
+loadHost :: T.Text -> IO (Either Error Host)
 loadHost name = loadConfig "hosts" name InvalidHost
 

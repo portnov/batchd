@@ -52,7 +52,7 @@ doEnqueue = do
   creds <- getCredentials
   opts <- gets csCmdline
   t <- liftIO $ getTypeName opts cfg
-  jtr <- liftIO $ loadTemplate t
+  jtr <- liftIO $ loadTemplate (T.pack t)
   case jtr of
     Left err -> throwC =<< (__f "Can't load job type description: {}" (Single $ Shown err))
     Right jtype -> do
@@ -163,6 +163,12 @@ translateTable pairs =
   forM pairs $ \(ioTitle, value) -> do
     title <- ioTitle
     return [TL.unpack title ++ ":", value]
+
+translateTableT :: [(IO TL.Text, T.Text)] -> IO [[T.Text]]
+translateTableT pairs =
+  forM pairs $ \(ioTitle, value) -> do
+    title <- ioTitle
+    return [TL.toStrict title `T.append` ":", value]
 
 -- | View job details or results.
 viewJob :: Client ()
@@ -516,7 +522,7 @@ doListPermissions = do
                            (__ "Permission", show $ Database.userPermissionPermission perm),
                            (__ "Queue", fromMaybe "*" $ Database.userPermissionQueueName perm),
                            (__ "Job type", fromMaybe "*" $ Database.userPermissionTypeName perm),
-                           (__ "Host", fromMaybe "*" $ Database.userPermissionHostName perm)
+                           (__ "Host", T.unpack $ fromMaybe "*" $ Database.userPermissionHostName perm)
                         ]
               printTable 0 $ transpose table
               putStrLn ""
@@ -530,7 +536,7 @@ doAddPermission = do
   let name = grantUserName command
       url = baseUrl </> "user" </> name </> "permissions"
   perm <- case permission command of
-            Just p -> return $ Database.UserPermission name p (queueName command) (typeName command) (hostName command)
+            Just p -> return $ Database.UserPermission name p (queueName command) (typeName command) (T.pack <$> hostName command)
             Nothing -> throwC =<< (__ "permission (-p) must be specified")
   doPost url perm
 

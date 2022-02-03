@@ -54,10 +54,10 @@ mkLinode settings lts = HostController {
 
     doesSupportStartStop = linodeEnableStartStop settings,
 
-    getActualHostName = \labelStr -> withConfiguration settings $ lookupLinodeIp (T.pack labelStr),
+    getActualHostName = \label -> withConfiguration settings $ lookupLinodeIp label,
 
-    startHost = \labelStr -> withConfiguration settings $ do
-                                linodeId <- lookupLinodeId (T.pack labelStr)
+    startHost = \label -> withConfiguration settings $ do
+                                linodeId <- lookupLinodeId label
                                 status <- getInstanceStatus linodeId
                                 case status of
                                   L.LinodeStatus'EnumOffline -> bootInstanceById linodeId
@@ -66,7 +66,7 @@ mkLinode settings lts = HostController {
                                     return $ Right ()
                                   _ -> return $ Left $ UnknownError $ "Don't know what do do with instance in state " ++ show status ,
 
-    stopHost = \labelStr -> withConfiguration settings $ shutdownInstance (T.pack labelStr)
+    stopHost = \label -> withConfiguration settings $ shutdownInstance label
   }
 
 mkConfiguration :: LinodeSettings -> IO L.Configuration
@@ -99,14 +99,14 @@ lookupLinodeId label = do
     Nothing -> fail "Cannot find Linode Instance by specified label"
     Just l -> return l
 
-lookupLinodeIp :: T.Text -> L.ClientT IO (Maybe String)
+lookupLinodeIp :: T.Text -> L.ClientT IO (Maybe T.Text)
 lookupLinodeIp label = do
   linodes <- listLinodes
   let pairs = [(L.linodeLabel l, L.linodeIpv4 l) | l <- linodes]
       m = M.fromList [(label, head ips) | (Just label, Just ips) <- pairs]
   case M.lookup label m of
     Nothing -> fail "Cannot find Linode Instance by specified label"
-    Just ip -> return (Just $ T.unpack ip)
+    Just ip -> return (Just ip)
 
 getInstanceStatus :: Int -> L.ClientT IO L.LinodeStatus'
 getInstanceStatus linodeId = do

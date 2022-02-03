@@ -302,7 +302,7 @@ enqueueA = inUserContext $ do
   qname <- Scotty.param "name"
   user <- getAuthUser
   -- special name for default host of queue
-  let hostToCheck = fromMaybe defaultHostOfQueue (jiHostName jinfo)
+  let hostToCheck = fromMaybe defaultHostOfQueue (T.pack <$> jiHostName jinfo)
   checkCanCreateJobs qname (jiType jinfo) hostToCheck
   r <- runDBA $ enqueue (userName user) qname jinfo
   Scotty.json r

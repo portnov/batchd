@@ -5,6 +5,7 @@ module Batchd.Common.Config where
 
 import Control.Exception
 import Data.Yaml
+import qualified Data.Text as T
 import System.IO
 
 import Batchd.Core.Common.Types
@@ -13,7 +14,7 @@ import Batchd.Core.Common.Config
 import Batchd.Common.Types
 
 -- | Load job type config file
-loadTemplate :: String -> IO (Either Error JobType)
+loadTemplate :: T.Text -> IO (Either Error JobType)
 loadTemplate name = loadConfig "jobtypes" name InvalidJobType
 
 -- | Load global config file (@"batchd.yaml"@)

@@ -69,7 +69,7 @@ processOnHost counters h jtype job resultChan command = do
                             $debug "Actual hostname of host `{}' is {}" (hName h, actual)
                             return actual
 
-            wrapDaemon (withSSH2 known_hosts public_key private_key passphrase user hostname port) $ \session -> do
+            wrapDaemon (withSSH2 known_hosts public_key private_key (T.unpack passphrase) (T.unpack user) (T.unpack hostname) port) $ \session -> do
                 $info "Connected to {}:{}." (hostname, port)
 --                 liftIO $ execCommands session (hStartupCommands h)
 --                            `catch` (\(e :: SomeException) -> throw (ExecException e))

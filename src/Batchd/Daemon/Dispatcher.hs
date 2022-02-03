@@ -162,7 +162,7 @@ worker idx hosts jobsChan resChan = forever $ withLogVariable "worker" idx $ do
     $info "got job #{}" (Single $ jiId job)
     -- now job is picked up by worker, mark it as Processing
     runDB $ setJobStatus job Processing
-    jtypeR <- liftIO $  Config.loadTemplate (jiType job)
+    jtypeR <- liftIO $  Config.loadTemplate (T.pack $ jiType job)
     case jtypeR of
             Left err -> do -- we could not load job type description
                 $reportError "Invalid job type {}: {}" (jiType job, show err)

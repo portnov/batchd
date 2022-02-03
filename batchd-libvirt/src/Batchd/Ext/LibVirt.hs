@@ -56,7 +56,7 @@ mkLibVirt l lts = HostController {
     withConnection (lvConnectionString l) $ \conn -> do
         infoIO lts $(here) "Connection to libvirt URI {} succeeded" (Single $ lvConnectionString l)
         mbdom <- do
-                 x <- try $ lookupDomainName conn name
+                 x <- try $ lookupDomainName conn (T.unpack name)
                  case x of
                    Left (e :: V.Error) -> do
                                           reportErrorIO lts $(here) "Cannot get domain ID by name `{}': {}" (name, show e)
@@ -72,21 +72,21 @@ mkLibVirt l lts = HostController {
               DomainShutoff -> do
                        createDomain dom
                        return $ Right ()
-              st -> return $ Left $ UnknownError $ "Don't know what to do with virtual domain " ++ name ++ " in state " ++ show st
-          Nothing -> return $ Left $ UnknownError $ "Domain is not defined in hypervisor: " ++ name ,
+              st -> return $ Left $ UnknownError $ "Don't know what to do with virtual domain " ++ T.unpack name ++ " in state " ++ show st
+          Nothing -> return $ Left $ UnknownError $ "Domain is not defined in hypervisor: " ++ T.unpack name ,
 
   stopHost = \name -> do
     withConnection (lvConnectionString l) $ \conn -> do
         infoIO lts $(here) "Connection to libvirt URI {} succeeded" (Single $ lvConnectionString l)
         mbdom <- do
-                 x <- try $ lookupDomainName conn name
+                 x <- try $ lookupDomainName conn (T.unpack name)
                  case x of
                    Left (e :: V.Error) -> do
                                           reportErrorIO lts $(here) "Cannot get domain ID by name `{}': {}" (name, show e)
                                           return Nothing
                    Right dom -> return (Just dom)
         case mbdom of
-          Nothing -> return $ Left $ UnknownError $ "No such domain on hypervisor: " ++ name
+          Nothing -> return $ Left $ UnknownError $ "No such domain on hypervisor: " ++ T.unpack name
           Just dom -> do
             shutdownDomain dom
             return $ Right ()

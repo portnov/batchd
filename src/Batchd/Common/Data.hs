@@ -118,7 +118,7 @@ UserPermission
   permission Permission
   queueName String Maybe
   typeName String Maybe
-  hostName String Maybe
+  hostName T.Text Maybe
   Foreign User user userName
   Foreign Queue queue queueName
 |]
