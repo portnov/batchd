@@ -45,6 +45,7 @@ data Error =
   | InsufficientRights String
   | InvalidStartTime
   | SqlError SomeException
+  | HostInitializationError Int
   | UnknownError String
 
 instance Show Error where
@@ -66,6 +67,7 @@ instance Show Error where
   show (InsufficientRights msg) = "Insufficient privileges: " ++ msg
   show InvalidStartTime = "Job start time does not match queue schedule"
   show (SqlError exc) = "SQL exception: " ++ show exc
+  show (HostInitializationError rc) = "Failed to execute initialization commands on host: " ++ show rc
   show (UnknownError e) = "Unhandled error: " ++ e
 
 instance Exception Error
@@ -93,7 +95,8 @@ data Host = Host {
                                   --   frequent shutdown\/start of one host. Default is 5*60.
   , hInputDirectory :: FilePath     -- ^ Directory (on the host) for input files. Default is @"."@.
   , hOutputDirectory :: FilePath    -- ^ Directory (on the host) with output files. Default is @"."@.
-  , hStartupCommands :: [T.Text]
+  , hStartupHostCommands :: [T.Text]
+  , hStartupDispatcherCommands :: [T.Text]
   , hVariables :: Variables
   }
   deriving (Eq, Show, Data, Typeable, Generic)
@@ -114,7 +117,8 @@ instance FromJSON Host where
     shutdown_timeout <- v .:? "shutdown_timeout" .!= (5*60)
     input_directory <- v .:? "input_directory" .!= "."
     output_directory <- v .:? "output_directory" .!= "."
-    startup_commands <- v .:? "startup_commands" .!= []
+    startup_host_commands <- v .:? "startup_commands_on_host" .!= []
+    startup_dispatcher_commands <- v .:? "startup_commands_on_dispatcher" .!= []
     variables <- v .:? "variables" .!= M.empty
     return $ Host {
               hName = name
@@ -131,7 +135,8 @@ instance FromJSON Host where
             , hShutdownTimeout = shutdown_timeout
             , hInputDirectory = input_directory
             , hOutputDirectory = output_directory
-            , hStartupCommands = startup_commands
+            , hStartupHostCommands = startup_host_commands
+            , hStartupDispatcherCommands = startup_dispatcher_commands
             , hVariables = variables
             }
   parseJSON invalid = typeMismatch "host definition" invalid

@@ -22,6 +22,8 @@ import Data.Time
 import System.Process
 import System.FilePath
 import System.IO
+import System.Exit (ExitCode (..))
+import Network.SSH.Client.LibSSH2.Conduit (execCommand)
 
 import Batchd.Core.Common.Types
 import Batchd.Core.Common.Config
@@ -31,6 +33,7 @@ import Batchd.Common.Data
 import Batchd.Daemon.Types
 import Batchd.Core.Daemon.Hosts
 import Batchd.Daemon.SSH
+import Batchd.Daemon.Hosts (loadHostController, withHost)
 import Batchd.Daemon.Monitoring as Monitoring
 
 getCommand :: GlobalConfig -> Maybe Host -> JobType -> JobInfo -> String
@@ -67,6 +70,26 @@ processOnLocalhost job onFail command resultChan = do
       sourceHandle handle =$= C.decodeUtf8 =$= C.linesUnbounded $$ CL.mapM_ $ \line ->
         writeChan resultChan (job, cons line)
       hClose handle
+
+processOnHost :: HostsPool -> Host -> JobType -> JobInfo -> ResultsChan -> String -> Daemon ExitCode
+processOnHost counters host jtype job resultChan command = do
+  lts <- askLoggingStateM
+  controller <- liftIO $ loadHostController lts (hController host)
+  r <- withHost counters host jtype $ do
+        withSshOnHost controller host $ \session -> do
+           uploadFiles (getInputFiles jtype job) (hInputDirectory host) session
+           $info "EXECUTING: {}" (Single command)
+           (Just commandHandle, commandOutput) <- liftIO $ execCommand True session command
+           ec <- liftIO $ retrieveOutput job jtype commandHandle commandOutput resultChan
+           $info "Done, exit code is {}." (Single $ show ec)
+           downloadFiles (hOutputDirectory host) (getOutputFiles jtype job) session
+           return ec
+  case r of
+    Left e -> do
+      $reportError "Error while executing job at host `{}': {}" (hName host, show e)
+      liftIO $ writeChan resultChan (job, ExecError (T.pack $ show e) (jtOnFail jtype))
+      return $ ExitFailure (-1)
+    Right result -> return result
 
 executeJob :: HostsPool -> Queue -> JobType -> JobInfo -> ResultsChan -> Daemon ()
 executeJob counters q jt job resultChan = do

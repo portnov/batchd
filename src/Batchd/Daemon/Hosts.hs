@@ -4,6 +4,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Batchd.Daemon.Hosts where
 
@@ -11,8 +12,12 @@ import Control.Monad
 import Control.Concurrent
 import Control.Exception
 import Control.Monad.Trans
+import qualified Control.Monad.Catch as MC
 import qualified Data.Map as M
 import qualified Data.HashMap.Strict as H
+import Data.Conduit
+import qualified Data.Conduit.Combinators as C
+import qualified Data.Conduit.List as CL
 import Data.Time
 import Data.Monoid ((<>))
 import Data.Aeson as Aeson
@@ -20,6 +25,8 @@ import qualified Data.Text as T
 import Data.Text.Format.Heavy
 import Data.Text.Format.Heavy.Time () -- import instances only
 import System.Log.Heavy
+import System.Exit (ExitCode (..))
+import Network.SSH.Client.LibSSH2 (Session, withSSH2)
 
 import Batchd.Core.Common.Types
 import Batchd.Core.Common.Config
@@ -28,6 +35,7 @@ import Batchd.Core.Daemon.Hosts
 import Batchd.Core.Daemon.Logging
 import Batchd.Common.Types
 import Batchd.Daemon.Monitoring as Monitoring
+import Batchd.Daemon.SSH (execCommandsOnHost)
 
 #ifdef LIBVIRT
 import Batchd.Ext.LibVirt
@@ -97,25 +105,27 @@ getMaxJobs host jtype =
     (Nothing, Just m) -> Just m
     (Just x, Just y) -> Just $ max x y
 
-waitForStatus :: LoggingTState -> MVar HostState -> [HostStatus] -> (HostState -> IO HostState) -> IO ()
-waitForStatus lts mvar targetStatuses actions = do
-  ok <- modifyMVar mvar $ \st ->
+waitForStatus :: MVar HostState -> [HostStatus] -> (HostState -> Daemon HostState) -> Daemon ()
+waitForStatus mvar targetStatuses actions = do
+  connInfo <- askConnectionInfo
+  lts <- askLoggingStateM
+  ok <- liftIO $ modifyMVar mvar $ \st ->
           if hsStatus st `elem` targetStatuses
             then do
-              result <- actions st
+              result <- runDaemonIO connInfo lts $ actions st
               return (result, True)
             else do
               debugIO lts $(here) "Host `{}' has status {}, waiting for one of {}..."
                                   (hName $ hsHostConfig st, show (hsStatus st), show targetStatuses)
               return (st, False)
+
   when (not ok) $ do
+    liftIO $ threadDelay $ 10 * 1000 * 1000
+    waitForStatus mvar targetStatuses actions
 
-    threadDelay $ 10 * 1000 * 1000
-    waitForStatus lts mvar targetStatuses actions
-
-increaseJobCount :: LoggingTState -> HostState -> Maybe Int -> IO HostState
-increaseJobCount lts st mbMaxJobs = do
-    debugIO lts $(here) "Host `{}' had {} jobs, got new one, set status to {}"
+increaseJobCount :: HostState -> Maybe Int -> Daemon HostState
+increaseJobCount st mbMaxJobs = do
+    $debug "Host `{}' had {} jobs, got new one, set status to {}"
                         (hName $ hsHostConfig st, hsJobCount st, show activeOrBusy)
     return $ st {hsStatus = activeOrBusy, hsJobCount = hsJobCount st + 1}
   where
@@ -126,15 +136,15 @@ increaseJobCount lts st mbMaxJobs = do
                           then Busy
                           else Active
 
-decreaseJobCount :: LoggingTState -> HostState -> IO HostState
-decreaseJobCount lts st = do
+decreaseJobCount :: HostState -> Daemon HostState
+decreaseJobCount st = do
     let newStatus = if hsJobCount st - 1 <= 0
                       then Released
                       else Active
     released <- if newStatus == Released
-                  then Just <$> getCurrentTime
+                  then Just <$> liftIO getCurrentTime
                   else return Nothing
-    debugIO lts $(here) "Host `{}' had {} jobs, one done, set status to {}"
+    $debug "Host `{}' had {} jobs, one done, set status to {}"
                         (hName $ hsHostConfig st, hsJobCount st, show newStatus)
     return $ st {hsStatus = newStatus, hsJobCount = hsJobCount st - 1, hsReleaseTime = released}
 
@@ -142,23 +152,27 @@ setHostStatus :: MVar HostState -> HostStatus -> IO ()
 setHostStatus mvar status =
   modifyMVar_ mvar $ \st -> return $ st {hsStatus = status}
 
-ensureHostStarted :: LoggingTState -> Host -> IO ()
-ensureHostStarted lts host = do
-    controller <- loadHostController lts (hController host)
-    debugIO lts $(here) "Host `{}' is controlled by `{}'" (hName host, show controller)
+ensureHostStarted :: Host -> Daemon ()
+ensureHostStarted host = do
+    lts <- askLoggingStateM
+    controller <- liftIO $ loadHostController lts (hController host)
+    $debug "Host `{}' is controlled by `{}'" (hName host, show controller)
     let name = hName host
     if doesSupportStartStop controller
       then do
-        debugIO lts $(here) "Starting host `{}'" (Single name)
-        r <- startHost controller (hControllerId host)
+        $debug "Starting host `{}'" (Single name)
+        r <- liftIO $ startHost controller (hControllerId host)
         case r of
           Right _ -> do
-              debugIO lts $(here) "Waiting for host `{}' to initialize for {} seconds..." 
+              $debug "Waiting for host `{}' to initialize for {} seconds..." 
                                   (name, hStartupTime host)
-              threadDelay $ 1000 * 1000 * hStartupTime host
-          Left err -> do
-              throw err
-      else debugIO lts $(here) "Controller does not support starting hosts" ()
+              liftIO $ threadDelay $ 1000 * 1000 * hStartupTime host
+              ec <- execCommandsOnHost controller host (hStartupHostCommands host)
+              case ec of
+                ExitSuccess -> return ()
+                ExitFailure rc -> throw $ HostInitializationError rc
+          Left err -> throw err
+      else $debug "Controller does not support starting hosts" ()
 
 ensureHostStopped :: LoggingTState -> Host -> IO ()
 ensureHostStopped lts host = do
@@ -174,13 +188,14 @@ ensureHostStopped lts host = do
           Left err -> throw err
       else debugIO lts $(here) "Controller does not support stopping hosts" ()
 
-acquireHost :: LoggingTState -> HostsPool -> Host -> JobType -> IO ()
-acquireHost lts mvar host jtype = do
+acquireHost :: HostsPool -> Host -> JobType -> Daemon ()
+acquireHost mvar host jtype = do
     check (hName host)
     return ()
   where
+    check :: T.Text -> Daemon()
     check name = do
-      counter <- modifyMVar mvar $ \m -> do
+      counter <- liftIO $ modifyMVar mvar $ \m -> do
                    case M.lookup name m of
                      Just c -> do
                        return (m, c)
@@ -189,27 +204,24 @@ acquireHost lts mvar host jtype = do
                        let m' = M.insert name c m
                        return (m', c)
 
-      waitForStatus lts counter [Free, Active, Released] $ \st -> do
+      waitForStatus counter [Free, Active, Released] $ \st -> do
         when (hsStatus st == Free) $ do
-          ensureHostStarted lts host
-        increaseJobCount lts st $ getMaxJobs host jtype
+          ensureHostStarted host
+        increaseJobCount st $ getMaxJobs host jtype
 
-releaseHost :: LoggingTState -> HostsPool -> Host -> IO ()
-releaseHost lts mvar host = do
+releaseHost :: HostsPool -> Host -> Daemon ()
+releaseHost mvar host = do
   let name = hName host
-  counter <- withMVar mvar $ \m -> do
+  counter <- liftIO $ withMVar mvar $ \m -> do
                case M.lookup name m of
                  Nothing -> fail $ "Can't release host: " <> T.unpack name <> "; map: " <> show (M.keys m)
                  Just c -> return c
-  modifyMVar_ counter $ \st -> do
-    decreaseJobCount lts st
+  wrapDaemon_ (modifyMVar_ counter) $ \st -> decreaseJobCount st
   return ()
 
 withHost :: HostsPool -> Host -> JobType -> Daemon a -> Daemon (Either SomeException a)
 withHost mvar host jtype actions = withLogVariable "host" (hName host) $ do
-  lts <- askLoggingStateM
-  connInfo <- askConnectionInfo
-  liftIO $ try $ bracket_ (acquireHost lts mvar host jtype) (releaseHost lts mvar host) $ runDaemonIO connInfo lts actions
+  MC.try $ MC.bracket_ (acquireHost mvar host jtype) (releaseHost mvar host) actions
 
 hostsMetricDumper :: HostsPool -> Daemon ()
 hostsMetricDumper pool = forever $ do

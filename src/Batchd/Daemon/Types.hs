@@ -286,6 +286,12 @@ wrapDaemon wrapper daemon = do
     result <- liftIO $ wrapper $ \c -> runDaemonIO connInfo lts (daemon c)
     return result
 
+wrapDaemon_ :: ((c -> IO a) -> IO ()) -> (c -> Daemon a) -> Daemon ()
+wrapDaemon_ wrapper daemon = do
+    lts <- askLoggingStateM
+    connInfo <- askConnectionInfo
+    liftIO $ wrapper $ \c -> runDaemonIO connInfo lts (daemon c)
+
 -- | forkIO for Daemon monad.
 forkDaemon :: String -> Daemon a -> Daemon ()
 forkDaemon name daemon = do

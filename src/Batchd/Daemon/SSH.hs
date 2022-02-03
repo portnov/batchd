@@ -18,6 +18,7 @@ import qualified Data.Conduit.List as CL
 import Data.Text.Format.Heavy
 import Network.SSH.Client.LibSSH2
 import Network.SSH.Client.LibSSH2.Conduit
+import System.Log.Heavy
 import System.FilePath
 import System.Environment
 import System.Exit
@@ -27,7 +28,6 @@ import Batchd.Daemon.Types
 import Batchd.Core.Daemon.Hosts
 import Batchd.Core.Daemon.Logging
 import Batchd.Common.Types
-import Batchd.Daemon.Hosts
 
 getKnownHosts :: IO FilePath
 getKnownHosts = do
@@ -44,59 +44,58 @@ getDfltPrivateKey = do
   home <- getEnv "HOME"
   return $ home </> ".ssh" </> "id_rsa"
 
-processOnHost :: HostsPool -> Host -> JobType -> JobInfo -> ResultsChan -> String -> Daemon ExitCode
-processOnHost counters h jtype job resultChan command = do
-    cfg <- askConfig
-    known_hosts <- liftIO $ getKnownHosts
-    def_public_key <- liftIO $ getDfltPublicKey
-    def_private_key <- liftIO $ getDfltPrivateKey
-    let passphrase = hPassphrase h
-        public_key = fromMaybe def_public_key $ hPublicKey h
-        private_key = fromMaybe def_private_key $ hPrivateKey h
-        user = hUserName h
-        port = hPort h
-        original_hostname = hHostName h
+withSshOnHost :: HostController -> Host -> (Session -> Daemon a) -> Daemon a
+withSshOnHost controller host actions = do
+    known_hosts <- liftIO getKnownHosts
+    def_public_key <- liftIO getDfltPublicKey
+    def_private_key <- liftIO getDfltPrivateKey
+    let passphrase = hPassphrase host
+        public_key = fromMaybe def_public_key $ hPublicKey host
+        private_key = fromMaybe def_private_key $ hPrivateKey host
+        user = hUserName host
+        port = hPort host
+        original_hostname = hHostName host
 
-    $info "CONNECTING TO {}:{}" (original_hostname, port)
-    $(putMessage config_level) "Target host settings: {}" (Single $ Shown h)
-    r <- withHost counters h jtype $ do
-            lts <- askLoggingStateM
-            controller <- liftIO $ loadHostController lts (hController h)
-            mbActualHostName <- liftIO $ getActualHostName controller (hControllerId h)
-            hostname <- case mbActualHostName of
-                          Nothing -> return original_hostname
-                          Just actual -> do
-                            $debug "Actual hostname of host `{}' is {}" (hName h, actual)
-                            return actual
+    $(putMessage config_level) "Target host settings: {}" (Single $ Shown host)
+    mbActualHostName <- liftIO $ getActualHostName controller (hControllerId host)
+    hostname <- case mbActualHostName of
+                  Nothing -> return original_hostname
+                  Just actual -> do
+                    $debug "Actual hostname of host `{}' is {}" (hName host, actual)
+                    return actual
+    $info "CONNECTING TO {} => {}@{}:{}" (original_hostname, user, hostname, port)
+    wrapDaemon (withSSH2 known_hosts public_key private_key (T.unpack passphrase) (T.unpack user) (T.unpack hostname) port) $ \session -> do
+      $debug "Connected to {}:{}." (hostname, port)
+      actions session
 
-            wrapDaemon (withSSH2 known_hosts public_key private_key (T.unpack passphrase) (T.unpack user) (T.unpack hostname) port) $ \session -> do
-                $info "Connected to {}:{}." (hostname, port)
---                 liftIO $ execCommands session (hStartupCommands h)
---                            `catch` (\(e :: SomeException) -> throw (ExecException e))
-                uploadFiles (getInputFiles jtype job) (hInputDirectory h) session
-                $info "EXECUTING: {}" (Single command)
-                (Just commandHandle, commandOutput) <- liftIO $ execCommand True session command
-                ec <- retrieveOutput job jtype commandHandle commandOutput resultChan
-                $info "Done, exit code is {}." (Single $ show ec)
-                downloadFiles (hOutputDirectory h) (getOutputFiles jtype job) session
-                return ec
-    case r of
-      Left e -> do
-        $reportError "Error while executing job at host `{}': {}" (hName h, show e)
-        liftIO $ writeChan resultChan (job, ExecError (T.pack $ show e) (jtOnFail jtype))
-        return $ ExitFailure (-1)
-      Right result -> return result
+execCommandsOnHost :: HostController -> Host -> [T.Text] -> Daemon ExitCode
+execCommandsOnHost controller host commands =
+      withSshOnHost controller host $ \session -> go ExitSuccess session commands
+  where
+    go :: ExitCode -> Session -> [T.Text] -> Daemon ExitCode
+    go prevEc _ [] = return prevEc
+    go prevEc session (command : commands) = do
+      $info "Executing: {}" (Single command)
+      (Just commandHandle, commandOutput) <- liftIO $ execCommand True session (T.unpack command)
+      lts <- askLoggingStateM
+      liftIO $
+          commandOutput =$= C.decodeUtf8 =$= C.linesUnbounded $$ CL.mapM_ $ \line ->
+            infoIO lts $(here) "output> {}" (Single line)
+      rc <- liftIO $ getReturnCode commandHandle
+      $info "Exit code: {}" (Single rc)
+      if rc == 0
+        then go ExitSuccess session commands
+        else return (ExitFailure rc)
 
-retrieveOutput :: JobInfo -> JobType -> CommandsHandle -> Source IO B.ByteString -> ResultsChan -> Daemon ExitCode
+retrieveOutput :: JobInfo -> JobType -> CommandsHandle -> Source IO B.ByteString -> ResultsChan -> IO ExitCode
 retrieveOutput job jtype commandHandle commandOutput resultChan = do
-    liftIO $ do
-        commandOutput =$= C.decodeUtf8 =$= C.linesUnbounded $$ CL.mapM_ $ \line ->
-            writeChan resultChan (job, StdoutLine line)
-    rc <- liftIO $ getReturnCode commandHandle
+    commandOutput =$= C.decodeUtf8 =$= C.linesUnbounded $$ CL.mapM_ $ \line ->
+        writeChan resultChan (job, StdoutLine line)
+    rc <- getReturnCode commandHandle
     let ec = if rc == 0
                then ExitSuccess
                else ExitFailure rc
-    liftIO $ writeChan resultChan (job, Exited ec (jtOnFail jtype))
+    writeChan resultChan (job, Exited ec (jtOnFail jtype))
     return ec
 
 getInputFiles :: JobType -> JobInfo -> [FilePath]
