@@ -85,9 +85,9 @@ mkAwsEc2 aws lts = HostController {
                   _ -> return Nothing
             Left err -> return Nothing,
 
-  startHost = \name -> do
+  startHost = \host -> do
       env <- newEnv (awsCredentials aws) <&> set envLogger (toAwsLogger $ ltsLogger lts)
-      let instanceId = T.pack name
+      let instanceId = hControllerId host
 
       rs <- runResourceT . runAWST env . within (awsRegion aws) $ do
               r <- trying _Error $ send $ startInstances & (sInstanceIds .~ [instanceId])

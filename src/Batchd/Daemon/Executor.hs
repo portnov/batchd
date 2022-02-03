@@ -53,20 +53,21 @@ hostContext (Just host) jt params = M.fromList $ map update $ M.assocs params
 
 processOnHost :: HostsPool -> Host -> JobType -> JobInfo -> ResultsChan -> String -> Daemon ExitCode
 processOnHost counters host jtype job resultChan command = do
+  host' <- liftIO $ accountForDefaultHostKeys host
   lts <- askLoggingStateM
-  controller <- liftIO $ loadHostController lts (hController host)
-  r <- withHost counters host jtype $ do
-        withSshOnHost controller host $ \session -> do
-           uploadFiles (getInputFiles jtype job) (hInputDirectory host) session
+  controller <- liftIO $ loadHostController lts (hController host')
+  r <- withHost counters host' jtype $ do
+        withSshOnHost controller host' $ \session -> do
+           uploadFiles (getInputFiles jtype job) (hInputDirectory host') session
            $info "EXECUTING: {}" (Single command)
            (Just commandHandle, commandOutput) <- liftIO $ execCommand True session command
            ec <- liftIO $ retrieveOutput job jtype commandHandle commandOutput resultChan
            $info "Done, exit code is {}." (Single $ show ec)
-           downloadFiles (hOutputDirectory host) (getOutputFiles jtype job) session
+           downloadFiles (hOutputDirectory host') (getOutputFiles jtype job) session
            return ec
   case r of
     Left e -> do
-      $reportError "Error while executing job at host `{}': {}" (hName host, show e)
+      $reportError "Error while executing job at host `{}': {}" (hName host', show e)
       liftIO $ writeChan resultChan (job, ExecError (T.pack $ show e) (jtOnFail jtype))
       return $ ExitFailure (-1)
     Right result -> return result

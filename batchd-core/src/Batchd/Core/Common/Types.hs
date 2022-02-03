@@ -82,6 +82,7 @@ data Host = Host {
   , hPublicKey :: Maybe FilePath    -- ^ Path to SSH public key file
   , hPrivateKey :: Maybe FilePath   -- ^ Path to SSH private key file
   , hPassphrase :: T.Text         -- ^ Passphrase for SSH private key
+  , hRootPassword :: Maybe T.Text -- ^ Root user password - used only by some host drivers
   , hUserName :: T.Text           -- ^ SSH user name
   , hPort :: Int                  -- ^ SSH port (default 22)
   , hMaxJobs :: Maybe Int         -- ^ Maximum number of jobs which this host can execute
@@ -109,6 +110,7 @@ instance FromJSON Host where
     public_key <- v .:? "public_key"
     private_key <- v .:? "private_key"
     passphrase <- v .:? "passphrase" .!= ""
+    root_password <- v .:? "root_password"
     user_name <- v .: "user_name"
     port <- v .:? "port" .!= 22
     max_jobs <- v .:? "max_jobs"
@@ -127,6 +129,7 @@ instance FromJSON Host where
             , hPublicKey = public_key
             , hPrivateKey = private_key
             , hPassphrase = passphrase
+            , hRootPassword = root_password
             , hUserName = user_name
             , hPort = port
             , hMaxJobs = max_jobs

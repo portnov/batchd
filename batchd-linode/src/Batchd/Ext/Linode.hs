@@ -23,6 +23,7 @@ import qualified Data.Text.Encoding as TE
 import qualified Data.Map as M
 import Data.Text.Format.Heavy
 import Data.Aeson as Aeson
+import Data.Aeson.Types
 import System.Log.Heavy
 import Network.HTTP.Client
 import qualified Linode as L
@@ -31,10 +32,36 @@ import Batchd.Core
 
 deriving instance MonadFail m => MonadFail (L.ClientT m)
 
+data ControlActions =
+    BootShutdown
+  | CreateDelete LinodeInstanceSettings
+  deriving (Eq, Show)
+
+data LinodeInstanceSettings = LinodeInstanceSettings {
+      linodeInstanceType :: T.Text
+    , linodeInstanceImage :: T.Text
+    , linodeInstanceRegion :: T.Text
+  }
+  deriving (Eq, Show)
+
 data LinodeSettings = LinodeSettings {
     linodeEnableStartStop :: Bool
   , linodeTokenFile :: FilePath
+  , linodeActions :: ControlActions
   }
+
+instance FromJSON LinodeInstanceSettings where
+  parseJSON (Object v) =
+    LinodeInstanceSettings
+      <$> v .: "type"
+      <*> v .: "image"
+      <*> v .: "region"
+  parseJSON invalid = typeMismatch "instance" invalid
+
+instance FromJSON ControlActions where
+  parseJSON (Aeson.String "boot_and_shutdown") = return BootShutdown
+  parseJSON (Object v) = CreateDelete <$> v .: "create_and_delete"
+  parseJSON invalid = typeMismatch "actions" invalid
 
 instance FromJSON LinodeSettings where
   parseJSON (Object v) = do
@@ -42,8 +69,9 @@ instance FromJSON LinodeSettings where
     when (driver /= ("linode" :: T.Text)) $
       fail $ "incorrect driver specification"
     enable <- v .:? "enable_start_stop" .!= True
+    actions <- v .:? "actions" .!= BootShutdown
     tokenFile <- v .: "token_file"
-    return $ LinodeSettings enable tokenFile
+    return $ LinodeSettings enable tokenFile actions
 
 linodeDriver :: HostDriver
 linodeDriver = controllerFromConfig "linode" mkLinode
@@ -56,17 +84,15 @@ mkLinode settings lts = HostController {
 
     getActualHostName = \label -> withConfiguration settings $ lookupLinodeIp label,
 
-    startHost = \label -> withConfiguration settings $ do
-                                linodeId <- lookupLinodeId label
-                                status <- getInstanceStatus linodeId
-                                case status of
-                                  L.LinodeStatus'EnumOffline -> bootInstanceById linodeId
-                                  L.LinodeStatus'EnumRunning -> do
-                                    infoIO lts $(here) "Instance {} is already running" (Single linodeId)
-                                    return $ Right ()
-                                  _ -> return $ Left $ UnknownError $ "Don't know what do do with instance in state " ++ show status ,
+    startHost = \host -> withConfiguration settings $ do
+                                case linodeActions settings of
+                                  BootShutdown -> bootInstance lts (hControllerId host)
+                                  CreateDelete inst -> createInstance lts inst host,
 
-    stopHost = \label -> withConfiguration settings $ shutdownInstance label
+    stopHost = \label -> withConfiguration settings $ do
+                                case linodeActions settings of
+                                  BootShutdown -> shutdownInstance label
+                                  CreateDelete _ -> deleteInstance lts label
   }
 
 mkConfiguration :: LinodeSettings -> IO L.Configuration
@@ -90,12 +116,17 @@ listLinodes = do
     L.GetLinodeInstancesResponseError str -> fail str
     L.GetLinodeInstancesResponseDefault err -> fail $ show err
 
-lookupLinodeId :: T.Text -> L.ClientT IO Int
-lookupLinodeId label = do
+lookupLinodeId' :: T.Text -> L.ClientT IO (Maybe Int)
+lookupLinodeId' label = do
   linodes <- listLinodes
   let pairs = [(L.linodeLabel l, L.linodeId l) | l <- linodes]
       m = M.fromList [(label, id) | (Just label, Just id) <- pairs]
-  case M.lookup label m of
+  return $ M.lookup label m
+
+lookupLinodeId :: T.Text -> L.ClientT IO Int
+lookupLinodeId label = do
+  maybeId <- lookupLinodeId' label
+  case maybeId of
     Nothing -> fail "Cannot find Linode Instance by specified label"
     Just l -> return l
 
@@ -108,6 +139,13 @@ lookupLinodeIp label = do
     Nothing -> fail "Cannot find Linode Instance by specified label"
     Just ip -> return (Just ip)
 
+getInstanceStatus' :: T.Text -> L.ClientT IO (Maybe (Int, L.LinodeStatus'))
+getInstanceStatus' label = do
+  linodes <- listLinodes
+  let pairs = [(L.linodeLabel l, L.linodeId l, L.linodeStatus l) | l <- linodes]
+      m = M.fromList [(label, (id, status)) | (Just label, Just id, Just status) <- pairs]
+  return $ M.lookup label m
+
 getInstanceStatus :: Int -> L.ClientT IO L.LinodeStatus'
 getInstanceStatus linodeId = do
   rs <- L.getLinodeInstance linodeId
@@ -119,10 +157,16 @@ getInstanceStatus linodeId = do
     L.GetLinodeInstanceResponseError str -> fail str
     L.GetLinodeInstanceResponseDefault err -> fail $ show err
 
-bootInstance :: T.Text -> L.ClientT IO (Either Error ())
-bootInstance label = do
+bootInstance :: LoggingTState -> T.Text -> L.ClientT IO (Either Error ())
+bootInstance lts label = do
   linodeId <- lookupLinodeId label
-  bootInstanceById linodeId
+  status <- getInstanceStatus linodeId
+  case status of
+    L.LinodeStatus'EnumOffline -> bootInstanceById linodeId
+    L.LinodeStatus'EnumRunning -> do
+      infoIO lts $(here) "Instance {} is already running" (Single linodeId)
+      return $ Right ()
+    _ -> return $ Left $ UnknownError $ "Don't know what do do with instance in state " ++ show status
 
 bootInstanceById :: Int -> L.ClientT IO (Either Error ())
 bootInstanceById linodeId = do
@@ -140,4 +184,51 @@ shutdownInstance label = do
     L.ShutdownLinodeInstanceResponse200 obj -> return $ Right ()
     L.ShutdownLinodeInstanceResponseError str -> return $ Left $ UnknownError str
     L.ShutdownLinodeInstanceResponseDefault err -> return $ Left $ UnknownError $ show err
+
+createInstance :: LoggingTState -> LinodeInstanceSettings -> Host -> L.ClientT IO (Either Error ())
+createInstance lts settings host = do
+  let label = hControllerId host
+  mbStatus <- getInstanceStatus' label
+  case mbStatus of
+    Nothing -> do
+      publicKeys <- case hPublicKey host of
+                      Nothing -> return []
+                      Just path -> do
+                        text <- liftIO $ TIO.readFile path
+                        return [T.strip text]
+      case hRootPassword host of
+        Nothing -> return $ Left $ UnknownError "Linode service requires root_password"
+        Just rootPassword -> do
+          let rq = L.mkCreateLinodeInstanceRequestBody {
+                      L.createLinodeInstanceRequestBodyType = Just (linodeInstanceType settings)
+                    , L.createLinodeInstanceRequestBodyImage = Just (linodeInstanceImage settings)
+                    , L.createLinodeInstanceRequestBodyRegion = Just (linodeInstanceRegion settings)
+                    , L.createLinodeInstanceRequestBodyLabel = Just label
+                    , L.createLinodeInstanceRequestBodyAuthorizedKeys = Just publicKeys
+                    --, L.createLinodeInstanceRequestBodyAuthorizedUsers = Just [hUserName host]
+                    , L.createLinodeInstanceRequestBodyRootPass = Just rootPassword
+                  }
+          rs <- L.createLinodeInstance rq
+          case responseBody rs of
+            L.CreateLinodeInstanceResponse200 linode -> do
+              let ips = maybe "<no>" (T.intercalate ", ") $ L.linodeIpv4 linode
+              infoIO lts $(here) "Created new Linode instance `{}', ID = {}, IP {}" (L.linodeLabel linode, L.linodeId linode, ips)
+              return $ Right ()
+            L.CreateLinodeInstanceResponseError str -> return $ Left $ UnknownError str
+            L.CreateLinodeInstanceResponseDefault err -> return $ Left $ UnknownError $ show err
+
+    Just (linodeId, L.LinodeStatus'EnumOffline) -> bootInstanceById linodeId
+    Just (_, L.LinodeStatus'EnumRunning) -> return $ Right ()
+    Just (_, status) -> return $ Left $ UnknownError $ "Don't know what do do with instance in state " ++ show status
+
+deleteInstance :: LoggingTState -> T.Text -> L.ClientT IO (Either Error ())
+deleteInstance lts label = do
+  linodeId <- lookupLinodeId label
+  rs <- L.deleteLinodeInstance linodeId
+  case responseBody rs of
+    L.DeleteLinodeInstanceResponse200 obj -> do
+      infoIO lts $(here) "Deleted Linode instance {}" (Single label)
+      return $ Right ()
+    L.DeleteLinodeInstanceResponseError str -> return $ Left $ UnknownError str
+    L.DeleteLinodeInstanceResponseDefault err -> return $ Left $ UnknownError $ show err
 

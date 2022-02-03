@@ -83,7 +83,7 @@ data HostController = HostController {
 
     -- | Start the host. Should not return error if the 
     -- host is already started.
-    startHost :: HostName -> IO (Either Error ()),
+    startHost :: Host -> IO (Either Error ()),
 
     -- | Shutdown the host. Should wait until the host is
     -- actually shut down.

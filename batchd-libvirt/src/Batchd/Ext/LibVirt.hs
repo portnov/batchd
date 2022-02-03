@@ -52,11 +52,12 @@ mkLibVirt l lts = HostController {
 
   getActualHostName = \_ -> return Nothing,
 
-  startHost = \name -> do
+  startHost = \host -> do
+    let name = T.unpack $ hControllerId host
     withConnection (lvConnectionString l) $ \conn -> do
         infoIO lts $(here) "Connection to libvirt URI {} succeeded" (Single $ lvConnectionString l)
         mbdom <- do
-                 x <- try $ lookupDomainName conn (T.unpack name)
+                 x <- try $ lookupDomainName conn name
                  case x of
                    Left (e :: V.Error) -> do
                                           reportErrorIO lts $(here) "Cannot get domain ID by name `{}': {}" (name, show e)
@@ -72,8 +73,8 @@ mkLibVirt l lts = HostController {
               DomainShutoff -> do
                        createDomain dom
                        return $ Right ()
-              st -> return $ Left $ UnknownError $ "Don't know what to do with virtual domain " ++ T.unpack name ++ " in state " ++ show st
-          Nothing -> return $ Left $ UnknownError $ "Domain is not defined in hypervisor: " ++ T.unpack name ,
+              st -> return $ Left $ UnknownError $ "Don't know what to do with virtual domain " ++ name ++ " in state " ++ show st
+          Nothing -> return $ Left $ UnknownError $ "Domain is not defined in hypervisor: " ++ name ,
 
   stopHost = \name -> do
     withConnection (lvConnectionString l) $ \conn -> do

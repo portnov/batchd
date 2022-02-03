@@ -32,7 +32,7 @@ import Batchd.Core.Daemon.Hosts
 import Batchd.Core.Daemon.Logging
 import Batchd.Common.Types
 import Batchd.Daemon.Monitoring as Monitoring
-import Batchd.Daemon.SSH (execCommandsOnHost)
+import Batchd.Daemon.SSH (execCommandsOnHost, accountForDefaultHostKeys)
 import Batchd.Daemon.Local (execLocalCommands)
 
 #ifdef LIBVIRT
@@ -173,25 +173,26 @@ ensureHostStarted :: Host -> Daemon ()
 ensureHostStarted host = do
     lts <- askLoggingStateM
     cfg <- askConfig
-    controller <- liftIO $ loadHostController lts (hController host)
-    $debug "Host `{}' is controlled by `{}'" (hName host, show controller)
-    let name = hName host
+    host' <- liftIO $ accountForDefaultHostKeys host
+    controller <- liftIO $ loadHostController lts (hController host')
+    let name = hName host'
+    $debug "Host `{}' is controlled by `{}'" (name, show controller)
     if doesSupportStartStop controller
       then do
         $debug "Starting host `{}'" (Single name)
-        r <- liftIO $ startHost controller (hControllerId host)
+        r <- liftIO $ startHost controller host'
         case r of
           Right _ -> do
               $debug "Waiting for host `{}' to initialize for {} seconds..." 
-                                  (name, hStartupTime host)
-              liftIO $ threadDelay $ 1000 * 1000 * hStartupTime host
-              let localCommands = map (formatHostCommand cfg host) (hStartupDispatcherCommands host)
+                                  (name, hStartupTime host')
+              liftIO $ threadDelay $ 1000 * 1000 * hStartupTime host'
+              let localCommands = map (formatHostCommand cfg host') (hStartupDispatcherCommands host')
               ec <- liftIO $ execLocalCommands lts localCommands
               case ec of
                 ExitFailure rc -> throw $ HostInitializationError rc
                 ExitSuccess -> do
-                  let commandsOnHost = map (formatHostCommand cfg host) (hStartupHostCommands host)
-                  ec <- execCommandsOnHost controller host commandsOnHost
+                  let commandsOnHost = map (formatHostCommand cfg host') (hStartupHostCommands host')
+                  ec <- execCommandsOnHost controller host' commandsOnHost
                   case ec of
                     ExitSuccess -> return ()
                     ExitFailure rc -> throw $ HostInitializationError rc

@@ -64,11 +64,11 @@ dockerDriver =
 
     doesSupportStartStop = dEnableStartStop d,
 
-    startHost = \name -> do
+    startHost = \host -> do
       handler <- getHttpHandler d
       let opts = defaultClientOpts {baseUrl = dBaseUrl d}
       r <- runDockerT (opts, handler) $ do
-             startContainer defaultStartOpts $ fromJust $ toContainerID name
+             startContainer defaultStartOpts $ fromJust $ toContainerID $ hControllerId host
       case r of
         Right _ -> return $ Right ()
         Left err -> return $ Left $ UnknownError $ show err,

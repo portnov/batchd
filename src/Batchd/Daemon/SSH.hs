@@ -44,6 +44,15 @@ getDfltPrivateKey = do
   home <- getEnv "HOME"
   return $ home </> ".ssh" </> "id_rsa"
 
+accountForDefaultHostKeys :: Host -> IO Host
+accountForDefaultHostKeys host = do
+  def_public_key <- liftIO getDfltPublicKey
+  def_private_key <- liftIO getDfltPrivateKey
+  return $ host {
+             hPublicKey = Just $ fromMaybe def_public_key (hPublicKey host)
+           , hPrivateKey = Just $ fromMaybe def_private_key (hPrivateKey host)
+          }
+
 withSshOnHost :: HostController -> Host -> (Session -> Daemon a) -> Daemon a
 withSshOnHost controller host actions = do
     known_hosts <- liftIO getKnownHosts
