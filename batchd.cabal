@@ -74,6 +74,7 @@ executable batchd
         Batchd.Daemon.Manager
         Batchd.Daemon.Hosts
         Batchd.Daemon.SSH
+        Batchd.Daemon.Local
         Batchd.Daemon.Schedule
         Batchd.Common.Config
         Batchd.Common.Types

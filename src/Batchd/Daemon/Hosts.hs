@@ -15,18 +15,15 @@ import Control.Monad.Trans
 import qualified Control.Monad.Catch as MC
 import qualified Data.Map as M
 import qualified Data.HashMap.Strict as H
-import Data.Conduit
-import qualified Data.Conduit.Combinators as C
-import qualified Data.Conduit.List as CL
 import Data.Time
-import Data.Monoid ((<>))
 import Data.Aeson as Aeson
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
 import Data.Text.Format.Heavy
 import Data.Text.Format.Heavy.Time () -- import instances only
+import Data.Text.Format.Heavy.Parse.Shell
 import System.Log.Heavy
 import System.Exit (ExitCode (..))
-import Network.SSH.Client.LibSSH2 (Session, withSSH2)
 
 import Batchd.Core.Common.Types
 import Batchd.Core.Common.Config
@@ -36,6 +33,7 @@ import Batchd.Core.Daemon.Logging
 import Batchd.Common.Types
 import Batchd.Daemon.Monitoring as Monitoring
 import Batchd.Daemon.SSH (execCommandsOnHost)
+import Batchd.Daemon.Local (execLocalCommands)
 
 #ifdef LIBVIRT
 import Batchd.Ext.LibVirt
@@ -152,9 +150,29 @@ setHostStatus :: MVar HostState -> HostStatus -> IO ()
 setHostStatus mvar status =
   modifyMVar_ mvar $ \st -> return $ st {hsStatus = status}
 
+formatHostCommand :: GlobalConfig -> Host -> T.Text -> T.Text
+formatHostCommand cfg host template =
+    TL.toStrict $ format (parseShellFormat' $ TL.fromStrict template) context
+  where
+    context = optional $ hVariables host `ThenCheck` hostParams `ThenCheck` dbcVariables cfg
+    hostParams :: Variables
+    hostParams = M.fromList $ [
+                    ("name", hName host),
+                    ("hostname", hHostName host),
+                    ("controllerId", hControllerId host),
+                    -- ("publicKey", hPublicKey host),
+                    -- ("privateKey", hPrivateKey host),
+                    ("passphrase", hPassphrase host),
+                    ("user", hUserName host),
+                    ("port", T.pack $ show $ hPort host),
+                    ("inputDirectory", T.pack $ hInputDirectory host),
+                    ("outputDirectory", T.pack $ hOutputDirectory host)
+                  ]
+
 ensureHostStarted :: Host -> Daemon ()
 ensureHostStarted host = do
     lts <- askLoggingStateM
+    cfg <- askConfig
     controller <- liftIO $ loadHostController lts (hController host)
     $debug "Host `{}' is controlled by `{}'" (hName host, show controller)
     let name = hName host
@@ -167,10 +185,16 @@ ensureHostStarted host = do
               $debug "Waiting for host `{}' to initialize for {} seconds..." 
                                   (name, hStartupTime host)
               liftIO $ threadDelay $ 1000 * 1000 * hStartupTime host
-              ec <- execCommandsOnHost controller host (hStartupHostCommands host)
+              let localCommands = map (formatHostCommand cfg host) (hStartupDispatcherCommands host)
+              ec <- liftIO $ execLocalCommands lts localCommands
               case ec of
-                ExitSuccess -> return ()
                 ExitFailure rc -> throw $ HostInitializationError rc
+                ExitSuccess -> do
+                  let commandsOnHost = map (formatHostCommand cfg host) (hStartupHostCommands host)
+                  ec <- execCommandsOnHost controller host commandsOnHost
+                  case ec of
+                    ExitSuccess -> return ()
+                    ExitFailure rc -> throw $ HostInitializationError rc
           Left err -> throw err
       else $debug "Controller does not support starting hosts" ()
 

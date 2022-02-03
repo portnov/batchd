@@ -6,12 +6,7 @@ module Batchd.Daemon.Executor where
 import Control.Monad
 import Control.Monad.Trans
 import Control.Concurrent
-import Data.Conduit
 import Data.Maybe (fromMaybe)
-import Data.Monoid ((<>))
-import qualified Data.Conduit.Combinators as C
-import qualified Data.Conduit.List as CL
-import Data.Conduit.Binary (sourceHandle)
 import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
@@ -19,9 +14,7 @@ import Data.Text.Format.Heavy
 import Data.Text.Format.Heavy.Parse.Shell
 import qualified Database.Persist.Sql as Sql hiding (Single)
 import Data.Time
-import System.Process
 import System.FilePath
-import System.IO
 import System.Exit (ExitCode (..))
 import Network.SSH.Client.LibSSH2.Conduit (execCommand)
 
@@ -33,6 +26,7 @@ import Batchd.Common.Data
 import Batchd.Daemon.Types
 import Batchd.Core.Daemon.Hosts
 import Batchd.Daemon.SSH
+import Batchd.Daemon.Local (processOnLocalhost)
 import Batchd.Daemon.Hosts (loadHostController, withHost)
 import Batchd.Daemon.Monitoring as Monitoring
 
@@ -56,20 +50,6 @@ hostContext (Just host) jt params = M.fromList $ map update $ M.assocs params
         Just InputFile -> (key, T.pack $ hInputDirectory host </> takeFileName (T.unpack value))
         Just OutputFile -> (key, T.pack $ hOutputDirectory host </> takeFileName (T.unpack value))
         _ -> (key, value)
-
-processOnLocalhost :: JobInfo -> OnFailAction -> String -> ResultsChan -> IO ()
-processOnLocalhost job onFail command resultChan = do
-    let opts = (shell command) {std_out = CreatePipe, std_err = CreatePipe}
-    withCreateProcess opts $ \_ (Just stdout) (Just stderr) process -> do
-      forkIO $ retrieveOutput StderrLine stderr
-      retrieveOutput StdoutLine stdout
-      ec <- waitForProcess process
-      writeChan resultChan (job, Exited ec onFail)
-  where
-    retrieveOutput cons handle = do
-      sourceHandle handle =$= C.decodeUtf8 =$= C.linesUnbounded $$ CL.mapM_ $ \line ->
-        writeChan resultChan (job, cons line)
-      hClose handle
 
 processOnHost :: HostsPool -> Host -> JobType -> JobInfo -> ResultsChan -> String -> Daemon ExitCode
 processOnHost counters host jtype job resultChan command = do

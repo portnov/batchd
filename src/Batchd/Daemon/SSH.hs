@@ -75,7 +75,7 @@ execCommandsOnHost controller host commands =
     go :: ExitCode -> Session -> [T.Text] -> Daemon ExitCode
     go prevEc _ [] = return prevEc
     go prevEc session (command : commands) = do
-      $info "Executing: {}" (Single command)
+      $info "Executing at {}: {}" (hName host, command)
       (Just commandHandle, commandOutput) <- liftIO $ execCommand True session (T.unpack command)
       lts <- askLoggingStateM
       liftIO $
