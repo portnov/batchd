@@ -66,6 +66,7 @@ class Table(QtWidgets.QTableView):
         if jobs is None:
             jobs = []
         self.model.setupModelData(jobs)
+        self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
 
     def currentJob(self):
         idx = self.currentIndex()
