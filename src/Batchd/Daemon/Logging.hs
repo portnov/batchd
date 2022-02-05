@@ -26,6 +26,7 @@ deriveLift ''WebClientConfig
 deriveLift ''ManagerConfig
 deriveLift ''DispatcherConfig
 deriveLift ''StorageConfig
+deriveLift ''TemplateSyntax
 deriveLift ''GlobalConfig
 
 -- | Get logging settings from global config.

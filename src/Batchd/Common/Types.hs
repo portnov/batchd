@@ -11,6 +11,7 @@
 module Batchd.Common.Types
   (
     -- * Data types
+    TemplateSyntax (..),
     JobType (..), OnFailAction (..),
     ParamType (..), ParamDesc (..),
     JobStatus (..),
@@ -88,10 +89,20 @@ data ParamDesc = ParamDesc {
   }
   deriving (Eq, Show, Data, Typeable, Generic)
 
+data TemplateSyntax = Bash | Python
+  deriving (Eq, Show, Data, Typeable, Generic)
+
+instance FromJSON TemplateSyntax where
+  parseJSON = genericParseJSON defaultOptions
+
+instance ToJSON TemplateSyntax where
+  toJSON = genericToJSON defaultOptions
+
 -- | Job type description
 data JobType = JobType {
     jtName :: String            -- ^ Job type name (identifier)
   , jtTitle :: Maybe String     -- ^ Job type title (to show in client)
+  , jtSyntax :: Maybe TemplateSyntax
   , jtTemplate :: [T.Text]        -- ^ Template of command line to execute
   , jtOnFail :: OnFailAction    -- ^ What to do if execution failed
   , jtHostName :: Maybe String  -- ^ Name of host where to execute jobs.
@@ -147,6 +158,7 @@ instance FromJSON JobType where
     name <- v .: "name"
     title <- v .:? "title"
     tmp <- v .: "template"
+    syntax <- v .:? "syntax"
     template <- case tmp of
                   Aeson.String str -> return [str]
                   _ -> parseJSON tmp
@@ -154,7 +166,7 @@ instance FromJSON JobType where
     host_name <- v .:? "host_name"
     max_jobs <- v .:? "max_jobs"
     params <- v .: "params"
-    return $ JobType name title (repackLines template) on_fail host_name max_jobs params
+    return $ JobType name title syntax (repackLines template) on_fail host_name max_jobs params
 
 instance ToJSON JobType where
   toJSON = genericToJSON (jsonOptions "jt")
@@ -444,6 +456,7 @@ data GlobalConfig = GlobalConfig {
     , dbcLogging :: LogConfig          -- ^ Logging configuration
     , dbcManager :: ManagerConfig
     , dbcDispatcher :: DispatcherConfig
+    , dbcDefTemplateSyntax :: TemplateSyntax
     , dbcDefScriptsDirectory :: FilePath
     , dbcMetrics :: MetricsConfig
     , dbcStorage :: StorageConfig
@@ -459,6 +472,7 @@ instance Default GlobalConfig where
         , dbcLogging = defaultLogConfig
         , dbcManager = def
         , dbcDispatcher = def
+        , dbcDefTemplateSyntax = Bash
         , dbcDefScriptsDirectory = "./scripts"
         , dbcMetrics = def
         , dbcStorage = def
@@ -597,6 +611,7 @@ instance FromJSON GlobalConfig where
       <*> v .:? "logging" .!= defaultLogConfig
       <*> v .:? "manager" .!= def
       <*> v .:? "dispatcher" .!= def
+      <*> v .:? "default_template_syntax" .!= Bash
       <*> v .:? "default_scripts_directory" .!= "./scripts"
       <*> v .:? "metrics" .!= def
       <*> v .:? "storage" .!= def

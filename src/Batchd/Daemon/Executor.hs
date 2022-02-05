@@ -12,6 +12,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import Data.Text.Format.Heavy
 import Data.Text.Format.Heavy.Parse.Shell
+import Data.Text.Format.Heavy.Parse.Braces (parseFormat')
 import qualified Database.Persist.Sql as Sql hiding (Single)
 -- import Data.Time
 import System.FilePath
@@ -33,7 +34,11 @@ import Batchd.Daemon.Monitoring as Monitoring
 getCommands :: GlobalConfig -> Maybe Host -> JobType -> JobInfo -> [T.Text]
 getCommands cfg mbHost jt job =
     let context = mkContext $ hostContext mbHost jt $ jiParams job
-    in  [TL.toStrict $ format (parseShellFormat' $ TL.fromStrict line) context | line <- jtTemplate jt]
+        syntax = fromMaybe (dbcDefTemplateSyntax cfg) (jtSyntax jt)
+        parse = case syntax of
+                  Bash -> parseShellFormat'
+                  Python -> parseFormat'
+    in  [TL.toStrict $ format (parse $ TL.fromStrict line) context | line <- jtTemplate jt]
   where
     mkContext m = optional $ m `ThenCheck` hostVars `ThenCheck` dbcVariables cfg
     hostVars = maybe M.empty hVariables mbHost
