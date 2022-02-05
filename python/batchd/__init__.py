@@ -11,7 +11,10 @@ bl_info = {
         "category": "Object"
         }
 
-import bpy
+try:
+    import bpy
+except ImportError as e:
+    pass
 import importlib
 
 from . import blenderclient

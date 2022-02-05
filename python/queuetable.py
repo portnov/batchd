@@ -1,5 +1,5 @@
 
-from PyQt4 import QtGui, QtCore
+from PyQt5 import QtGui, QtCore, QtWidgets
 
 import common
 
@@ -52,9 +52,9 @@ class Model(QtCore.QAbstractTableModel):
         self.jobs = jobs
         self.endResetModel()
 
-class Table(QtGui.QTableView):
+class Table(QtWidgets.QTableView):
     def __init__(self, jobs=None, parent=None):
-        QtGui.QTableView.__init__(self, parent)
+        QtWidgets.QTableView.__init__(self, parent)
         self.model = Model(self,
                            Field('id', "ID"),
                            Field('seq', "Seq"),

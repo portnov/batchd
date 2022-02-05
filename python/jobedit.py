@@ -1,14 +1,14 @@
 
-from PyQt4 import QtGui, QtCore
+from PyQt5 import QtGui, QtCore, QtWidgets
 
-class InputFileWidget(QtGui.QWidget):
+class InputFileWidget(QtWidgets.QWidget):
     def __init__(self, parent=None, readonly=False):
-        QtGui.QWidget.__init__(self, parent)
-        layout = QtGui.QHBoxLayout()
-        self.line = QtGui.QLineEdit(self)
+        QtWidgets.QWidget.__init__(self, parent)
+        layout = QtWidgets.QHBoxLayout()
+        self.line = QtWidgets.QLineEdit(self)
         layout.addWidget(self.line)
         if not readonly:
-            self.button = QtGui.QPushButton(QtGui.QIcon.fromTheme('document-open'), "Browse...", self)
+            self.button = QtWidgets.QPushButton(QtGui.QIcon.fromTheme('document-open'), "Browse...", self)
             layout.addWidget(self.button)
             self.button.clicked.connect(self._on_browse)
         self.setLayout(layout)
@@ -27,14 +27,14 @@ class InputFileWidget(QtGui.QWidget):
     def setReadOnly(self, val):
         self.line.setReadOnly(val)
 
-class OutputFileWidget(QtGui.QWidget):
+class OutputFileWidget(QtWidgets.QWidget):
     def __init__(self, parent=None, readonly=False):
         QtGui.QWidget.__init__(self, parent)
-        layout = QtGui.QHBoxLayout()
-        self.line = QtGui.QLineEdit(self)
+        layout = QtWidgets.QHBoxLayout()
+        self.line = QtWidgets.QLineEdit(self)
         layout.addWidget(self.line)
         if not readonly:
-            self.button = QtGui.QPushButton(QtGui.QIcon.fromTheme('document-save'), "Browse...", self)
+            self.button = QtWidgets.QPushButton(QtGui.QIcon.fromTheme('document-save'), "Browse...", self)
             layout.addWidget(self.button)
             self.button.clicked.connect(self._on_browse)
         self.setLayout(layout)
@@ -53,7 +53,7 @@ class OutputFileWidget(QtGui.QWidget):
     def setReadOnly(self, val):
         self.line.setReadOnly(val)
 
-class IntEditor(QtGui.QSpinBox):
+class IntEditor(QtWidgets.QSpinBox):
     def setText(self, text):
         val = int(text)
         self.setValue(val)
@@ -68,7 +68,7 @@ def create_widget(param, parent=None, readonly=False):
     elif param_type == 'OutputFile':
         widget = OutputFileWidget(parent, readonly)
     elif param_type == 'String':
-        widget = QtGui.QLineEdit(parent)
+        widget = QtWidgets.QLineEdit(parent)
     elif param_type == 'Integer':
         widget = IntEditor(parent)
     else:
@@ -83,8 +83,8 @@ def create_widget(param, parent=None, readonly=False):
     return title, widget
 
 def create_form(params, widgets_dict, parent=None, readonly=False):
-    result = QtGui.QWidget(parent)
-    layout = QtGui.QFormLayout()
+    result = QtWidgets.QWidget(parent)
+    layout = QtWidgets.QFormLayout()
     result.setLayout(layout)
 
     for param in params:

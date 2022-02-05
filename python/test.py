@@ -1,6 +1,6 @@
 import sys
-import PyQt4.QtGui as QtGui
-import PyQt4.QtCore as QtCore
+import PyQt5.QtGui as QtGui
+import PyQt5.QtCore as QtCore
 
 class Model(QtCore.QAbstractTableModel):
 	def __init__(self, parent):

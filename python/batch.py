@@ -4,7 +4,7 @@ import sys
 import os
 import getpass
 from os.path import isfile, join, dirname
-from PyQt4 import QtGui, QtCore
+from PyQt5 import QtGui, QtCore, QtWidgets
 
 import queuetable
 import jobview
@@ -15,10 +15,10 @@ from batchd.client import Client, InsufficientRightsException
 APPDIR = dirname(sys.argv[0])
 
 def labelled(label, constructor, parent=None):
-    result = QtGui.QWidget(parent)
-    layout = QtGui.QHBoxLayout()
+    result = QtWidgets.QWidget(parent)
+    layout = QtWidgets.QHBoxLayout()
     result.setLayout(layout)
-    lbl = QtGui.QLabel(label)
+    lbl = QtWidgets.QLabel(label)
     layout.addWidget(lbl)
     widget = constructor(result)
     layout.addWidget(widget)
@@ -28,38 +28,38 @@ def get_icon(name):
     path = join(APPDIR, "icons", name)
     return QtGui.QIcon(path)
     
-class LoginBox(QtGui.QDialog):
+class LoginBox(QtWidgets.QDialog):
     def __init__(self, url, cfg, parent=None):
-        QtGui.QDialog.__init__(self, parent)
+        QtWidgets.QDialog.__init__(self, parent)
 
         self.url = url
         self.client = None
 
         self.config = cfg
 
-        form = QtGui.QFormLayout()
-        vbox = QtGui.QVBoxLayout()
+        form = QtWidgets.QFormLayout()
+        vbox = QtWidgets.QVBoxLayout()
         self.setLayout(vbox)
-        self.login = QtGui.QLineEdit(self)
+        self.login = QtWidgets.QLineEdit(self)
         if 'username' in cfg:
             username = cfg['username']
         else:
             username = getpass.getuser()
         self.login.setText(username)
-        self.password = QtGui.QLineEdit(self)
-        self.password.setEchoMode(QtGui.QLineEdit.Password)
+        self.password = QtWidgets.QLineEdit(self)
+        self.password.setEchoMode(QtWidgets.QLineEdit.Password)
         if 'password' in cfg:
             self.password.setText(cfg['password'])
         form.addRow("User name:", self.login)
         form.addRow("Password:", self.password)
         vbox.addLayout(form)
-        bbox = QtGui.QDialogButtonBox(self)
-        ok = QtGui.QPushButton('Ok')
+        bbox = QtWidgets.QDialogButtonBox(self)
+        ok = QtWidgets.QPushButton('Ok')
         ok.clicked.connect(self.on_ok)
-        cancel = QtGui.QPushButton('Cancel')
+        cancel = QtWidgets.QPushButton('Cancel')
         cancel.clicked.connect(self.on_cancel)
-        bbox.addButton(ok, QtGui.QDialogButtonBox.AcceptRole)
-        bbox.addButton(cancel, QtGui.QDialogButtonBox.RejectRole)
+        bbox.addButton(ok, QtWidgets.QDialogButtonBox.AcceptRole)
+        bbox.addButton(cancel, QtWidgets.QDialogButtonBox.RejectRole)
         vbox.addWidget(bbox)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
 
@@ -72,50 +72,50 @@ class LoginBox(QtGui.QDialog):
             self.client = client
             self.accept()
         except InsufficientRightsException as e:
-            print e
+            print(e)
 
     def on_cancel(self):
         self.client = None
         self.reject()
 
-class GUI(QtGui.QMainWindow):
+class GUI(QtWidgets.QMainWindow):
     def __init__(self, client):
-        QtGui.QMainWindow.__init__(self)
+        QtWidgets.QMainWindow.__init__(self)
 
         self.url = client.manager_url
         self.client = client
 
-        central_widget = QtGui.QWidget(self)
+        central_widget = QtWidgets.QWidget(self)
 
-        self.layout = QtGui.QVBoxLayout()
+        self.layout = QtWidgets.QVBoxLayout()
         central_widget.setLayout(self.layout)
 
         self.setCentralWidget(central_widget)
 
-        wrapper = QtGui.QWidget(self)
-        hbox = QtGui.QHBoxLayout()
+        wrapper = QtWidgets.QWidget(self)
+        hbox = QtWidgets.QHBoxLayout()
         wrapper.setLayout(hbox)
-        lbl = QtGui.QLabel("Queue:", wrapper)
+        lbl = QtWidgets.QLabel("Queue:", wrapper)
         hbox.addWidget(lbl)
-        self.queue_popup = QtGui.QComboBox(wrapper)
+        self.queue_popup = QtWidgets.QComboBox(wrapper)
         hbox.addWidget(self.queue_popup, stretch=1)
 
         self._fill_queues()
         self.queue_popup.currentIndexChanged.connect(self._on_select_queue)
         self.layout.addWidget(wrapper)
 
-        queue_buttons = QtGui.QToolBar(self)
+        queue_buttons = QtWidgets.QToolBar(self)
         queue_buttons.addAction(get_icon("list-add.svg"), "New queue", self._on_add_queue)
-        self.enable_queue = QtGui.QAction(get_icon("checkbox.svg"), "Enable", self)
+        self.enable_queue = QtWidgets.QAction(get_icon("checkbox.svg"), "Enable", self)
         self.enable_queue.setCheckable(True)
         self.enable_queue.toggled.connect(self._on_queue_toggle)
         queue_buttons.addAction(self.enable_queue)
         hbox.addWidget(queue_buttons)
 
-        self.queue_info = QtGui.QLabel(self)
+        self.queue_info = QtWidgets.QLabel(self)
         self.layout.addWidget(self.queue_info)
 
-        buttons = QtGui.QToolBar(self)
+        buttons = QtWidgets.QToolBar(self)
         buttons.addAction(get_icon("quickview.svg"), "View", self._on_view)
         buttons.addAction(get_icon("edit-delete.svg"), "Delete", self._on_delete)
         self.layout.addWidget(buttons)
@@ -123,7 +123,7 @@ class GUI(QtGui.QMainWindow):
         self.qtable = queuetable.Table(parent=self)
         self.layout.addWidget(self.qtable)
 
-        wrapper, self.type_popup = labelled("Job type:", QtGui.QComboBox, self)
+        wrapper, self.type_popup = labelled("Job type:", QtWidgets.QComboBox, self)
         self.types = types = self.client.get_job_types()
         self.type_by_name = {}
         for t in types:
@@ -138,7 +138,7 @@ class GUI(QtGui.QMainWindow):
         self.type_popup.currentIndexChanged.connect(self._on_select_type)
         self.layout.addWidget(wrapper)
 
-        ok = QtGui.QPushButton(get_icon("list-add.svg"), "Add", self)
+        ok = QtWidgets.QPushButton(get_icon("list-add.svg"), "Add", self)
         ok.clicked.connect(self._on_ok)
         self.layout.addWidget(ok)
 
@@ -168,21 +168,21 @@ class GUI(QtGui.QMainWindow):
 
     def _on_queue_toggle(self):
         enabled = self.enable_queue.isChecked()
-        print enabled
+        print(enabled)
 
     def _on_delete(self):
-        buttons = QtGui.QMessageBox.Yes | QtGui.QMessageBox.No
+        buttons = QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No
         job = self.qtable.currentJob()
         job_id = job['id']
-        ok = QtGui.QMessageBox.question(self, "Delete?",
+        ok = QtWidgets.QMessageBox.question(self, "Delete?",
                                         "Are you really sure you want to delete job #{}?".format(job_id),
                                         buttons)
-        if ok == QtGui.QMessageBox.Yes:
-            print "Deleting!"
+        if ok == QtWidgets.QMessageBox.Yes:
+            print("Deleting!")
             self.client.delete_job(job_id)
             self._refresh_queue()
         else:
-            print "do not delete"
+            print("do not delete")
 
     def _on_select_type(self, idx):
         jobtype = self.types[idx]
@@ -236,17 +236,17 @@ class GUI(QtGui.QMainWindow):
     def _on_ok(self):
         queue_idx = self.queue_popup.currentIndex()
         queue_name = self.queues[queue_idx]['name']
-        #typename = unicode( self.type_popup.currentText() )
+        #typename =  self.type_popup.currentText()
         jobtype = self.types[self.type_popup.currentIndex()]
         typename = jobtype['name']
         params = {}
-        for name, widget in self.param_widgets.iteritems():
-            params[name] = unicode(widget.text())
+        for name, widget in self.param_widgets.items():
+            params[name] = widget.text()
         self.client.do_enqueue(queue_name, typename, params)
         self._refresh_queue()
 
 if __name__ == "__main__":
-    app = QtGui.QApplication(sys.argv)
+    app = QtWidgets.QApplication(sys.argv)
     cfg = Client.load_config()
     client = Client.from_config(cfg)
 
