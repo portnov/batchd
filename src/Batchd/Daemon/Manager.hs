@@ -253,13 +253,10 @@ getQueuesA = inUserContext $ do
   $debug "getting queues list" ()
   user <- getAuthUser
   let name = userName user
-  cfg <- askConfigA
-  qes <- runDBA $ do
-           super <- isSuperUser name
-           if super || isAuthDisabled (mcAuth $ dbcManager cfg)
-             then getAllQueues'
-             else getAllowedQueues name ViewQueues
-  -- let qnames = map (queueName . entityVal) qes
+  super <- isSuperUser name
+  qes <- if super
+           then runDBA getAllQueues'
+           else runDBA $ getAllowedQueues name ViewQueues
   Scotty.json qes
 
 getQueueA :: Action ()
@@ -449,7 +446,7 @@ getAllowedJobTypesA = inUserContext $ do
   lts <- askLoggingState
   types <- liftIO $ listJobTypes cfg lts
   allowedTypes <- flip filterM types $ \jt -> do
-                      runDBA $ hasCreatePermission name qname (Just $ jtName jt) Nothing
+                      hasCreatePermission name qname (Just $ jtName jt) Nothing
   Scotty.json allowedTypes
 
 listJobTypes :: GlobalConfig -> LoggingTState -> IO [JobType]
@@ -505,7 +502,7 @@ getAllowedHostsA = inUserContext $ do
   hosts <- liftIO $ listHosts cfg lts
   let allHostNames = defaultHostOfQueue : map hName hosts
   allowedHosts <- flip filterM allHostNames $ \hostname -> do
-                      runDBA $ hasCreatePermission name qname Nothing (Just hostname)
+                      hasCreatePermission name qname Nothing (Just hostname)
   Scotty.json allowedHosts
 
 getAllowedHostsForTypeA :: Action ()
@@ -513,7 +510,7 @@ getAllowedHostsForTypeA = inUserContext $ do
   user <- getAuthUser
   qname <- Scotty.param "qname"
   tname <- Scotty.param "tname"
-  mbAllowedHosts <- runDBA $ listAllowedHosts (userName user) qname tname
+  mbAllowedHosts <- listAllowedHosts (userName user) qname tname
   allowedHosts <- case mbAllowedHosts of
                     Just list -> return list -- user is restricted to list of hosts
                     Nothing -> do -- user can create jobs on any defined host

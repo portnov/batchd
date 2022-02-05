@@ -293,21 +293,41 @@ isAuthDisabled :: AuthMode -> Bool
 isAuthDisabled AuthDisabled = True
 isAuthDisabled _ = False
 
+whenAuthEnabled :: Action () -> Action ()
+whenAuthEnabled actions = do
+  cfg <- askConfigA
+  when (not $ isAuthDisabled $ mcAuth $ dbcManager cfg) $ actions
+
+whenAuthEnabledCheck :: Action Bool -> Action Bool
+whenAuthEnabledCheck check = do
+  cfg <- askConfigA
+  if isAuthDisabled $ mcAuth $ dbcManager cfg
+    then return True
+    else check
+
+askAuthEnabled :: Action Bool
+askAuthEnabled = do
+  cfg <- askConfigA
+  return (not $ isAuthDisabled $ mcAuth $ dbcManager cfg)
+
 ----------- Check user rights ---------------
 
 -- | Check if user has SuperUser permission
-isSuperUser :: String -> DB Bool
-isSuperUser name = do
+isSuperUserDb :: String -> DB Bool
+isSuperUserDb name = do
   res <- selectList [UserPermissionUserName ==. name, UserPermissionPermission ==. SuperUser] []
   return $ not $ null res
+
+isSuperUser :: String -> Action Bool
+isSuperUser name = do
+  whenAuthEnabledCheck $ runDBA $ isSuperUserDb name
 
 -- | Check if user is superuser. Fail otherwise.
 checkSuperUser :: Action ()
 checkSuperUser = do
-  cfg <- askConfigA
-  when (not $ isAuthDisabled $ mcAuth $ dbcManager cfg) $ do
+  whenAuthEnabled $ do
       user <- getAuthUser
-      ok <- runDBA $ isSuperUser (userName user)
+      ok <- runDBA $ isSuperUserDb (userName user)
       when (not ok) $ do
         Scotty.raise $ InsufficientRights "user has to be superuser"
 
@@ -318,12 +338,12 @@ checkUserAuthenticated = do
   return ()
 
 -- | Check if user has specified permission
-hasPermission :: String -- ^ User name
+hasPermissionDb :: String -- ^ User name
               -> Permission
               -> String -- ^ Queue name
               -> DB Bool
-hasPermission name perm qname = do
-  super <- isSuperUser name
+hasPermissionDb name perm qname = do
+  super <- isSuperUserDb name
   if super
     then return True
     else do
@@ -335,7 +355,7 @@ hasPermission name perm qname = do
           return $ not $ null any
 
 -- | Check if user has permissions to create jobs in certain queue
-hasCreatePermission :: String -- ^ User name
+hasCreatePermissionDb :: String -- ^ User name
                     -> String -- ^ Queue name
                     -> Maybe String -- ^ Just type name, or Nothing if you want to check that user has permission
                                     -- to create jobs of at least some type
@@ -343,8 +363,8 @@ hasCreatePermission :: String -- ^ User name
                                     -- to create jobs on at least some host. Use special @__default__@ value
                                     -- for default host of queue.
                     -> DB Bool
-hasCreatePermission name qname mbTypename mbHostname = do
-  super <- isSuperUser name
+hasCreatePermissionDb name qname mbTypename mbHostname = do
+  super <- isSuperUserDb name
   if super
     then return True
     else do
@@ -360,14 +380,26 @@ hasCreatePermission name qname mbTypename mbHostname = do
       res <- selectList filtr []
       return $ not $ null res
 
+-- | Check if user has permissions to create jobs in certain queue
+hasCreatePermission :: String -- ^ User name
+                    -> String -- ^ Queue name
+                    -> Maybe String -- ^ Just type name, or Nothing if you want to check that user has permission
+                                    -- to create jobs of at least some type
+                    -> Maybe T.Text -- ^ Just host name, or Nothing if you want to check that user has permission
+                                    -- to create jobs on at least some host. Use special @__default__@ value
+                                    -- for default host of queue.
+                    -> Action Bool
+hasCreatePermission name qname mbTypename mbHostname =
+  whenAuthEnabledCheck $ runDBA $ hasCreatePermissionDb name qname mbTypename mbHostname
+
 -- | List names of hosts where user can create jobs of specified type in certain queue.
 -- Returns Nothing if user can create jobs on any host.
-listAllowedHosts :: String -- ^ User name
+listAllowedHostsDb :: String -- ^ User name
                  -> String -- ^ Queue name
                  -> String -- ^ Job type name
                  -> DB (Maybe [T.Text])
-listAllowedHosts name qname typename = do
-  super <- isSuperUser name
+listAllowedHostsDb name qname typename = do
+  super <- isSuperUserDb name
   if super
     then return Nothing
     else do
@@ -382,12 +414,24 @@ listAllowedHosts name qname typename = do
                      else Just $ map fromJust mbHosts
       return result
 
+-- | List names of hosts where user can create jobs of specified type in certain queue.
+-- Returns Nothing if user can create jobs on any host.
+listAllowedHosts :: String -- ^ User name
+                 -> String -- ^ Queue name
+                 -> String -- ^ Job type name
+                 -> Action (Maybe [T.Text])
+listAllowedHosts name qname typename = do
+  auth <- askAuthEnabled
+  if auth
+    then runDBA $ listAllowedHostsDb name qname typename
+    else return Nothing
+
 -- | Check if user has permission to the full list of objects.
-hasPermissionToList :: String     -- ^ User name
+hasPermissionToListDb :: String     -- ^ User name
                     -> Permission
                     -> DB Bool
-hasPermissionToList name perm = do
-  super <- isSuperUser name
+hasPermissionToListDb name perm = do
+  super <- isSuperUserDb name
   if super
     then return True
     else do
@@ -400,10 +444,9 @@ checkPermission :: String      -- ^ Error message for case of insufficient privi
                 -> String      -- ^ Queue name
                 -> Action ()
 checkPermission message perm qname = do
-  cfg <- askConfigA
-  when (not $ isAuthDisabled $ mcAuth $ dbcManager cfg) $ do
+  whenAuthEnabled $ do
       user <- getAuthUser
-      ok <- runDBA $ hasPermission (userName user) perm qname
+      ok <- runDBA $ hasPermissionDb (userName user) perm qname
       when (not ok) $ do
         Scotty.raise $ InsufficientRights message
 
@@ -413,10 +456,9 @@ checkCanCreateJobs :: String -- ^ Queue name
                    -> T.Text -- ^ Host name. Use @__default__@ for default host of queue.
                    -> Action ()
 checkCanCreateJobs qname typename hostname = do
-  cfg <- askConfigA
-  when (not $ isAuthDisabled $ mcAuth $ dbcManager cfg) $ do
+  whenAuthEnabled $ do
       user <- getAuthUser
-      ok <- runDBA $ hasCreatePermission (userName user) qname (Just typename) (Just hostname)
+      ok <- runDBA $ hasCreatePermissionDb (userName user) qname (Just typename) (Just hostname)
       when (not ok) $ do
         Scotty.raise $ InsufficientRights "create jobs"
 
@@ -425,10 +467,9 @@ checkPermissionToList :: String     -- ^ Error message for case of insufficient 
                       -> Permission
                       -> Action ()
 checkPermissionToList message perm = do
-  cfg <- askConfigA
-  when (not $ isAuthDisabled $ mcAuth $ dbcManager cfg) $ do
+  whenAuthEnabled $ do
       user <- getAuthUser
-      ok <- runDBA $ hasPermissionToList (userName user) perm
+      ok <- runDBA $ hasPermissionToListDb (userName user) perm
       when (not ok) $ do
         Scotty.raise $ InsufficientRights message
 
