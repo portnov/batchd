@@ -92,7 +92,7 @@ data ParamDesc = ParamDesc {
 data JobType = JobType {
     jtName :: String            -- ^ Job type name (identifier)
   , jtTitle :: Maybe String     -- ^ Job type title (to show in client)
-  , jtTemplate :: String        -- ^ Template of command line to execute
+  , jtTemplate :: [T.Text]        -- ^ Template of command line to execute
   , jtOnFail :: OnFailAction    -- ^ What to do if execution failed
   , jtHostName :: Maybe String  -- ^ Name of host where to execute jobs.
                                 --   Nothing means use default host from queue or localhost.
@@ -139,8 +139,22 @@ instance FromJSON ParamDesc where
 instance ToJSON ParamDesc where
   toJSON = genericToJSON (jsonOptions "pi")
 
+repackLines :: [T.Text] -> [T.Text]
+repackLines texts = concatMap T.lines texts
+
 instance FromJSON JobType where
-  parseJSON = genericParseJSON (jsonOptions "jt")
+  parseJSON (Object v) = do
+    name <- v .: "name"
+    title <- v .:? "title"
+    tmp <- v .: "template"
+    template <- case tmp of
+                  Aeson.String str -> return [str]
+                  _ -> parseJSON tmp
+    on_fail <- v .:? "on_fail" .!= Continue
+    host_name <- v .:? "host_name"
+    max_jobs <- v .:? "max_jobs"
+    params <- v .: "params"
+    return $ JobType name title (repackLines template) on_fail host_name max_jobs params
 
 instance ToJSON JobType where
   toJSON = genericToJSON (jsonOptions "jt")
@@ -430,6 +444,7 @@ data GlobalConfig = GlobalConfig {
     , dbcLogging :: LogConfig          -- ^ Logging configuration
     , dbcManager :: ManagerConfig
     , dbcDispatcher :: DispatcherConfig
+    , dbcDefScriptsDirectory :: FilePath
     , dbcMetrics :: MetricsConfig
     , dbcStorage :: StorageConfig
     , dbcVariables :: Variables
@@ -444,6 +459,7 @@ instance Default GlobalConfig where
         , dbcLogging = defaultLogConfig
         , dbcManager = def
         , dbcDispatcher = def
+        , dbcDefScriptsDirectory = "./scripts"
         , dbcMetrics = def
         , dbcStorage = def
         , dbcVariables = def
@@ -581,6 +597,7 @@ instance FromJSON GlobalConfig where
       <*> v .:? "logging" .!= defaultLogConfig
       <*> v .:? "manager" .!= def
       <*> v .:? "dispatcher" .!= def
+      <*> v .:? "default_scripts_directory" .!= "./scripts"
       <*> v .:? "metrics" .!= def
       <*> v .:? "storage" .!= def
       <*> v .:? "variables" .!= def

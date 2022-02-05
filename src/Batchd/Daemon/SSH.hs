@@ -6,11 +6,15 @@ module Batchd.Daemon.SSH where
 
 import Control.Monad
 import Control.Monad.Trans
-import Control.Exception
+import Control.Exception as E
 import Control.Concurrent
+import qualified Control.Monad.Catch as MC
 import Data.Maybe
+import Data.Int
 import qualified Data.Map as M
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
+import qualified Data.Text.IO as TIO
 import qualified Data.ByteString as B
 import Data.Conduit
 import qualified Data.Conduit.Combinators as C
@@ -22,6 +26,8 @@ import System.Log.Heavy
 import System.FilePath
 import System.Environment
 import System.Exit
+import System.IO (hClose, openTempFile, Handle)
+import System.Directory (getTemporaryDirectory, removeFile)
 
 import Batchd.Core.Common.Types
 import Batchd.Daemon.Types
@@ -76,6 +82,29 @@ withSshOnHost controller host actions = do
     wrapDaemon (withSSH2 known_hosts public_key private_key (T.unpack passphrase) (T.unpack user) (T.unpack hostname) port) $ \session -> do
       $debug "Connected to {}:{}." (hostname, port)
       actions session
+
+ignoringIOErrors :: MC.MonadCatch m => m () -> m ()
+ignoringIOErrors ioe = ioe `MC.catch` (\e -> const (return ()) (e :: IOError))
+
+withTempFile :: FilePath -> (FilePath -> Handle -> Daemon a) -> Daemon a
+withTempFile name actions = do
+  tmpDir <- liftIO $ getTemporaryDirectory
+  MC.bracket (liftIO $ openTempFile tmpDir name)
+             (\(name, handle) -> ignoringIOErrors $ liftIO $ removeFile name)
+             (uncurry actions)
+
+withRemoteScript :: Session -> FilePath -> Int64 -> [T.Text] -> (String -> Daemon a) -> Daemon a
+withRemoteScript session scriptsDir jobId commands actions = do
+  if length commands == 1
+    then actions (T.unpack $ head commands)
+    else do
+      let scriptText = formatScript commands
+          scriptName = TL.unpack $ format "batchd_job_{}.script" (Single jobId)
+      withTempFile scriptName $ \tmpPath tmpHandle -> do
+        liftIO $ TIO.hPutStr tmpHandle scriptText
+        liftIO $ hClose tmpHandle
+        uploadFiles [tmpPath] scriptsDir session
+        actions (scriptsDir </> takeFileName tmpPath)
 
 execCommandsOnHost :: HostController -> Host -> [T.Text] -> Daemon ExitCode
 execCommandsOnHost controller host commands =

@@ -96,6 +96,7 @@ data Host = Host {
                                   --   frequent shutdown\/start of one host. Default is 5*60.
   , hInputDirectory :: FilePath     -- ^ Directory (on the host) for input files. Default is @"."@.
   , hOutputDirectory :: FilePath    -- ^ Directory (on the host) with output files. Default is @"."@.
+  , hScriptsDirectory :: Maybe FilePath -- ^ Directory (on the host) for temporary scripts.
   , hStartupHostCommands :: [T.Text]
   , hStartupDispatcherCommands :: [T.Text]
   , hVariables :: Variables
@@ -119,6 +120,7 @@ instance FromJSON Host where
     shutdown_timeout <- v .:? "shutdown_timeout" .!= (5*60)
     input_directory <- v .:? "input_directory" .!= "."
     output_directory <- v .:? "output_directory" .!= "."
+    scripts_directory <- v .:? "scripts_directory"
     startup_host_commands <- v .:? "startup_commands_on_host" .!= []
     startup_dispatcher_commands <- v .:? "startup_commands_on_dispatcher" .!= []
     variables <- v .:? "variables" .!= M.empty
@@ -138,6 +140,7 @@ instance FromJSON Host where
             , hShutdownTimeout = shutdown_timeout
             , hInputDirectory = input_directory
             , hOutputDirectory = output_directory
+            , hScriptsDirectory = scripts_directory
             , hStartupHostCommands = startup_host_commands
             , hStartupDispatcherCommands = startup_dispatcher_commands
             , hVariables = variables

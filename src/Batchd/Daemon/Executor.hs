@@ -13,7 +13,7 @@ import qualified Data.Text.Lazy as TL
 import Data.Text.Format.Heavy
 import Data.Text.Format.Heavy.Parse.Shell
 import qualified Database.Persist.Sql as Sql hiding (Single)
-import Data.Time
+-- import Data.Time
 import System.FilePath
 import System.Exit (ExitCode (..))
 import Network.SSH.Client.LibSSH2.Conduit (execCommand)
@@ -26,13 +26,14 @@ import Batchd.Common.Data
 import Batchd.Daemon.Types
 import Batchd.Core.Daemon.Hosts
 import Batchd.Daemon.SSH
-import Batchd.Daemon.Local (processOnLocalhost)
+import Batchd.Daemon.Local (processOnLocalhost, withLocalScript)
 import Batchd.Daemon.Hosts (loadHostController, withHost)
 import Batchd.Daemon.Monitoring as Monitoring
 
-getCommand :: GlobalConfig -> Maybe Host -> JobType -> JobInfo -> String
-getCommand cfg mbHost jt job =
-    TL.unpack $ format (parseShellFormat' $ TL.pack $ jtTemplate jt) (mkContext $ hostContext mbHost jt $ jiParams job)
+getCommands :: GlobalConfig -> Maybe Host -> JobType -> JobInfo -> [T.Text]
+getCommands cfg mbHost jt job =
+    let context = mkContext $ hostContext mbHost jt $ jiParams job
+    in  [TL.toStrict $ format (parseShellFormat' $ TL.fromStrict line) context | line <- jtTemplate jt]
   where
     mkContext m = optional $ m `ThenCheck` hostVars `ThenCheck` dbcVariables cfg
     hostVars = maybe M.empty hVariables mbHost
@@ -51,20 +52,21 @@ hostContext (Just host) jt params = M.fromList $ map update $ M.assocs params
         Just OutputFile -> (key, T.pack $ hOutputDirectory host </> takeFileName (T.unpack value))
         _ -> (key, value)
 
-processOnHost :: HostsPool -> Host -> JobType -> JobInfo -> ResultsChan -> String -> Daemon ExitCode
-processOnHost counters host jtype job resultChan command = do
+processOnHost :: HostsPool -> Host -> JobType -> JobInfo -> ResultsChan -> FilePath -> [T.Text] -> Daemon ExitCode
+processOnHost counters host jtype job resultChan scriptsDir commands = do
   host' <- liftIO $ accountForDefaultHostKeys host
   lts <- askLoggingStateM
   controller <- liftIO $ loadHostController lts (hController host')
   r <- withHost counters host' jtype $ do
         withSshOnHost controller host' $ \session -> do
-           uploadFiles (getInputFiles jtype job) (hInputDirectory host') session
-           $info "EXECUTING: {}" (Single command)
-           (Just commandHandle, commandOutput) <- liftIO $ execCommand True session command
-           ec <- liftIO $ retrieveOutput job jtype commandHandle commandOutput resultChan
-           $info "Done, exit code is {}." (Single $ show ec)
-           downloadFiles (hOutputDirectory host') (getOutputFiles jtype job) session
-           return ec
+           withRemoteScript session scriptsDir (jiId job) commands $ \command -> do
+             uploadFiles (getInputFiles jtype job) (hInputDirectory host') session
+             $info "EXECUTING: {}" (Single command)
+             (Just commandHandle, commandOutput) <- liftIO $ execCommand True session command
+             ec <- liftIO $ retrieveOutput job jtype commandHandle commandOutput resultChan
+             $info "Done, exit code is {}." (Single $ show ec)
+             downloadFiles (hOutputDirectory host') (getOutputFiles jtype job) session
+             return ec
   case r of
     Left e -> do
       $reportError "Error while executing job at host `{}': {}" (hName host', show e)
@@ -85,18 +87,21 @@ executeJob counters q jt job resultChan = do
     let jid = JobKey (Sql.SqlBackendKey $ jiId job)
     case mbHostName of
       Nothing -> do -- localhost
-        let command = getCommand cfg Nothing jt job
-        liftIO $ processOnLocalhost job (jtOnFail jt) command resultChan
+        let commands = getCommands cfg Nothing jt job
+        let scriptsDir = dbcDefScriptsDirectory cfg
+        liftIO $ withLocalScript scriptsDir (jiId job) commands $ \script ->
+                  processOnLocalhost job (jtOnFail jt) script resultChan
 
       Just hostname -> do
         hostR <- liftIO $ loadHost hostname
         case hostR of
           Right host -> do
-            let command = getCommand cfg (Just host) jt job
-            now <- liftIO $ getCurrentTime
+            let commands = getCommands cfg (Just host) jt job
+            let scriptsDir = fromMaybe (dbcDefScriptsDirectory cfg) (hScriptsDirectory host)
+            -- now <- liftIO $ getCurrentTime
             -- let result = JobResult jid now (ExitFailure (-2)) T.empty T.empty
             $(putMessage config_level) "Loaded host configuration: {}" (Single $ show host)
-            processOnHost counters host jt job resultChan command
+            processOnHost counters host jt job resultChan scriptsDir commands
             return ()
           Left err -> do
             $reportError "Error while executing job: {}" (Single $ Shown err)

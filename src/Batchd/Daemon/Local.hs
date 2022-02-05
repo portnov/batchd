@@ -6,20 +6,23 @@ module Batchd.Daemon.Local where
 import Control.Monad
 import Control.Monad.Trans
 import Control.Concurrent
+import qualified Control.Exception as E
 import Data.Conduit
 import Data.Maybe (fromMaybe)
-import Data.Monoid ((<>))
+import Data.Int
 import qualified Data.Conduit.Combinators as C
 import qualified Data.Conduit.List as CL
 import Data.Conduit.Binary (sourceHandle)
 import qualified Data.Map as M
 import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 import qualified Data.Text.Lazy as TL
 import Data.Text.Format.Heavy
 import Data.Text.Format.Heavy.Parse.Shell
 import Data.Time
 import System.Process
 import System.FilePath
+import System.Directory
 import System.IO
 import System.Exit (ExitCode (..))
 import System.Log.Heavy
@@ -27,10 +30,10 @@ import System.Log.Heavy
 import Batchd.Core.Common.Types
 import Batchd.Core.Common.Config
 import Batchd.Core.Daemon.Logging
+import Batchd.Core.Daemon.Hosts
 import Batchd.Common.Types
 import Batchd.Common.Data
 import Batchd.Daemon.Types
-import Batchd.Core.Daemon.Hosts
 
 execLocalCommand :: LoggingTState -> T.Text -> IO ExitCode
 execLocalCommand lts command = do
@@ -56,6 +59,21 @@ execLocalCommands lts (command : commands) = do
   if ec == ExitSuccess
     then execLocalCommands lts commands
     else return ec
+
+withLocalScript :: FilePath -> Int64 -> [T.Text] -> (String -> IO ()) -> IO ()
+withLocalScript scriptsDir jobId commands actions = do
+  if length commands == 1
+    then actions (T.unpack $ head commands)
+    else do
+      let scriptText = formatScript commands
+          scriptName = TL.unpack $ format "batchd_job_{}.script" (Single jobId)
+          scriptPath = scriptsDir </> scriptName
+          chmodX = do
+            perm <- getPermissions scriptPath
+            setPermissions scriptPath (setOwnerExecutable True perm)
+      E.bracket_ (TIO.writeFile scriptPath scriptText >> chmodX)
+                 (removeFile scriptPath)
+                 (actions scriptPath)
 
 processOnLocalhost :: JobInfo -> OnFailAction -> String -> ResultsChan -> IO ()
 processOnLocalhost job onFail command resultChan = do

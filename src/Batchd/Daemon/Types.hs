@@ -307,3 +307,10 @@ forkDaemon name daemon = do
 defaultHostOfQueue :: T.Text
 defaultHostOfQueue = "__default__"
 
+formatScript :: [T.Text] -> T.Text
+formatScript lines =
+  let lines' = if "#!" `T.isPrefixOf` head lines
+                 then lines
+                 else "#!/bin/sh" : lines
+  in  T.unlines lines'
+

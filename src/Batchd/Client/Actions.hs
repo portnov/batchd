@@ -411,36 +411,39 @@ doDeleteSchedule = do
 -- | List job types.
 doType :: Client ()
 doType = do
-  baseUrl <- getBaseUrl
-  opts <- gets csCmdline
-  let command = cmdCommand opts
-  let url = baseUrl </> "type"
-  response <- doGet url
-  let check = if null (types command)
-                then const True
-                else \jt -> jtName jt `elem` types command
-  liftIO $ forM_ (response :: [JobType]) $ \jt -> do
-            when (check jt) $ do
-              let title = fromMaybe (jtName jt) (jtTitle jt)
-              putStrLn $ jtName jt ++ ":"
-              table <- translateTable $ [
-                              (__ "Title", title),
-                              (__ "Template", jtTemplate jt),
-                              (__ "On fail", show (jtOnFail jt)),
-                              (__ "Host", fromMaybe "*" (jtHostName jt))
-                            ]
-              printTable 4 $ transpose table
-              paramsLine <- (__ "Parameters:")
-              TLIO.putStrLn $ "    " `TL.append` paramsLine
-              forM_ (jtParams jt) $ \desc -> do
-                paramsTable <- translateTable $ [
-                                  (__ "Name", TL.unpack $ piName desc),
-                                  (__ "Type", show (piType desc)),
-                                  (__ "Title",  TL.unpack $ piTitle desc),
-                                  (__ "Default",  T.unpack $ piDefault desc)
-                                ]
-                let box = emptyBox 0 4 <> char '*' <+> mkTable (transpose paramsTable)
-                printBox box
+    baseUrl <- getBaseUrl
+    opts <- gets csCmdline
+    let command = cmdCommand opts
+    let url = baseUrl </> "type"
+    response <- doGet url
+    let check = if null (types command)
+                  then const True
+                  else \jt -> jtName jt `elem` types command
+    liftIO $ forM_ (response :: [JobType]) $ \jt -> do
+              when (check jt) $ do
+                let title = fromMaybe (jtName jt) (jtTitle jt)
+                putStrLn $ jtName jt ++ ":"
+                table <- translateTable $
+                                [(__ "Title", title)] ++
+                                translateTemplate (jtTemplate jt) ++
+                                [(__ "On fail", show (jtOnFail jt)),
+                                 (__ "Host", fromMaybe "*" (jtHostName jt))]
+                printTable 4 $ transpose table
+                paramsLine <- (__ "Parameters:")
+                TLIO.putStrLn $ "    " `TL.append` paramsLine
+                forM_ (jtParams jt) $ \desc -> do
+                  paramsTable <- translateTable $ [
+                                    (__ "Name", TL.unpack $ piName desc),
+                                    (__ "Type", show (piType desc)),
+                                    (__ "Title",  TL.unpack $ piTitle desc),
+                                    (__ "Default",  T.unpack $ piDefault desc)
+                                  ]
+                  let box = emptyBox 0 4 <> char '*' <+> mkTable (transpose paramsTable)
+                  printBox box
+  where
+    translateTemplate (line : lines) =
+      (__ "Template", T.unpack line) :
+        [(return "", T.unpack l) | l <- lines]
 
 doMonitor :: Client ()
 doMonitor = do

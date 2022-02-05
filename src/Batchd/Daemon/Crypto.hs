@@ -1,8 +1,6 @@
 
 module Batchd.Daemon.Crypto where
 
-import Data.Monoid
-
 import Crypto.Hash
 import Crypto.Random
 
