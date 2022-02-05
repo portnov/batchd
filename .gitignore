@@ -18,3 +18,8 @@ SourceGraph/
 .stack-work/
 Test
 credentials
+*.log
+stack.yaml.lock
+*/stack.yaml.lock
+*.key
+*.pem
