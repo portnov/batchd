@@ -162,8 +162,9 @@ class GUI(QtWidgets.QMainWindow):
 
     def _on_view(self):
         job = self.qtable.currentJob()
+        job_results = self.client.get_job_results(job['id'])
         jobtype = self.type_by_name[job['type']]
-        dlg = jobview.JobView(job, jobtype, parent=self)
+        dlg = jobview.JobView(job, jobtype, job_results, parent=self)
         dlg.exec_()
 
     def _on_queue_toggle(self):

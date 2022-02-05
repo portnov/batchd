@@ -124,6 +124,11 @@ class Client(object):
         self._handle_status(rs)
         return json.loads(rs.text)
 
+    def get_job_results(self, jobid):
+        rs = requests.get(self.manager_url + "/job/" + str(jobid) + "/results", auth=self.credentials, verify=self.verify, cert=self.client_certificate)
+        self._handle_status(rs)
+        return json.loads(rs.text)
+
     def delete_job(self, jobid):
         rs = requests.delete(self.manager_url + "/job/" + str(jobid), auth=self.credentials, verify=self.verify, cert=self.client_certificate)
         self._handle_status(rs)
