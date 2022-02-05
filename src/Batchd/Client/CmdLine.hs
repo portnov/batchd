@@ -13,7 +13,6 @@ import Data.Dates
 import Data.Char (toLower)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
-import Data.Semigroup ((<>))
 import Options.Applicative
 import System.Log.Heavy
 import qualified Text.Parsec as Parsec 
@@ -107,6 +106,7 @@ data Command =
   | Stats {
       queueToStat :: [String]
     }
+  | Hosts
   | Shell
   deriving (Eq, Show, Data, Typeable)
 
@@ -325,6 +325,9 @@ monitor = Monitor
 shell :: Parser Command
 shell = pure Shell
 
+hostsList :: Parser Command
+hostsList = pure Hosts
+
 parseParams :: [ParamDesc] -> Command -> JobParamInfo
 parseParams desc e = 
     let posNames = map piName desc
@@ -346,6 +349,7 @@ commands = hsubparser
     <> cmd "schedule" schedule "create, update or delete schedules"
     <> cmd "monitor" monitor "retrieve monitoring metrics"
     <> cmd "type" typesList "view job types"
+    <> cmd "host" hostsList "view defined hosts"
     <> cmd "stats" stats "print statistics on queue or on all jobs"
     <> cmd "user" user "create, update or delete users"
     <> cmd "grant" grant "create, update or delete user permissions"

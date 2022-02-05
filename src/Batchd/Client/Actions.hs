@@ -445,6 +445,17 @@ doType = do
       (__ "Template", T.unpack line) :
         [(return "", T.unpack l) | l <- lines]
 
+-- | List defined hosts.
+doHosts :: Client ()
+doHosts = do
+    baseUrl <- getBaseUrl
+    opts <- gets csCmdline
+    let command = cmdCommand opts
+    let url = baseUrl </> "host"
+    response <- doGet url
+    liftIO $ forM_ (response :: [T.Text]) $ \hostName -> do
+               TIO.putStrLn hostName
+
 doMonitor :: Client ()
 doMonitor = do
   baseUrl <- getBaseUrl

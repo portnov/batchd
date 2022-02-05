@@ -251,7 +251,7 @@ class GUI(QtWidgets.QMainWindow):
         params = {}
         for name, widget in self.param_widgets.items():
             params[name] = widget.text()
-        self.client.do_enqueue(queue_name, typename, params)
+        self.client.do_enqueue(queue_name, typename, None, params)
         self._refresh_queue()
 
 if __name__ == "__main__":

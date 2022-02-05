@@ -40,6 +40,7 @@ commandHandler = do
     List {} -> doList
     Stats {} -> doStats
     Type {} -> doType
+    Hosts -> doHosts
     Job {} -> do
       let mode = detectMode (jobMode opts) [isJust . status, isJust . hostName, isJust . jobNotes, isJust . startTime, isJust . queueName, isJust . prioritize] opts
       case mode of
