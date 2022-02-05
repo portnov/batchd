@@ -14,7 +14,7 @@ class InputFileWidget(QtWidgets.QWidget):
         self.setLayout(layout)
 
     def _on_browse(self):
-        path = QtGui.QFileDialog.getOpenFileName()
+        path, fltr = QtWidgets.QFileDialog.getOpenFileName()
         if path:
             self.line.setText(path)
 
@@ -29,7 +29,7 @@ class InputFileWidget(QtWidgets.QWidget):
 
 class OutputFileWidget(QtWidgets.QWidget):
     def __init__(self, parent=None, readonly=False):
-        QtGui.QWidget.__init__(self, parent)
+        QtWidgets.QWidget.__init__(self, parent)
         layout = QtWidgets.QHBoxLayout()
         self.line = QtWidgets.QLineEdit(self)
         layout.addWidget(self.line)
@@ -40,7 +40,7 @@ class OutputFileWidget(QtWidgets.QWidget):
         self.setLayout(layout)
 
     def _on_browse(self):
-        path = QtGui.QFileDialog.getSaveFileName()
+        path, fltr = QtWidgets.QFileDialog.getSaveFileName()
         if path:
             self.line.setText(path)
 

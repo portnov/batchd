@@ -139,6 +139,18 @@ class GUI(QtWidgets.QMainWindow):
         self.type_popup.currentIndexChanged.connect(self._on_select_type)
         self.layout.addWidget(wrapper)
 
+        wrapper, self.host_popup = labelled("Host:", QtWidgets.QComboBox, self)
+        self.hosts = self.client.get_hosts()
+        item = QtGui.QStandardItem("__default__")
+        item.setData("<Queue default host>", QtCore.Qt.DisplayRole)
+        self.host_popup.model().appendRow(item)
+        for name in self.hosts:
+            item = QtGui.QStandardItem(name)
+            item.setData(name, QtCore.Qt.DisplayRole)
+            item.setData(name, QtCore.Qt.UserRole)
+            self.host_popup.model().appendRow(item)
+        self.layout.addWidget(wrapper)
+
         ok = QtWidgets.QPushButton(get_icon("list-add.svg"), "Add", self)
         ok.clicked.connect(self._on_ok)
         self.layout.addWidget(ok)
@@ -203,7 +215,7 @@ class GUI(QtWidgets.QMainWindow):
             self.layout.removeWidget(self.form)
             del self.form
         self.form = form
-        self.layout.insertWidget(5, form)
+        self.layout.insertWidget(6, form)
         self.form.show()
 
     def _on_add_queue(self):
@@ -251,7 +263,11 @@ class GUI(QtWidgets.QMainWindow):
         params = {}
         for name, widget in self.param_widgets.items():
             params[name] = widget.text()
-        self.client.do_enqueue(queue_name, typename, None, params)
+        host_name = self.host_popup.currentData()
+        print("Host", host_name)
+        if host_name == "__default__":
+            host_name = None
+        self.client.do_enqueue(queue_name, typename, host_name, params)
         self._refresh_queue()
 
 if __name__ == "__main__":

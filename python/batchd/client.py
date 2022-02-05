@@ -103,13 +103,18 @@ class Client(object):
         self._handle_status(rs)
         return json.loads(rs.text)
 
+    def get_hosts(self):
+        rs = requests.get(self.manager_url + "/host", auth=self.credentials, verify=self.verify, cert=self.client_certificate)
+        self._handle_status(rs)
+        return json.loads(rs.text)
+
     def get_queues(self):
         rs = requests.get(self.manager_url + "/queue", auth=self.credentials, verify=self.verify, cert=self.client_certificate)
         self._handle_status(rs)
         return json.loads(rs.text)
 
     def do_enqueue(self, qname, typename, hostname, params):
-        rq = dict(queue = qname, type=typename, params=params, host=hostname)
+        rq = dict(queue = qname, type=typename, params=params, host_name=hostname)
         rs = requests.post(self.manager_url+ "/queue/" + qname, data=json.dumps(rq), auth=self.credentials, verify=self.verify, cert=self.client_certificate)
         self._handle_status(rs)
         print(rs.text)
