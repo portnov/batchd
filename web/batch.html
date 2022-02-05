@@ -88,6 +88,8 @@ $.batchd.add('queue', {'stringifyData': true});
 $.batchd.queue.add('jobs');
 $.batchd.queue.add('type');
 $.batchd.queue.type.add('host');
+$.batchd.add('job');
+$.batchd.job.add('results');
 $.batchd.add('type');
 $.batchd.add('stats');
 //$.batchd.add('host');
@@ -212,7 +214,10 @@ setInterval(getJobs, 5*1000);
 function showJob(job) {
   return function(data) {
     $('#viewparams').empty();
-    $('#viewjob_id').text(job.id);
+    $('#stdout').empty();
+    $('#stderr').empty();
+    var id = job.id;
+    $('#viewjob_id').text(id);
     $('#viewjob_seq').text(job.seq);
     $('#viewjob_type').text(job.type);
     var host = job.host_name;
@@ -235,8 +240,18 @@ function showJob(job) {
           )
       );
     }
-    $('#stdout').text(job.stdout);
-    $('#stderr').text(job.stderr);
+    $.batchd.job.results.read(id).done(function(results) {
+      results.forEach(function(item) {
+        var stdout_line = item.stdout;
+        var stderr_line = item.stderr;
+        if (stdout_line) {
+          $('#stdout').append($('<pre>').text(stdout_line));
+        }
+        if (stderr_line) {
+          $('#stderr').append($('<pre>').text(stderr_line));
+        }
+      });
+    });
     $('#viewjob').show();
   };
 };
