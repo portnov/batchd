@@ -55,14 +55,14 @@ table#jobslist tr.Failed {
 
 div#viewjob {
   display: none;
-  border: 1px black solid;
+  border: thin black solid;
   position: absolute;
   top: 2ex;
   bottom: 2ex;
   left: 2em;
   right: 2em;
   background-color: #4d4d4d;
-  padding: 1ex;
+  padding: 2ex;
 }
 
 table#viewparams {
