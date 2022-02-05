@@ -71,6 +71,9 @@ class Table(QtWidgets.QTableView):
     def currentJob(self):
         idx = self.currentIndex()
         return self.model.jobs[idx.row()]
+    
+    def jobByIndex(self, idx):
+        return self.model.jobs[idx.row()]
 
     def setJobs(self, jobs):
         self.model.setupModelData(jobs)

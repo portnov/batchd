@@ -121,6 +121,7 @@ class GUI(QtWidgets.QMainWindow):
         self.layout.addWidget(buttons)
 
         self.qtable = queuetable.Table(parent=self)
+        self.qtable.doubleClicked.connect(self._on_qtable_doubleclick)
         self.layout.addWidget(self.qtable)
 
         wrapper, self.type_popup = labelled("Job type:", QtWidgets.QComboBox, self)
@@ -162,6 +163,13 @@ class GUI(QtWidgets.QMainWindow):
 
     def _on_view(self):
         job = self.qtable.currentJob()
+        self._view_job(job)
+
+    def _on_qtable_doubleclick(self, model_index):
+        job = self.qtable.jobByIndex(model_index)
+        self._view_job(job)
+
+    def _view_job(self, job):
         job_results = self.client.get_job_results(job['id'])
         jobtype = self.type_by_name[job['type']]
         dlg = jobview.JobView(job, jobtype, job_results, parent=self)
