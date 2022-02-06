@@ -30,10 +30,17 @@ class QueueEditor(QtWidgets.QDialog):
         buttons.rejected.connect(self.reject)
 
     def _on_ok(self):
-        self.queue['name'] = self.name_editor.text()
-        self.queue['title'] = self.title_editor.text()
+        self.queue['name'] = self.name_editor.text().strip()
+        self.queue['title'] = self.title_editor.text().strip()
         self.queue['enabled'] = (self.enabled_editor.checkState() == QtCore.Qt.Checked)
         self.queue['schedule_name'] = self.schedule_popup.currentText()
+        if not self.queue['name']:
+            QtWidgets.QMessageBox.warning(self, "batch client", "Name must be specified", QtWidgets.QMessageBox.Close)
+            return
+        if not self.queue['title']:
+            QtWidgets.QMessageBox.warning(self, "batch client", "Title must be specified", QtWidgets.QMessageBox.Close)
+            return
+            
         print(self.queue)
         try:
             self.parent.client.new_queue(self.queue)
