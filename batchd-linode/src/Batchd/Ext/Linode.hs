@@ -19,6 +19,7 @@ import Control.Lens
 import Control.Exception
 import Data.Maybe
 import Data.Time
+import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import qualified Data.Text.Encoding as TE
@@ -42,6 +43,8 @@ data ControlActions =
 data LinodeInstanceSettings = LinodeInstanceSettings {
       linodeInstanceType :: T.Text
     , linodeInstanceImage :: T.Text
+    , linodeStackscriptId :: Maybe Int
+    , linodeStackscriptData :: M.Map T.Text T.Text
     , linodeInstanceRegion :: T.Text
     , linodeRootPassword :: T.Text
   }
@@ -58,6 +61,8 @@ instance FromJSON LinodeInstanceSettings where
     LinodeInstanceSettings
       <$> v .: "type"
       <*> v .: "image"
+      <*> v .:? "stackscript_id"
+      <*> v .:? "stackscript_data" .!= M.empty
       <*> v .: "region"
       <*> v .: "root_password"
   parseJSON invalid = typeMismatch "instance" invalid
@@ -227,9 +232,15 @@ createInstance lts host = do
                         text <- liftIO $ TIO.readFile path
                         return [T.strip text]
       withSettings host $ \settings -> do
+          let stackscriptData = if M.null (linodeStackscriptData settings)
+                                  then Nothing
+                                  else let Aeson.Object obj = toJSON (linodeStackscriptData settings)
+                                       in  Just obj
           let rq = L.mkCreateLinodeInstanceRequestBody {
                       L.createLinodeInstanceRequestBodyType = Just (linodeInstanceType settings)
                     , L.createLinodeInstanceRequestBodyImage = Just (linodeInstanceImage settings)
+                    , L.createLinodeInstanceRequestBodyStackscriptId = linodeStackscriptId settings
+                    , L.createLinodeInstanceRequestBodyStackscriptData = stackscriptData
                     , L.createLinodeInstanceRequestBodyRegion = Just (linodeInstanceRegion settings)
                     , L.createLinodeInstanceRequestBodyLabel = Just label
                     , L.createLinodeInstanceRequestBodyAuthorizedKeys = Just publicKeys
