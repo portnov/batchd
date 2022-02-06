@@ -5,6 +5,16 @@ body {
   color: white;
 }
 
+div#rellinks {
+  float: right;
+  font-size: large;
+}
+
+div#rellinks a {
+  color: white;
+  font-weight: bold;
+}
+
 div#content {
   width: 100%;
   padding: 1em;
@@ -93,3 +103,4 @@ div#stderr, div#stdout {
 .c3-tooltip-container {
   color: black;
 }
+
