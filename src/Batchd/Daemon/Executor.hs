@@ -36,7 +36,7 @@ getCommands cfg mbHost jt job =
     let context = mkContext $ hostContext mbHost jt $ jiParams job
         syntax = fromMaybe (dbcDefTemplateSyntax cfg) (jtSyntax jt)
         parse = case syntax of
-                  Bash -> parseShellFormat'
+                  Shell -> parseShellFormat'
                   Python -> parseFormat'
     in  [TL.toStrict $ format (parse $ TL.fromStrict line) context | line <- jtTemplate jt]
   where

@@ -107,7 +107,7 @@ data Command =
       queueToStat :: [String]
     }
   | Hosts
-  | Shell
+  | RunShell
   deriving (Eq, Show, Data, Typeable)
 
 data MetricTime = CurrentSample | LastSample
@@ -323,7 +323,7 @@ monitor = Monitor
   <*> pMetricTime
 
 shell :: Parser Command
-shell = pure Shell
+shell = pure RunShell
 
 hostsList :: Parser Command
 hostsList = pure Hosts

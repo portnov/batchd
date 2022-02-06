@@ -10,7 +10,6 @@ import Control.Monad
 import Control.Applicative (optional)
 import Control.Monad.Reader
 import qualified Control.Monad.State as State
-import Data.Monoid ((<>))
 import qualified Data.Map as M
 import qualified Data.ByteString as B
 import qualified Data.Text as T

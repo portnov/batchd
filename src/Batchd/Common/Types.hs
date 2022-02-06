@@ -89,7 +89,7 @@ data ParamDesc = ParamDesc {
   }
   deriving (Eq, Show, Data, Typeable, Generic)
 
-data TemplateSyntax = Bash | Python
+data TemplateSyntax = Shell | Python
   deriving (Eq, Show, Data, Typeable, Generic)
 
 instance FromJSON TemplateSyntax where
@@ -474,7 +474,7 @@ instance Default GlobalConfig where
         , dbcLogging = defaultLogConfig
         , dbcManager = def
         , dbcDispatcher = def
-        , dbcDefTemplateSyntax = Bash
+        , dbcDefTemplateSyntax = Shell
         , dbcDefScriptsDirectory = "./scripts"
         , dbcMetrics = def
         , dbcStorage = def
@@ -614,7 +614,7 @@ instance FromJSON GlobalConfig where
       <*> v .:? "logging" .!= defaultLogConfig
       <*> v .:? "manager" .!= def
       <*> v .:? "dispatcher" .!= def
-      <*> v .:? "default_template_syntax" .!= Bash
+      <*> v .:? "default_template_syntax" .!= Shell
       <*> v .:? "default_scripts_directory" .!= "./scripts"
       <*> v .:? "metrics" .!= def
       <*> v .:? "storage" .!= def
