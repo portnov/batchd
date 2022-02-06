@@ -453,6 +453,7 @@ data GlobalConfig = GlobalConfig {
       dbcDaemonMode :: DaemonMode      -- ^ Daemon execution mode
     , dbcDriver :: DbDriver            -- ^ Type of DB backend
     , dbcConnectionString :: T.Text    -- ^ DB connection string
+    , dbcConnectionPoolSize :: Int     -- ^ Database connections pool size
     , dbcLogging :: LogConfig          -- ^ Logging configuration
     , dbcManager :: ManagerConfig
     , dbcDispatcher :: DispatcherConfig
@@ -469,6 +470,7 @@ instance Default GlobalConfig where
           dbcDaemonMode = Both
         , dbcDriver = Sqlite
         , dbcConnectionString = ":memory:"
+        , dbcConnectionPoolSize = 10
         , dbcLogging = defaultLogConfig
         , dbcManager = def
         , dbcDispatcher = def
@@ -608,6 +610,7 @@ instance FromJSON GlobalConfig where
       <$> v .:? "daemon" .!= dbcDaemonMode def
       <*> v .:? "driver" .!= dbcDriver def
       <*> v .:? "connection_string" .!= dbcConnectionString def
+      <*> v .:? "connection_pool_size" .!= dbcConnectionPoolSize def
       <*> v .:? "logging" .!= defaultLogConfig
       <*> v .:? "manager" .!= def
       <*> v .:? "dispatcher" .!= def
