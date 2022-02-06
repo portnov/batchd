@@ -61,6 +61,7 @@
         <h4>Job parameters:</h4>
         <table id='viewparams'>
         </table>
+        <input type='button' value='Refresh' onclick='refreshOutput()'/>
         <p>Output:</p>
         <div id='stdout'></div>
         <p>Errors:</p>
@@ -211,6 +212,22 @@ function getJobs() {
 
 setInterval(getJobs, 5*1000);
 
+function refreshOutput() {
+  var id = $.current_job_id;
+  $.batchd.job.results.read(id).done(function(results) {
+    results.forEach(function(item) {
+      var stdout_line = item.stdout;
+      var stderr_line = item.stderr;
+      if (stdout_line) {
+        $('#stdout').append($('<pre>').text(stdout_line));
+      }
+      if (stderr_line) {
+        $('#stderr').append($('<pre>').text(stderr_line));
+      }
+    });
+  });
+};
+
 function showJob(job) {
   return function(data) {
     $('#viewparams').empty();
@@ -240,18 +257,8 @@ function showJob(job) {
           )
       );
     }
-    $.batchd.job.results.read(id).done(function(results) {
-      results.forEach(function(item) {
-        var stdout_line = item.stdout;
-        var stderr_line = item.stderr;
-        if (stdout_line) {
-          $('#stdout').append($('<pre>').text(stdout_line));
-        }
-        if (stderr_line) {
-          $('#stderr').append($('<pre>').text(stderr_line));
-        }
-      });
-    });
+    $.current_job_id = id;
+    refreshOutput();
     $('#viewjob').show();
   };
 };

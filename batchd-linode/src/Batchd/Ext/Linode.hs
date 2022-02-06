@@ -14,9 +14,11 @@ module Batchd.Ext.Linode
 import Control.Applicative
 import Control.Monad (when)
 import Control.Monad.Trans
+import Control.Concurrent (threadDelay)
 import Control.Lens
 import Control.Exception
 import Data.Maybe
+import Data.Time
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import qualified Data.Text.Encoding as TE
@@ -34,13 +36,14 @@ deriving instance MonadFail m => MonadFail (L.ClientT m)
 
 data ControlActions =
     BootShutdown
-  | CreateDelete LinodeInstanceSettings
+  | CreateDelete
   deriving (Eq, Show)
 
 data LinodeInstanceSettings = LinodeInstanceSettings {
       linodeInstanceType :: T.Text
     , linodeInstanceImage :: T.Text
     , linodeInstanceRegion :: T.Text
+    , linodeRootPassword :: T.Text
   }
   deriving (Eq, Show)
 
@@ -56,11 +59,12 @@ instance FromJSON LinodeInstanceSettings where
       <$> v .: "type"
       <*> v .: "image"
       <*> v .: "region"
+      <*> v .: "root_password"
   parseJSON invalid = typeMismatch "instance" invalid
 
 instance FromJSON ControlActions where
   parseJSON (Aeson.String "boot_and_shutdown") = return BootShutdown
-  parseJSON (Object v) = CreateDelete <$> v .: "create_and_delete"
+  parseJSON (Aeson.String "create_and_delete") = return CreateDelete
   parseJSON invalid = typeMismatch "actions" invalid
 
 instance FromJSON LinodeSettings where
@@ -87,12 +91,12 @@ mkLinode settings lts = HostController {
     startHost = \host -> withConfiguration settings $ do
                                 case linodeActions settings of
                                   BootShutdown -> bootInstance lts (hControllerId host)
-                                  CreateDelete inst -> createInstance lts inst host,
+                                  CreateDelete -> createInstance lts host,
 
     stopHost = \label -> withConfiguration settings $ do
                                 case linodeActions settings of
                                   BootShutdown -> shutdownInstance label
-                                  CreateDelete _ -> deleteInstance lts label
+                                  CreateDelete -> deleteInstance lts label
   }
 
 mkConfiguration :: LinodeSettings -> IO L.Configuration
@@ -157,6 +161,24 @@ getInstanceStatus linodeId = do
     L.GetLinodeInstanceResponseError str -> fail str
     L.GetLinodeInstanceResponseDefault err -> fail $ show err
 
+waitForStatus :: LoggingTState -> Int -> L.LinodeStatus' -> L.ClientT IO (Either Error ())
+waitForStatus lts linodeId target = do
+    startTime <- liftIO getCurrentTime
+    wait startTime
+  where
+    wait startTime = do
+      st <- getInstanceStatus linodeId
+      if st == target
+        then return $ Right ()
+        else do
+          now <- liftIO getCurrentTime
+          if ceiling (diffUTCTime now startTime) >= 60
+            then return $ Left $ UnknownError $ "Startup timeout"
+            else do
+                 liftIO $ debugIO lts $(here) "Linode #{} status is {}, wait..." (linodeId, show st)
+                 liftIO $ threadDelay $ 10 * 1000 * 1000
+                 wait startTime
+
 bootInstance :: LoggingTState -> T.Text -> L.ClientT IO (Either Error ())
 bootInstance lts label = do
   linodeId <- lookupLinodeId label
@@ -185,8 +207,16 @@ shutdownInstance label = do
     L.ShutdownLinodeInstanceResponseError str -> return $ Left $ UnknownError str
     L.ShutdownLinodeInstanceResponseDefault err -> return $ Left $ UnknownError $ show err
 
-createInstance :: LoggingTState -> LinodeInstanceSettings -> Host -> L.ClientT IO (Either Error ())
-createInstance lts settings host = do
+withSettings :: Host -> (LinodeInstanceSettings -> L.ClientT IO (Either Error a)) -> L.ClientT IO (Either Error a)
+withSettings host actions =
+  case hControllerSpecific host of
+    Nothing -> return $ Left $ UnknownError "Linode specific settings are not provided"
+    Just value -> case fromJSON value of
+                    Error str -> return $ Left $ UnknownError $ "Can't parse Linode-specific settings: " ++ str
+                    Success settings -> actions settings
+
+createInstance :: LoggingTState -> Host -> L.ClientT IO (Either Error ())
+createInstance lts host = do
   let label = hControllerId host
   mbStatus <- getInstanceStatus' label
   case mbStatus of
@@ -196,9 +226,7 @@ createInstance lts settings host = do
                       Just path -> do
                         text <- liftIO $ TIO.readFile path
                         return [T.strip text]
-      case hRootPassword host of
-        Nothing -> return $ Left $ UnknownError "Linode service requires root_password"
-        Just rootPassword -> do
+      withSettings host $ \settings -> do
           let rq = L.mkCreateLinodeInstanceRequestBody {
                       L.createLinodeInstanceRequestBodyType = Just (linodeInstanceType settings)
                     , L.createLinodeInstanceRequestBodyImage = Just (linodeInstanceImage settings)
@@ -206,14 +234,14 @@ createInstance lts settings host = do
                     , L.createLinodeInstanceRequestBodyLabel = Just label
                     , L.createLinodeInstanceRequestBodyAuthorizedKeys = Just publicKeys
                     --, L.createLinodeInstanceRequestBodyAuthorizedUsers = Just [hUserName host]
-                    , L.createLinodeInstanceRequestBodyRootPass = Just rootPassword
+                    , L.createLinodeInstanceRequestBodyRootPass = Just (linodeRootPassword settings)
                   }
           rs <- L.createLinodeInstance rq
           case responseBody rs of
             L.CreateLinodeInstanceResponse200 linode -> do
               let ips = maybe "<no>" (T.intercalate ", ") $ L.linodeIpv4 linode
               infoIO lts $(here) "Created new Linode instance `{}', ID = {}, IP {}" (L.linodeLabel linode, L.linodeId linode, ips)
-              return $ Right ()
+              waitForStatus lts (fromJust $ L.linodeId linode) L.LinodeStatus'EnumRunning
             L.CreateLinodeInstanceResponseError str -> return $ Left $ UnknownError str
             L.CreateLinodeInstanceResponseDefault err -> return $ Left $ UnknownError $ show err
 
