@@ -2,12 +2,12 @@ name:                batchd-docker
 version:             0.1.0.0
 synopsis:            docker containers host controller for batchd
 -- description:
-homepage:            https://github.com/portnov/batchd/
+homepage:            https://github.com/portnov/batchd/batchd-docker#readme
 license:             BSD3
 license-file:        LICENSE
 author:              Ilya Portnov
 maintainer:          portnov84@rambler.ru
-copyright:           2017 Ilya Portnov
+copyright:           2017-2022 Ilya Portnov
 category:            System
 build-type:          Simple
 extra-source-files:  README.md

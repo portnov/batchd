@@ -2,12 +2,12 @@ name:                batchd-linode
 version:             0.1.0.0
 synopsis:            batchd host controller for Linode.com hosts
 -- description:
-homepage:            https://github.com/portnov/batchd#readme
+homepage:            https://github.com/portnov/batchd/batchd-linode#readme
 license:             BSD3
 license-file:        LICENSE
 author:              IlyaPortnov
 maintainer:          portnov84@rambler.ru
-copyright:           2017 Ilya Portnov
+copyright:           2022 Ilya Portnov
 category:            System
 build-type:          Simple
 extra-source-files:  README.md

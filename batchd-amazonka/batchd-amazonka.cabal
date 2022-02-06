@@ -2,7 +2,7 @@ name:                batchd-amazonka
 version:             0.1.0.0
 synopsis:            batchd host controller for AWS EC2 hosts
 -- description:
-homepage:            https://github.com/githubuser/batchd-amazonka#readme
+homepage:            https://github.com/portnov/batchd/batchd-amazonka#readme
 license:             BSD3
 license-file:        LICENSE
 author:              IlyaPortnov
@@ -32,4 +32,4 @@ library
 
 source-repository head
   type:     git
-  location: https://github.com/githubuser/batchd-amazonka
+  location: https://github.com/portnov/batchd

@@ -3,12 +3,12 @@ version:             0.1.0.0
 synopsis:            Core modules of batchd, to use in batchd extensions
 description:         This package contains minimal set of batchd modules, that
                      is required for batchd extensions, such as host controllers.
-homepage:            https://github.com/portnov/batchd
+homepage:            https://github.com/portnov/batchd/batchd-core#readme
 license:             BSD3
 license-file:        LICENSE
 author:              IlyaPortnov
 maintainer:          portnov84@rambler.ru
-copyright:           2017 Ilya Portnov
+copyright:           2017-2022 Ilya Portnov
 category:            SYstem
 build-type:          Simple
 extra-source-files:  README.md
@@ -32,8 +32,8 @@ library
                        persistent >= 2.2,
                        persistent-template >= 2,
                        hsyslog >= 5,
-                       text-format-heavy >= 0.1.5.0,
-                       heavy-logger >= 0.3.1.0,
+                       text-format-heavy >= 0.1.5.3,
+                       heavy-logger >= 0.3.2.2,
                        localize >= 0.2,
                        mtl >=2.2 && <2.3,
                        dates >=0.2 && <0.3,
