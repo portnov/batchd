@@ -32,7 +32,8 @@ batchd supports simple host management for several kinds of virtual hosts:
 * LibVirt-supported hypervisors (KVM, QEMU, Xen, Virtuozzo, VMWare ESX, LXC,
   BHyve and more);
 * Docker containers;
-* AWS EC2 instances.
+* AWS EC2 instances;
+* Linode.com instances.
 
 batchd can automatically start such hosts when there are jobs to be executed on
 them, and automatically stop hosts when there is no need for them. 
@@ -44,7 +45,7 @@ The batchd suite consists of the following components:
 * Client utilities. These allow you to create queues, put jobs into queues and
   so on. The following clients are available for now:
   * Command-line utility, `batch`. This is for now the most complete client.
-  * Python+Qt4 GUI client. This allows to view and edit queues, view, create
+  * Python3+Qt5 GUI client. This allows to view and edit queues, view, create
     and edit jobs.
   * Blender python client. This is simple addon for Blender, which allows to
     put rendering jobs to batchd queue from Blender's UI.
