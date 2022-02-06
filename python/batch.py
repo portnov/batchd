@@ -105,12 +105,15 @@ class GUI(QtWidgets.QMainWindow):
         self.layout.addWidget(wrapper)
 
         queue_buttons = QtWidgets.QToolBar(self)
-        queue_buttons.addAction(get_icon("list-add.svg"), "New queue", self._on_add_queue)
-        self.enable_queue = QtWidgets.QAction(get_icon("checkbox.svg"), "Enable", self)
+        self.enable_queue = QtWidgets.QAction("Enabled", self)
         self.enable_queue.setCheckable(True)
         self.enable_queue.toggled.connect(self._on_queue_toggle)
         queue_buttons.addAction(self.enable_queue)
+        queue_buttons.addAction(get_icon("list-add.svg"), "New queue", self._on_add_queue)
         hbox.addWidget(queue_buttons)
+
+        self._disable_queue_toggle_callback = False
+        self._disable_queue_select_callback = False
 
         self.queue_info = QtWidgets.QLabel(self)
         self.layout.addWidget(self.queue_info)
@@ -188,8 +191,20 @@ class GUI(QtWidgets.QMainWindow):
         dlg.exec_()
 
     def _on_queue_toggle(self):
+        if self._disable_queue_toggle_callback:
+            return
         enabled = self.enable_queue.isChecked()
-        print(enabled)
+        qname = self.queue_popup.currentData()
+        self.client.set_queue_status(qname, enabled)
+        self.enable_queue.setIcon(self._get_queue_status_icon(enabled))
+
+        try:
+            idx = self.queue_popup.currentIndex()
+            self._disable_queue_select_callback = True
+            self._fill_queues()
+            self.queue_popup.setCurrentIndex(idx)
+        finally:
+            self._disable_queue_select_callback = False
 
     def _on_delete(self):
         buttons = QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No
@@ -224,14 +239,30 @@ class GUI(QtWidgets.QMainWindow):
         self._fill_queues()
 
     def _on_select_queue(self, idx):
-        self._refresh_queue(idx)
+        if not self._disable_queue_select_callback:
+            self._refresh_queue(idx)
 
     def _on_timer(self):
-        self._refresh_queue()
+        if not self._disable_queue_select_callback:
+            self._refresh_queue()
+
+    def _get_queue_status_icon(self, enabled):
+        if enabled:
+            icon = self.style().standardIcon(QtWidgets.QStyle.SP_MediaPlay)
+        else:
+            icon = self.style().standardIcon(QtWidgets.QStyle.SP_MediaStop)
+        return icon
 
     def _refresh_queue(self, idx=None):
         if idx is None:
             idx = self.queue_popup.currentIndex()
+        
+        try:
+            self._disable_queue_select_callback = True
+            self._fill_queues()
+            self.queue_popup.setCurrentIndex(idx)
+        finally:
+            self._disable_queue_select_callback = False
 
         if len(self.queues) == 0:
             print("No queues.")
@@ -249,7 +280,14 @@ class GUI(QtWidgets.QMainWindow):
         failed = stats.get('failed', 0)
         info = "Schedule: {}\nHost: {}\nNew/Processing/Done: {} / {} / {}\nFailed: {}".format(schedule, host, new, processing, done, failed)
         self.queue_info.setText(info)
-        self.enable_queue.setChecked(queue['enabled'])
+        try:
+            self._disable_queue_toggle_callback = True
+            enabled = queue['enabled']
+            icon = self._get_queue_status_icon(enabled)
+            self.enable_queue.setChecked(enabled)
+            self.enable_queue.setIcon(icon)
+        finally:
+            self._disable_queue_toggle_callback = False
 
         jobs = self.client.get_jobs(queue['name'])
         self.qtable.setJobs(jobs)
