@@ -1,7 +1,6 @@
 name:                batchd-libvirt
 version:             0.1.0.0
--- synopsis:
--- description:
+synopsis:            host controller for batchd, which controls virtual machines via libvirt library.
 homepage:            https://github.com/portnov/batchd/batchd-libvirt#readme
 license:             BSD3
 license-file:        LICENSE
