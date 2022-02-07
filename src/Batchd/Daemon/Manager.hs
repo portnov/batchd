@@ -211,8 +211,8 @@ getUrlParam key = do
   let qry = Wai.queryString rq
   return $ join $ lookup key qry
 
-raise404 :: Action TL.Text -> Maybe String -> Action ()
-raise404 message mbs = do
+raiseS :: Status -> Action TL.Text -> Maybe String -> Action ()
+raiseS st message mbs = do
   localizedMessage <- message
   Scotty.status status404
   case mbs of
@@ -221,12 +221,17 @@ raise404 message mbs = do
       let msg' = format (parseFormat' localizedMessage) (Single name)
       Scotty.text msg'
 
+raise404 :: Action TL.Text -> Maybe String -> Action ()
+raise404 message mbs = raiseS status404 message mbs
+
 raiseError :: Error -> Action ()
 raiseError (QueueNotExists name) = raise404 (__ "Queue not found: `{}'") (Just name)
 raiseError JobNotExists   = raise404 (__ "Specified job not found") Nothing
 raiseError (FileNotExists name)  = raise404 (__ "File not found: `{}'") (Just name)
 raiseError (MetricNotExists name)  = raise404 (__ "Metric not found: `{}'") (Just name)
-raiseError QueueNotEmpty  = Scotty.status status403
+raiseError QueueNotEmpty = raiseS status400 (__ "Queue is not empty") Nothing
+raiseError ScheduleUsed = raiseS status400 (__ "Schedule is used by queues") Nothing
+raiseError InvalidStartTime = raiseS status400 (__ "Job start time does not match queue's schedule") Nothing
 raiseError (InsufficientRights msg) = do
   Scotty.status status403
   Scotty.text $ TL.pack msg

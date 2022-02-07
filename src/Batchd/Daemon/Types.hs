@@ -11,10 +11,14 @@ import qualified Control.Monad.Catch as MC
 import Control.Monad.Trans.Resource
 import qualified Control.Monad.Metrics as Metrics
 import Control.Concurrent
+import Data.String (fromString)
+import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Encoding as TE
 import qualified Data.Text.Format.Heavy as F
 import qualified Database.Persist.Sql as Sql
+import qualified Network.HTTP.Media as Media
 import Network.Wai
 import Network.Wai.Metrics
 import qualified Web.Scotty.Trans as Scotty
@@ -26,6 +30,7 @@ import Text.Localize
 import Text.Localize.IO
 
 import Batchd.Core.Common.Types
+import Batchd.Core.Daemon.Logging
 import Batchd.Common.Types
 
 instance Scotty.ScottyError Error where
@@ -117,7 +122,18 @@ type Action a = Scotty.ActionT Error Daemon a
 
 -- TODO: this should respect Accept-Language HTTP header
 instance Localized (Scotty.ActionT Error Daemon) where
-  getLanguage = lift getLanguage
+  getLanguage = do
+    translations <- lift getTranslations
+    let supportedLanguages = map fromString (M.keys $ tMap translations) :: [Media.Language]
+    mbAcceptLanguageHeader <- Scotty.header "Accept-Language"
+    case mbAcceptLanguageHeader of
+      Nothing -> lift getLanguage
+      Just acceptLanguageHeader ->
+        case Media.matchContent supportedLanguages (TE.encodeUtf8 $ TL.toStrict acceptLanguageHeader) of
+          Nothing -> lift getLanguage
+          Just language -> do
+            $debug "Select language: {}" (F.Single $ show language)
+            return $ show language
   getTranslations = lift getTranslations
   getContext = lift getContext
 

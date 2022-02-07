@@ -150,6 +150,16 @@ applyAuth rq = do
                 return $ rq {requestHeaders = ("X-Auth-User", stringToBstr name) : requestHeaders rq}
            else return rq
 
+applyLocale :: Request -> Client Request
+applyLocale rq = do
+  language <- getLanguage
+  return $ rq {requestHeaders = ("Accept-Language", stringToBstr language) : requestHeaders rq}
+
+applyHeaders :: Request -> Client Request
+applyHeaders rq = do
+  rq' <- applyLocale =<< applyAuth rq
+  return $ rq' {requestHeaders = ("User-Agent", "Batchd CLI") : requestHeaders rq'}
+
 handleStatus :: Response L.ByteString -> Client L.ByteString
 handleStatus rs = do
   debug (__ "Received response: {}") (Single $ Shown rs)
@@ -186,7 +196,7 @@ doPut urlStr object = do
   url <- liftIO $ parseUrlThrow urlStr
   let json = Aeson.encode object
   debug (__ "Request JSON: {}") (Single json)
-  request <- applyAuth $ url {
+  request <- applyHeaders $ url {
                   method="PUT",
                   checkResponse = allowAny,
                   requestBody = RequestBodyLBS json
@@ -201,7 +211,7 @@ doPost urlStr object = do
   url <- liftIO $ parseUrlThrow urlStr
   let json = Aeson.encode object
   debug (__ "Request JSON: {}") (Single json)
-  request <- applyAuth $ url {
+  request <- applyHeaders $ url {
                   method="POST",
                   checkResponse = allowAny,
                   requestBody = RequestBodyLBS json
@@ -214,7 +224,7 @@ doDelete :: String -> Client ()
 doDelete urlStr = do
   manager <- getManager
   url <- liftIO $ parseUrlThrow urlStr
-  request <- applyAuth $ url { method="DELETE",
+  request <- applyHeaders $ url { method="DELETE",
                       checkResponse = allowAny
                     }
   doHttp request manager
@@ -225,7 +235,7 @@ doGet :: FromJSON a => String -> Client a
 doGet urlStr = do
   manager <- getManager
   url <- liftIO $  parseUrlThrow urlStr
-  request <- applyAuth $ url {checkResponse = allowAny}
+  request <- applyHeaders $ url {checkResponse = allowAny}
   responseLbs <- doHttp request manager
   case Aeson.eitherDecode responseLbs of
     Left err -> throwC =<< (__f "Can't parse server response for GET request: {}" (Single err))
