@@ -229,8 +229,8 @@ raiseError (QueueNotExists name) = raise404 (__ "Queue not found: `{}'") (Just n
 raiseError JobNotExists   = raise404 (__ "Specified job not found") Nothing
 raiseError (FileNotExists name)  = raise404 (__ "File not found: `{}'") (Just name)
 raiseError (MetricNotExists name)  = raise404 (__ "Metric not found: `{}'") (Just name)
-raiseError QueueNotEmpty = raiseS status400 (__ "Queue is not empty") Nothing
-raiseError ScheduleUsed = raiseS status400 (__ "Schedule is used by queues") Nothing
+raiseError QueueNotEmpty = raiseS status403 (__ "Queue is not empty") Nothing
+raiseError ScheduleUsed = raiseS status403 (__ "Schedule is used by queues") Nothing
 raiseError InvalidStartTime = raiseS status400 (__ "Job start time does not match queue's schedule") Nothing
 raiseError (InsufficientRights msg) = do
   Scotty.status status403
