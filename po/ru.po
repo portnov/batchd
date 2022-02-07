@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 0.2.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-11-01 21:34+0500\n"
+"POT-Creation-Date: 2022-02-08 01:34+0500\n"
 "PO-Revision-Date: 2017-11-01 21:35+YEKST\n"
 "Last-Translator: Ilya Portnov <portnov84@rambler.ru>\n"
 "Language-Team: RU\n"
@@ -12,19 +12,35 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: src/Batchd/Daemon/Manager.hs:185:49
+#: src/Batchd/Daemon/Manager.hs:230:49
 msgid "File not found: `{}'"
 msgstr "Файл не найден: `{}'"
 
-#: src/Batchd/Daemon/Manager.hs:183:49
+#: src/Batchd/Daemon/Manager.hs:234:52
+msgid "Job start time does not match queue's schedule"
+msgstr "Время начала задания не соответствует расписанию очереди"
+
+#: src/Batchd/Daemon/Manager.hs:231:51
+msgid "Metric not found: `{}'"
+msgstr "Метрика не найдена: `{}'"
+
+#: src/Batchd/Daemon/Manager.hs:232:49
+msgid "Queue is not empty"
+msgstr "Очередь не пуста"
+
+#: src/Batchd/Daemon/Manager.hs:228:49
 msgid "Queue not found: `{}'"
 msgstr "Очередь не найдена: `{}'"
 
-#: src/Batchd/Daemon/Manager.hs:184:42
+#: src/Batchd/Daemon/Manager.hs:233:48
+msgid "Schedule is used by queues"
+msgstr "Расписание используется очередями"
+
+#: src/Batchd/Daemon/Manager.hs:229:42
 msgid "Specified job not found"
 msgstr "Указанное задание не найдено"
 
-#: src/Batchd/Daemon/Types.hs:175:46
+#: src/Batchd/Daemon/Types.hs:225:46
 msgid "Database connection is not established yet"
 msgstr "Соедениение с базой данных ещё не установлено"
 
@@ -32,11 +48,11 @@ msgstr "Соедениение с базой данных ещё не устан
 msgid "Can't load certificate/key: {}"
 msgstr "Невозможно загрузить сертификат/ключ: {}"
 
-#: src/Batchd/Client/Http.hs:231:33
+#: src/Batchd/Client/Http.hs:241:33
 msgid "Can't parse server response for GET request: {}"
 msgstr "Невозможно разобрать ответ сервера на запрос GET: {}"
 
-#: src/Batchd/Client/Http.hs:242:33
+#: src/Batchd/Client/Http.hs:252:33
 msgid "Can't parse server response for OPTIONS request: {}"
 msgstr "Невозможно разобрать ответ сервера на запрос OPTIONS: {}"
 
@@ -54,15 +70,15 @@ msgstr "Загружается HTTPS сертификат: {}, ключ: {}"
 msgid "Password is not required"
 msgstr "Пароль не требуется"
 
-#: src/Batchd/Client/Http.hs:155:13
+#: src/Batchd/Client/Http.hs:165:13
 msgid "Received response: {}"
 msgstr "Получен ответ: {}"
 
-#: src/Batchd/Client/Http.hs:188:13
+#: src/Batchd/Client/Http.hs:198:13
 msgid "Request JSON: {}"
 msgstr "Запрос JSON: {}"
 
-#: src/Batchd/Client/Http.hs:179:13
+#: src/Batchd/Client/Http.hs:189:13
 msgid "Sending request: {}"
 msgstr "Посылается запрос: {}"
 
@@ -70,7 +86,7 @@ msgstr "Посылается запрос: {}"
 msgid "Server certificate check disabled"
 msgstr "Проверка подлинности сервера отключена"
 
-#: src/Batchd/Client/Http.hs:156:15
+#: src/Batchd/Client/Http.hs:166:15
 msgid "Server response code is {} {}"
 msgstr "Код ответа сервера: {} {}"
 
@@ -86,31 +102,31 @@ msgstr "Невозможно прочитать указанное хранил�
 msgid "{} password: "
 msgstr "Пароль {}: "
 
-#: src/Batchd/Client/Actions.hs:52:33
+#: src/Batchd/Client/Actions.hs:57:33
 msgid "Can't load job type description: {}"
 msgstr "Невозможно загрузить описани типа задания: {}"
 
-#: src/Batchd/Client/Actions.hs:357:33
+#: src/Batchd/Client/Actions.hs:388:33
 msgid "Can't parse period description: {}"
 msgstr "Невозможно разобрать описание периода: {}"
 
-#: src/Batchd/Client/Actions.hs:197:24
+#: src/Batchd/Client/Actions.hs:220:24
 msgid "Created"
 msgstr "Создано"
 
-#: src/Batchd/Client/Actions.hs:407:39
+#: src/Batchd/Client/Actions.hs:439:41
 msgid "Default"
 msgstr "По умолчанию"
 
-#: src/Batchd/Client/Actions.hs:353:20
+#: src/Batchd/Client/Actions.hs:384:20
 msgid "Exactly one schedule name must be specified when creating a schedule"
 msgstr "При создании расписания должно быть указано ровно одно имя расписания"
 
-#: src/Batchd/Client/Actions.hs:373:20
+#: src/Batchd/Client/Actions.hs:405:20
 msgid "Exactly one schedule name must be specified when deleting a schedule"
 msgstr "При удалении расписания должно быть указано ровно одно имя расписания"
 
-#: src/Batchd/Client/Actions.hs:212:30
+#: src/Batchd/Client/Actions.hs:235:30
 msgid ""
 "Exit code:\t{}\n"
 "Time:\t{}\n"
@@ -120,95 +136,115 @@ msgstr ""
 "Время:\t{}\n"
 "\n"
 
-#: src/Batchd/Client/Actions.hs:195:24
+#: src/Batchd/Client/Actions.hs:217:24
 msgid "Host"
 msgstr "Хост"
 
-#: src/Batchd/Client/Actions.hs:456:32
+#: src/Batchd/Client/Actions.hs:535:32
 msgid "ID"
 msgstr "Ид"
 
-#: src/Batchd/Client/Actions.hs:108:61
+#: src/Batchd/Client/Actions.hs:115:61
 msgid "Invalid status"
 msgstr "Неверный статус"
 
-#: src/Batchd/Client/Actions.hs:459:32
+#: src/Batchd/Client/Actions.hs:538:32
 msgid "Job type"
 msgstr "Тип задания"
 
-#: src/Batchd/Client/Actions.hs:404:39
+#: src/Batchd/Client/Actions.hs:436:41
 msgid "Name"
 msgstr "Имя"
 
-#: src/Batchd/Client/Actions.hs:234:36
+#: src/Batchd/Client/Actions.hs:257:36
 msgid "No mode is selected"
 msgstr "Ни один режим не выбран"
 
-#: src/Batchd/Client/Actions.hs:396:35
+#: src/Batchd/Client/Actions.hs:218:24
+msgid "Notes"
+msgstr "Примечания"
+
+#: src/Batchd/Client/Actions.hs:429:38
 msgid "On fail"
 msgstr "При неудаче"
 
-#: src/Batchd/Client/Actions.hs:243:34
+#: src/Batchd/Client/Actions.hs:266:34
 msgid "Only one mode can be selected"
 msgstr "Может быть выбран только один режим"
 
-#: src/Batchd/Client/Actions.hs:192:24
+#: src/Batchd/Client/Actions.hs:214:24
 msgid "Order"
 msgstr "Порядок"
 
-#: src/Batchd/Client/Actions.hs:400:33
+#: src/Batchd/Client/Actions.hs:432:35
 msgid "Parameters:"
 msgstr "Параметры:"
 
-#: src/Batchd/Client/Actions.hs:457:32
+#: src/Batchd/Client/Actions.hs:536:32
 msgid "Permission"
 msgstr "Разрешение"
 
-#: src/Batchd/Client/Actions.hs:194:24
+#: src/Batchd/Client/Actions.hs:216:24
 msgid "Queue"
 msgstr "Очередь"
 
-#: src/Batchd/Client/Actions.hs:198:24
+#: src/Batchd/Client/Actions.hs:221:24
 msgid "Start"
 msgstr "Начало"
 
-#: src/Batchd/Client/Actions.hs:199:24
+#: src/Batchd/Client/Actions.hs:222:24
 msgid "Status"
 msgstr "Статус"
 
-#: src/Batchd/Client/Actions.hs:395:35
+#: src/Batchd/Client/Actions.hs:445:11
 msgid "Template"
 msgstr "Шаблон"
 
-#: src/Batchd/Client/Actions.hs:394:35
+#: src/Batchd/Client/Actions.hs:427:38
 msgid "Title"
 msgstr "Название"
 
-#: src/Batchd/Client/Actions.hs:200:24
+#: src/Batchd/Client/Actions.hs:223:24
 msgid "Try count"
 msgstr "Количество попыток"
 
-#: src/Batchd/Client/Actions.hs:193:24
+#: src/Batchd/Client/Actions.hs:215:24
 msgid "Type"
 msgstr "Тип"
 
-#: src/Batchd/Client/Actions.hs:196:24
+#: src/Batchd/Client/Actions.hs:219:24
 msgid "User"
 msgstr "Пользователь"
 
-#: src/Batchd/Client/Actions.hs:474:39
+#: src/Batchd/Client/Actions.hs:481:43
+msgid "count: {value}"
+msgstr "количество: {value}"
+
+#: src/Batchd/Client/Actions.hs:485:34
+msgid ""
+"mean: {mean}; variance: {variance}; count: {count}; sum: {sum}; min: {min}; "
+"max: {max}"
+msgstr ""
+"среднее: {mean}; отклонение: {variance}; количество: {count}; сумма: {sum}; мин.: {min}; "
+"макс.: {max}"
+
+#: src/Batchd/Client/Actions.hs:554:39
 msgid "permission (-p) must be specified"
 msgstr "должно быть укзаано разрешение (-p)"
 
-#: src/Batchd/Client/Actions.hs:485:38
+#: src/Batchd/Client/Actions.hs:566:38
 msgid "permission ID (-i) must be specified"
 msgstr "должен быть указан идентификатор разрешения (-i)"
 
-#: src/Batchd/Client/Shell.hs:76:35
-msgid "Error: {}"
-msgstr "Ошибка: {}"
+#: src/Batchd/Client/Actions.hs:483:41
+msgid "text: {text}"
+msgstr "текст: {text}"
 
-#: src/Batchd/Client/Shell.hs:71:19
+#: src/Batchd/Client/Actions.hs:482:41
+msgid "value: {value}"
+msgstr "значение: {value}"
+
+#: src/Batchd/Client/Shell.hs:74:19
 msgid ""
 "This is batch client shell. Type `--help' for list of available commands or "
 "`some_command --help' (without quotes) for help message on particular "
@@ -217,7 +253,7 @@ msgstr ""
 "Это оболочка клиента batch. Наберите `--help' для списка доступных команд, "
 "или `some_commmand --help' (без кавычек) для справки по конкретной команде."
 
-#: src/Batchd/Client/Config.hs:95:59
+#: src/Batchd/Client/Config.hs:99:59
 msgid ""
 "Can't parse client configuration file:\n"
 "{}"
@@ -225,17 +261,21 @@ msgstr ""
 "Невозможно разобрать конфигурационный файл клиента:\n"
 "{}"
 
-#: src/Batchd/Common/Config.hs:47:32
+#: src/Batchd/Common/Config.hs:50:32
 msgid "Password again: "
 msgstr "Пароль ещё раз: "
 
-#: src/Batchd/Common/Config.hs:46:32
+#: src/Batchd/Common/Config.hs:49:32
 msgid "Password: "
 msgstr "Пароль: "
 
-#: src/Batchd/Common/Config.hs:49:24
+#: src/Batchd/Common/Config.hs:52:24
 msgid "passwords do not match"
 msgstr "пароли не совпадают"
+
+#: src/batch.hs:20:59
+msgid "Error: {}"
+msgstr "Ошибка: {}"
 
 #~ msgid "Job to be queued: {}"
 #~ msgstr "Задание для постановки в очередь: {}"
